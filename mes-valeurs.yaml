@@ -1,0 +1,8 @@
+# Configuration personnalisée de Jitsi Meet
+
+# Adresse fictive pour les tests Helm
+publicURL: "https://meet.exemple.fr"
+
+# Réplication de l'interface Web
+web:
+  replicaCount: 2

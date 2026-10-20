@@ -1,0 +1,12 @@
+# Fichiers générés par Helm
+rendu.yaml
+rendu-jitsi.yaml
+*.tgz
+
+# Fichiers sensibles
+.env
+.env.*
+*.pem
+*.key
+kubeconfig
+*.kubeconfig
