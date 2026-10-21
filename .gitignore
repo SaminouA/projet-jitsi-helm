@@ -10,3 +10,9 @@ rendu-jitsi.yaml
 *.key
 kubeconfig
 *.kubeconfig
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
