@@ -1,0 +1,19 @@
+# Configuration Jitsi pour GKE - environnement de test
+
+publicURL: "localhost:8081"
+
+enableAuth: false
+enableGuests: true
+
+web:
+  service:
+    type: ClusterIP
+
+jvb:
+  replicaCount: 1
+  service:
+    enabled: true
+    type: ClusterIP
+
+coturn:
+  enabled: false

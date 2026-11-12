@@ -16,3 +16,14 @@ kubeconfig
 *.tfstate.*
 *.tfvars
 *.tfvars.json
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/tfplan
+**/.terraform.tfstate.lock.info
+**/crash.log
+**/*.tfvars
+**/*.tfvars.json
