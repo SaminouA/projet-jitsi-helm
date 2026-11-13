@@ -27,3 +27,8 @@ kubeconfig
 **/crash.log
 **/*.tfvars
 **/*.tfvars.json
+
+# Surcharge propre au futur deploiement public et environnement Python
+values-gke.public.yaml
+.venv/
+__pycache__/

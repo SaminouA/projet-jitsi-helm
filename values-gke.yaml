@@ -1,19 +1,38 @@
-# Configuration Jitsi pour GKE - environnement de test
-
-publicURL: "localhost:8081"
-
+# Profil de preparation hors ligne / acces Web par port-forward uniquement.
+# Pour GKE public, ajouter la surcharge produite par scripts/gke-values.py.
+# Ne pas deployer ce fichier seul : le LoadBalancer JVB serait facturable.
+publicURL: "http://localhost:8081"
 enableAuth: false
 enableGuests: true
-
+websockets:
+  xmpp:
+    enabled: false # BOSH via le proxy Web, meme origine que le navigateur.
 web:
-  service:
-    type: ClusterIP
-
-jvb:
+  custom:
+    configs:
+      # Meme protocole et meme hote que la page, y compris derriere TLS.
+      _custom_config_js: |
+        config.bosh = window.location.origin + '/http-bind';
   replicaCount: 1
   service:
-    enabled: true
     type: ClusterIP
-
+  ingress:
+    enabled: false
+  gateway:
+    enabled: false
+  httpRedirect: false
+jvb:
+  replicaCount: 1
+  useHostPort: false
+  useHostNetwork: false
+  useNodeIP: false
+  UDPPort: 10000
+  portRangeSize: 1
+  publicIPs: [] # Obligatoire dans la surcharge publique : IP du LB UDP.
+  disableStun: true # Ne pas annoncer une IP NAT decouverte differente du LB.
+  service:
+    enabled: true
+    type: LoadBalancer
+    externalTrafficPolicy: Cluster
 coturn:
   enabled: false
