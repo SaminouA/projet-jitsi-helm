@@ -12,15 +12,15 @@ tmp_dir=$(mktemp -d)
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 for values in mes-valeurs.yaml values-gke.yaml; do
     helm lint --strict ./charts-officiels/jitsi-meet -f "$values"
-    helm template mon-jitsi ./charts-officiels/jitsi-meet -f "$values" > "$tmp_dir/render.yaml"
+    helm template jitsi --namespace jitsi ./charts-officiels/jitsi-meet -f "$values" > "$tmp_dir/render.yaml"
     if [ "$values" = values-gke.yaml ]; then
         python3 scripts/check-render.py "$tmp_dir/render.yaml"
     fi
 done
 if [ -n "${GKE_VALUES_FILE:-}" ]; then
     helm lint --strict ./charts-officiels/jitsi-meet -f values-gke.yaml -f "$GKE_VALUES_FILE"
-    helm template mon-jitsi ./charts-officiels/jitsi-meet -f values-gke.yaml -f "$GKE_VALUES_FILE" > "$tmp_dir/public.yaml"
-    python3 scripts/check-render.py "$tmp_dir/public.yaml" --public
+    helm template jitsi --namespace jitsi ./charts-officiels/jitsi-meet -f values-gke.yaml -f "$GKE_VALUES_FILE" > "$tmp_dir/demo.yaml"
+    python3 scripts/check-render.py "$tmp_dir/demo.yaml" --ready
 fi
 # Copie isolee : aucun acces au backend, a .terraform ou aux etats du projet.
 terraform fmt -check -recursive terraform

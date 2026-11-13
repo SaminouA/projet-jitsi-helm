@@ -32,3 +32,7 @@ kubeconfig
 values-gke.public.yaml
 .venv/
 __pycache__/
+values-gke.demo.yaml
+
+# Plans de nettoyage locaux
+**/tfplan-*

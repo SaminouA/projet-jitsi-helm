@@ -1,6 +1,7 @@
-# Profil de preparation hors ligne / acces Web par port-forward uniquement.
-# Pour GKE public, ajouter la surcharge produite par scripts/gke-values.py.
-# Ne pas deployer ce fichier seul : le LoadBalancer JVB serait facturable.
+# Demonstration sans domaine : Web prive via localhost:8081, JVB public UDP.
+# Phase 1 : installer pour obtenir l'IP du LoadBalancer (pas encore de reunion).
+# Phase 2 : ajouter values-gke.demo.yaml genere avec l'IP reelle du Service.
+# Une installation GKE cree un LoadBalancer facturable : autorisation requise.
 publicURL: "http://localhost:8081"
 enableAuth: false
 enableGuests: true
@@ -28,7 +29,7 @@ jvb:
   useNodeIP: false
   UDPPort: 10000
   portRangeSize: 1
-  publicIPs: [] # Obligatoire dans la surcharge publique : IP du LB UDP.
+  publicIPs: [] # Phase 2 : IP reelle via scripts/jvb-values.py.
   disableStun: true # Ne pas annoncer une IP NAT decouverte differente du LB.
   service:
     enabled: true
