@@ -1,0 +1,39 @@
+# Demonstration sans domaine : Web prive via localhost:8081, JVB public UDP.
+# Phase 1 : installer pour obtenir l'IP du LoadBalancer (pas encore de reunion).
+# Phase 2 : ajouter values-gke.demo.yaml genere avec l'IP reelle du Service.
+# Une installation GKE cree un LoadBalancer facturable : autorisation requise.
+publicURL: "http://localhost:8081"
+enableAuth: false
+enableGuests: true
+websockets:
+  xmpp:
+    enabled: false # BOSH via le proxy Web, meme origine que le navigateur.
+web:
+  custom:
+    configs:
+      # Meme protocole et meme hote que la page, y compris derriere TLS.
+      _custom_config_js: |
+        config.bosh = window.location.origin + '/http-bind';
+  replicaCount: 1
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  gateway:
+    enabled: false
+  httpRedirect: false
+jvb:
+  replicaCount: 1
+  useHostPort: false
+  useHostNetwork: false
+  useNodeIP: false
+  UDPPort: 10000
+  portRangeSize: 1
+  publicIPs: [] # Phase 2 : IP reelle via scripts/jvb-values.py.
+  disableStun: true # Ne pas annoncer une IP NAT decouverte differente du LB.
+  service:
+    enabled: true
+    type: LoadBalancer
+    externalTrafficPolicy: Cluster
+coturn:
+  enabled: false

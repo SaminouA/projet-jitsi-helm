@@ -1,31 +1,27 @@
-
-name: CI Helm Jitsi
-
+name: Validation Helm et Terraform
 on:
   push:
-    branches:
-      - feature/ci-helm
-      - main
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  helm-validation:
+  validation:
     name: Validation Helm
     runs-on: ubuntu-latest
-
     steps:
-      - name: Recuperer le code
-        uses: actions/checkout@v4
-
-      - name: Installer Helm
-        uses: azure/setup-helm@v4
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
         with:
           version: v3.22.1
-
-      - name: Verifier le Chart Helm
-        run: helm lint ./charts-officiels/jitsi-meet -f mes-valeurs.yaml
-
-      - name: Generer les manifestes Kubernetes
-        run: helm template mon-jitsi ./charts-officiels/jitsi-meet -f mes-valeurs.yaml > /tmp/jitsi-rendu.yaml
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install -r scripts/requirements.txt
+      - name: Valider les deux profils Helm et Terraform sans backend
+        run: sh scripts/validate.sh

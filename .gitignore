@@ -10,3 +10,32 @@ rendu-jitsi.yaml
 *.key
 kubeconfig
 *.kubeconfig
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Terraform
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/tfplan
+**/.terraform.tfstate.lock.info
+**/crash.log
+**/*.tfvars
+**/*.tfvars.json
+
+# Surcharge propre au futur deploiement public et environnement Python
+values-gke.public.yaml
+.venv/
+__pycache__/
+values-gke.demo.yaml
+
+# Plans de nettoyage locaux
+**/tfplan-*
+
+# Mesures locales de surveillance Jitsi
+tests/results/
