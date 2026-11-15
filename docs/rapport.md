@@ -291,7 +291,10 @@ locaux ; le motif tfplan-* est ignoré par Git. Contrôler les IP réservées, d
 LB résiduels et la facturation. Les nœuds, stockage, LB et trafic peuvent coûter
 de l'argent pendant la session ; ne pas laisser l'infrastructure active inutilement.
 
-## État des validations
+## État des validations à la fin de la préparation hors ligne
+
+Cet état décrit la phase de préparation ; les résultats de la session du
+15 novembre 2026 sont consignés dans la section suivante.
 
 Validé localement : lint/rendu Helm des deux profils, invariants de phase 1,
 format et validation Terraform isolée, syntaxe et refus des IP invalides.
@@ -300,3 +303,263 @@ servi, BOSH en exécution, tunnels VS Code/SSH, restrictions SSH effectives,
 caméra/micro, ICE/UDP, conférence à trois, nettoyage cloud et CI distante des
 modifications actuelles. Aucun accès ni changement d'état Terraform, aucune
 ressource cloud créée ou modifiée dans cette préparation. Aucun commit/push.
+
+
+## Validation fonctionnelle de Jitsi — 15 novembre 2026
+
+### Déploiement et accès à l'interface
+
+Le cluster GKE `jitsi-cluster` est opérationnel avec deux nœuds `Ready`.
+La release Helm `jitsi`, dans le namespace `jitsi`, est déployée avec succès
+à la révision 2. Les pods Web, Prosody, Jicofo et JVB sont `Running`.
+
+L'accès depuis Windows repose sur deux transferts successifs. Sur la VM, le
+port-forward Kubernetes relie le port loopback 8081 au port 8000 du Service Web :
+
+```sh
+kubectl -n jitsi port-forward --address 127.0.0.1 \
+  svc/jitsi-jitsi-meet-web 8081:8000
+```
+
+Dans VS Code Remote SSH, le port distant 8081 est ensuite transféré vers le
+port local Windows 8081. L'interface est accessible dans le navigateur Windows
+à `http://localhost:8081`, sans domaine ni certificat TLS pour cet accès local.
+
+### Incident de transfert VS Code et résolution
+
+Le premier transfert VS Code acceptait les connexions TCP mais ne transmettait
+aucune réponse HTTP. Les contrôles sur la VM ont confirmé que le processus
+`kubectl port-forward` écoutait correctement sur `127.0.0.1:8081`, que le Service
+Web disposait d'un endpoint prêt et qu'une requête HTTP locale recevait
+`200 OK`. Le chemin Kubernetes vers Web fonctionnait donc pendant l'incident.
+
+La suppression du transfert de port dans VS Code, puis sa recréation manuelle
+vers le port distant 8081, ont rétabli l'accès depuis Windows. Cette manipulation
+concernait uniquement le transfert VS Code ; elle n'a pas nécessité de modifier
+le déploiement Jitsi ou les règles réseau GCP.
+
+### Résultats du test à un participant
+
+Les contrôles techniques ont confirmé une réponse HTTP 200 de Web, la présence
+de la surcharge BOSH dans le `config.js` servi et l'ouverture d'une session BOSH
+via le proxy Web. Depuis Windows, la salle « demo » a été rejointe avec succès.
+La caméra affichait l'image à l'écran, le microphone était détecté et
+l'utilisateur était identifié comme modérateur.
+
+Le test fonctionnel avec un seul participant est validé. Il confirme l'accès à
+l'interface, l'entrée dans une salle et l'utilisation locale des périphériques.
+La détection du microphone ne prouve pas la transmission du son à un autre
+participant ; l'aperçu caméra ne prouve pas non plus la transmission vidéo.
+
+### Résultats du test à deux participants
+
+Deux participants, « nadira » et « test », se sont connectés simultanément à
+la salle « demo ». Les essais ont été réalisés avec deux sessions sur un même
+ordinateur Windows, via `http://localhost:8081` et le transfert de port
+VS Code Remote SSH.
+
+La transmission vidéo entre les deux sessions est validée. La transmission
+audio a été confirmée par l'utilisatrice. Le chat collectif et les messages
+privés sont fonctionnels ; la liste des participants affiche les deux
+utilisateurs. Ces résultats complètent le premier test à un participant et
+valident les fonctions observées dans cette configuration locale.
+
+### Validation de Jitsi Videobridge — conférence à trois participants
+
+**Date : 15 novembre 2026.** Les participants « nadira », « test » et « test3 »
+étaient connectés simultanément à la salle « demo » lors du diagnostic en
+lecture seule. Deux lectures de l'API JVB `/colibri/stats` ont été réalisées à
+15:56:39 et 15:56:55, heure de Paris, avec un intervalle mesuré de
+**15,271 secondes**.
+
+| Indicateur | Première mesure | Seconde mesure |
+|---|---:|---:|
+| `healthy` | `true` | `true` |
+| `conferences` | 1 | 1 |
+| `inactive_conferences` | 0 | 0 |
+| `participants` | 3 | 3 |
+| `endpoints` | 3 | 3 |
+| `p2p_conferences` | 0 | 0 |
+| `bit_rate_download` | 829 | 693 |
+| `bit_rate_upload` | 892 | 722 |
+| `packet_rate_download` | 269 | 245 |
+| `packet_rate_upload` | 257 | 232 |
+
+Les débits et taux de paquets sont conservés comme valeurs brutes de l'API,
+sans conversion ni attribution d'unités non vérifiées. Les compteurs cumulés
+suivants n'ont pas varié sur cet intervalle :
+
+| Compteur | Valeur aux deux mesures | Variation |
+|---|---:|---:|
+| `total_bytes_received` | 143 354 | 0 |
+| `total_bytes_sent` | 10 500 | 0 |
+| `total_packets_received` | 1 813 | 0 |
+| `total_packets_sent` | 214 | 0 |
+
+Leur stabilité ne constitue pas une preuve d'augmentation du trafic pendant
+les 15,271 secondes. Aucune explication de leur mode d'actualisation n'a été
+établie par ce diagnostic.
+
+Les compteurs ICE indiquaient **5 succès et 0 échec** ; il s'agit des totaux
+observés, pas nécessairement de cinq nouvelles connexions pendant l'intervalle.
+Les logs récents JVB montraient `ICE connected` et une transition vers
+`Completed`, sans erreur ICE détectée dans la fenêtre examinée.
+
+Dans le fonctionnement habituel de Jitsi, deux participants peuvent échanger
+leurs médias directement en mode pair-à-pair. L'arrivée d'un troisième
+participant provoque normalement le passage au pont vidéo plutôt que le
+maintien de cette connexion P2P à deux. Jicofo organise la conférence et
+l'utilisation du bridge ; JVB reçoit les flux des participants et les
+retransmet aux destinataires. Dans cette architecture, son accès média public
+est exposé par le LoadBalancer UDP 10000, indépendamment des tunnels TCP
+utilisés pour l'interface Web et BOSH.
+
+L'activité média sur JVB est **fortement étayée** par la conférence active à
+trois endpoints, l'absence de conférence comptabilisée en P2P et les débits
+entrants et sortants non nuls. Les connexions ICE réussies soutiennent ce
+constat de connectivité. Ces observations ne constituent toutefois pas une
+validation individuelle de chaque flux audio et vidéo reçu par chacun des
+participants ; elles ne doivent pas être confondues avec une mesure de qualité
+ou de capacité.
+
+### Tests de performance — référence au repos
+
+**Date : 15 novembre 2026.** Le scénario `reference-repos-confirme` a été
+observé de 16:21:27 à 16:23:27, heure de Paris. Les données proviennent de
+`tests/results/20261115T152127.518271Z_reference-repos-confirme/` et ont été collectées avec `scripts/monitor-load.sh`, sans générer
+de charge.
+
+La collecte s'est achevée normalement après **120,001 secondes**, sans
+interruption : **8 relevés**, cadence configurée de 15 secondes et **zéro
+erreur de collecte**. Les relevés vont du lancement à la seconde 105.0 ;
+la durée totale inclut l'attente finale. Les fichiers JSONL sont lisibles et
+le nombre de relevés correspond au bilan `summary.json`.
+
+Sur tous les relevés, `conferences=0`, `participants=0` et `endpoints=0`.
+JVB est resté `healthy=true`. Cette exécution constitue donc une référence
+au repos valide pour la période observée, contrairement au scénario précédent
+`reference-sans-participants`, qui comportait encore trois participants.
+
+| Ressource | CPU min. (mCPU) | CPU moyen (mCPU) | CPU max. (mCPU) | Mémoire min. (Mio) | Mémoire moyenne (Mio) | Mémoire max. (Mio) |
+|---|---:|---:|---:|---:|---:|---:|
+| JVB | 6,299 | 8,632 | 11,070 | 303,578 | 303,580 | 303,582 |
+| Nœud `…ddx2` | 123,128 | 128,622 | 140,299 | 2220,863 | 2224,256 | 2227,859 |
+| Nœud `…jjk0` | 118,544 | 128,161 | 138,823 | 2055,973 | 2058,711 | 2061,828 |
+
+Les valeurs CPU sont converties depuis les quantités Kubernetes :
+1 mCPU = 1 000 000 nanocœurs et 1 CPU = 1 000 mCPU. Pour la mémoire,
+1 Mio = 1 024 Kio = 1 048 576 octets. Les moyennes sont arithmétiques sur les
+8 relevés, en sommant les conteneurs pour le pod JVB. Metrics Server peut
+retourner une même observation à plusieurs lectures ; les nombres d'horodatages
+source distincts sont : nœud …ddx2 : 4, nœud …jjk0 : 4, JVB : 4. Les minima et maxima sont ceux des
+observations collectées, pas des pics instantanés garantis.
+
+Les quatre pods Web, Prosody, Jicofo et JVB sont restés `Running` et `Ready`
+sur tous les relevés, avec un compteur de redémarrages égal à zéro.
+La disponibilité observée des pods ne remplace pas un test utilisateur ou
+une mesure HTTP continue. Cette référence courte décrit la consommation au
+repos ; elle ne permet pas de déduire une capacité maximale ni la performance
+sous charge.
+
+### Tests de performance — palier à trois participants
+
+**Date : 15 novembre 2026.** Le scénario `palier-3-participants` est comparé
+à la dernière exécution de `reference-repos-confirme` du même jour. Sources :
+
+- `tests/results/20261115T152127.518271Z_reference-repos-confirme/`
+- `tests/results/20261115T152725.078684Z_palier-3-participants/`
+
+Les bilans `summary.json` indiquent respectivement **120,001 secondes et
+8 relevés** pour le repos, puis **300,001 secondes et 20 relevés** pour le
+palier. Les deux collectes sont terminées sans interruption, avec zéro échec
+de requête. Les fichiers `errors.jsonl` sont vides et aucun relevé ne contient
+d'erreur de collecte. La cadence configurée est de 15 secondes. Pour le palier,
+le premier et le dernier relevés sont séparés de 285 secondes ; la durée totale
+inclut l'attente finale.
+
+#### Comparaison des ressources
+
+| Ressource | Scénario | CPU min. (mCPU) | CPU moyen (mCPU) | CPU max. (mCPU) | Mémoire min. (Mio) | Mémoire moyenne (Mio) | Mémoire max. (Mio) |
+|---|---|---:|---:|---:|---:|---:|---:|
+| JVB | Repos | 6,299 | 8,632 | 11,070 | 303,578 | 303,580 | 303,582 |
+| JVB | Palier 3 | 3,089 | 85,794 | 142,609 | 303,582 | 305,922 | 307,879 |
+| Nœud `…ddx2` | Repos | 123,128 | 128,622 | 140,299 | 2220,863 | 2224,256 | 2227,859 |
+| Nœud `…ddx2` | Palier 3 | 105,472 | 198,941 | 302,259 | 2223,504 | 2228,494 | 2232,629 |
+| Nœud `…jjk0` | Repos | 118,544 | 128,161 | 138,823 | 2055,973 | 2058,711 | 2061,828 |
+| Nœud `…jjk0` | Palier 3 | 113,430 | 129,523 | 162,221 | 2052,543 | 2057,631 | 2060,398 |
+
+Conversions : 1 mCPU = 1 000 000 nanocœurs ; 1 Mio = 1 024 Kio.
+Les moyennes arithmétiques portent sur tous les relevés de chaque scénario,
+en sommant les conteneurs pour JVB. Les compteurs CPU/mémoire ont quatre
+horodatages source distincts par ressource au repos et dix au palier : des
+lectures successives réutilisent certaines observations Metrics Server.
+
+#### Conférence, média et stabilité
+
+Le palier ne maintient pas trois participants pendant toute la collecte :
+quatre relevés indiquent zéro conférence et zéro endpoint, un relevé indique
+une conférence avec deux endpoints mais aucun endpoint local actif, puis
+quinze relevés indiquent une conférence avec trois endpoints et trois
+endpoints locaux actifs. Ces quinze observations vont de 16:28:40 à 16:32:10,
+heure de Paris. Les moyennes ci-dessus incluent donc la montée en charge et
+ne sont pas les moyennes d'un régime constant à trois participants.
+
+| Statistique JVB | Repos : min. / moyenne / max. | Palier : min. / moyenne / max. |
+|---|---:|---:|
+| `conferences` | 0 / 0 / 0 | 0 / 0,8 / 1 |
+| `participants` et `endpoints` | 0 / 0 / 0 | 0 / 2,35 / 3 |
+| `local_active_endpoints` | 0 / 0 / 0 | 0 / 2,25 / 3 |
+| `bit_rate_download` | 0 / 0 / 0 | 0 / 594,85 / 827 |
+| `bit_rate_upload` | 0 / 0 / 0 | 0 / 724,3 / 1 029 |
+| `packet_rate_download` | 0 / 0 / 0 | 0 / 207,9 / 315 |
+| `packet_rate_upload` | 0 / 0 / 0 | 0 / 321,85 / 452 |
+
+Les débits et taux de paquets conservent les valeurs brutes de l'API, sans
+unités ajoutées. Une conférence inactive et une conférence P2P sont chacune
+signalées sur un relevé transitoire ; aucun des quinze relevés à trois
+endpoints actifs n'est comptabilisé en P2P ou comme conférence inactive.
+JVB reste `healthy=true` sur tous les relevés.
+
+`total_ice_failed`, `endpoints_ice_failed`, `relays_ice_failed` et
+`dtls_failed_endpoints` restent à zéro. `total_ice_succeeded` passe de 5 à 8,
+soit trois succès supplémentaires pendant le palier. Les compteurs cumulés
+`total_bytes_received`, `total_bytes_sent`, `total_packets_received` et
+`total_packets_sent` restent respectivement à 126 702 372, 133 997 464,
+355 307 et 320 743 : aucune augmentation n'est observée sur cet intervalle.
+Ils ne doivent pas être utilisés comme preuve d'un volume transféré pendant
+le test ; les débits non nuls et les endpoints actifs étayent l'activité média.
+
+Les pods Web, Prosody, Jicofo et JVB sont `Running` et `Ready` sur les 20
+relevés du palier, comme sur les 8 relevés de repos. Leurs compteurs de
+redémarrages restent à zéro. Ce constat porte sur les instants échantillonnés,
+pas sur une disponibilité continue mesurée par un client. L'absence d'erreur
+de collecte ou d'échec ICE ne constitue pas une analyse exhaustive des logs.
+
+#### Portée du résultat
+
+Le CPU moyen JVB est plus élevé que lors du repos, tandis que sa mémoire
+reste proche de la référence. Ce résultat décrit un petit palier observé ;
+il ne détermine ni la capacité maximale du bridge, ni une limite de
+participants supportés, ni une performance garantie.
+
+Les durées des scénarios diffèrent, le palier inclut l'arrivée des participants
+et les mesures Metrics Server ne sont pas toutes indépendantes. Aucun profil
+constant de résolution, de cadence vidéo ou de nombre d'émetteurs n'est
+consigné dans ces fichiers. Ils ne valident ni chaque flux reçu, ni les
+échanges entre réseaux distincts, ni la latence ou la qualité audio/vidéo.
+Les performances des postes générateurs et des tunnels ne sont pas mesurées.
+Des paliers stabilisés, répétés et à des charges supérieures seront nécessaires
+pour poursuivre l'évaluation.
+
+### Limites et validations restantes
+
+Les échanges entre deux réseaux différents restent à valider séparément.
+Le diagnostic à trois participants étaye l'activité média du bridge, mais
+une vérification des statistiques WebRTC côté navigateurs et des observations
+de chaque participant reste nécessaire pour valider individuellement les
+flux reçus. Le chemin média du précédent test à deux participants n'a pas été
+établi rétrospectivement.
+
+Les tests à des charges supérieures restent à réaliser. Les valeurs brutes de débit
+ci-dessus ne constituent pas une évaluation de performance ; aucune mesure
+de latence, de qualité ou de capacité sous charge n'a été validée à ce stade.

@@ -36,3 +36,6 @@ values-gke.demo.yaml
 
 # Plans de nettoyage locaux
 **/tfplan-*
+
+# Mesures locales de surveillance Jitsi
+tests/results/
