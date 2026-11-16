@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Verifie les invariants reseau du profil GKE rendu, pas son fonctionnement."""
+import argparse
 import ipaddress
-import sys
+import re
 from urllib.parse import urlparse
 import yaml
 
@@ -9,15 +10,43 @@ def require(condition, message):
     if not condition:
         raise SystemExit(message)
 
-docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("manifest")
+profiles = parser.add_mutually_exclusive_group()
+profiles.add_argument("--public", action="store_true", help="Profil historique Ingress GCE")
+profiles.add_argument("--edge", action="store_true", help="HTTPS via proxy externe, Web prive")
+profiles.add_argument("--auto-profile", action="store_true", help="CI : localhost exact ou HTTPS edge")
+parser.add_argument("--ready", action="store_true")
+args = parser.parse_args()
+
+
+def https_origin(value):
+    try:
+        url = urlparse(value)
+        host = url.hostname or ""
+        valid = (url.scheme == "https" and url.netloc == host and
+                 url.path in ("", "/") and not url.query and not url.fragment and
+                 len(host) <= 253 and "." in host and
+                 all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label)
+                     for label in host.split(".")))
+        try:
+            ipaddress.ip_address(host)
+            return False
+        except ValueError:
+            return bool(valid)
+    except ValueError:
+        return False
+
+
+docs = [d for d in yaml.safe_load_all(open(args.manifest)) if d]
 common = next(d["data"] for d in docs if d["kind"] == "ConfigMap" and "PUBLIC_URL" in (d.get("data") or {}))
 web = next(d["data"] for d in docs if d["kind"] == "ConfigMap" and "XMPP_BOSH_URL_BASE" in (d.get("data") or {}))
-public = "--public" in sys.argv[2:]
-edge = "--edge" in sys.argv[2:]
-ready = "--ready" in sys.argv[2:]
+public = args.public
+edge = args.edge or (args.auto_profile and common["PUBLIC_URL"] != "http://localhost:8081")
+ready = args.ready
 if public:
     url = urlparse(common["PUBLIC_URL"])
-    require(url.scheme == "https" and url.hostname and url.netloc == url.hostname and url.path in ("", "/") and not url.query and not url.fragment, "URL publique HTTPS avec DNS requise")
+    require(https_origin(common["PUBLIC_URL"]), "URL publique HTTPS avec DNS requise")
     ingress = next((d for d in docs if d["kind"] == "Ingress"), None)
     require(ingress is not None, "Ingress manquant")
     require(ingress["metadata"].get("annotations", {}).get("kubernetes.io/ingress.class") == "gce", "Ingress GCE attendu")
@@ -31,10 +60,7 @@ if public:
         ip = ipaddress.IPv4Address(value)
         require(ip.is_global and not ip.is_multicast, "IP JVB publique unicast requise")
 elif edge:
-    url = urlparse(common["PUBLIC_URL"])
-    require(url.scheme == "https" and url.hostname and url.netloc == url.hostname and
-            url.path in ("", "/") and not url.query and not url.fragment,
-            "Profil edge : origine HTTPS complete requise")
+    require(https_origin(common["PUBLIC_URL"]), "Profil edge : origine HTTPS avec DNS requise")
 else:
     require(common["PUBLIC_URL"] == "http://localhost:8081", "URL locale incoherente")
 require(common["ENABLE_XMPP_WEBSOCKET"] == "false", "Profil attendu : BOSH")

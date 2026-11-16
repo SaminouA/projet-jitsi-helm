@@ -1,5 +1,5 @@
 
-publicURL: "http://localhost:8081"
+publicURL: "https://jitsi-meet-m2.duckdns.org"
 enableAuth: false
 enableGuests: true
 websockets:

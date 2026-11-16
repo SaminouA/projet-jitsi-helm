@@ -1740,3 +1740,577 @@ borné dans `docs/validation-remise.md`. Ces livrables séparent l'infrastructur
 observée, les tests statiques et les essais encore nécessaires. Les résultats
 fonctionnels du 15 novembre restent des résultats historiques, distincts du
 contrôle actuel. Le README a été corrigé : le cluster est actif aujourd'hui.
+
+
+## Préparation du domaine DuckDNS réel — 16 novembre 2026
+
+L'utilisateur a déclaré réservé `jitsi-meet-m2.duckdns.org`, sans autoriser de
+création payante. Le dépôt était propre sur `feature/jitsi-public-edge` à
+`c591ad4`, identique au distant. Deux surcharges ont été préparées localement :
+`deploy/jitsi-edge-duckdns.yaml` pour Caddy en ACME staging et
+`deploy/jitsi-duckdns.yaml` pour l'URL Jitsi. `jitsi-edge-ip` est un nom de
+réservation proposé ; aucune adresse n'a été créée. Les profils génériques et
+les workflows n'ont pas été modifiés.
+
+Le contrôle cluster confirme quatre pods Ready sans redémarrage, la release
+`jitsi` révision 2 déployée, les services/EndpointSlices et aucun Warning
+actuellement retourné. Aucun PVC ni release edge n'existe. Le DNS local et Google
+public répondent A `37.67.80.37` ; Google retourne NOERROR sans réponse AAAA.
+Cette IP n'est pas un Caddy du cluster. Aucun contact HTTP/TLS vers elle, aucune
+modification DNS et aucune utilisation de jeton DuckDNS n'ont eu lieu.
+
+Les quotas régionaux consultés donnent notamment adresses statiques 0/8,
+adresses en usage 3/8, stockage SSD (incluant pd-balanced) 80/500 GiB,
+règles external network LB 1/50 et backends external network LB 0/50.
+Les deux nœuds disposent chacun de 1930m CPU et 6170232Ki allouables, avec 727m
+CPU demandé par nœud ; les 100m/128Mi de Caddy paraissent planifiables sans ajout
+de nœud. Cela n'est pas une validation de capacité sous charge ; les limites
+mémoire existantes sont surengagées. Aucun ResourceQuota/LimitRange dans `jitsi`.
+
+Le stockage `standard-rwo` est en réalité **pd-balanced zonal**, provisionné par
+CSI activé, RWO/WaitForFirstConsumer/Delete. Le PVC de 10Gi et le fsGroup 1000
+sont préparés ; montage, écriture et persistance réels restent non testés.
+Un PVC Pending avant le premier consommateur serait normal. Le retour arrière
+préparé conserve le PVC et ses données ACME ; sa suppression n'est pas autorisée.
+
+Les tests d'autorisation opérateur Kubernetes create PVC/Deployment/Service/
+ConfigMap, patch Deployment et delete Service répondent yes. Le test IAM GCP
+confirme les permissions interrogées pour adresses, disques et création réseau,
+sans valider toutes les actions futures du contrôleur GKE. Le compte CD n'a
+toujours pas get PVC. Aucune politique IAM/RBAC n'a été changée.
+
+La revue des tarifs publics identifie disque, traitement LB, transferts et IP
+réservée inutilisée. Une IP attachée à une règle n'a pas de charge IPv4 distincte.
+Le groupe de règles régionales pourrait rester celui du JVB existant ; aucun
+supplément forfaitaire de 18,25 USD/mois n'est affirmé. Le tarif exact pd-balanced
+europe-west1 et le budget global restent à confirmer, sans coût créé ici. La facturation du projet est activée (`billingEnabled=true`),
+sans consultation de montant contractuel ou de facture.
+Les hypothèses, formules et sources consultées sont dans
+[le mode opératoire DuckDNS](https-duckdns.md).
+
+Validations locales réellement réussies : lint/rendu du chart edge avec domaine
+réel, invariants d'exposition, `caddy validate` staging et production, rendu Jitsi
+public, 25 tests Python et `scripts/validate.sh` pour les profils existants et
+Terraform sans backend. Aucun SOPS déchiffré. Les nouvelles modifications n'ont
+pas été poussées et aucune nouvelle CI distante n'est revendiquée.
+
+Les commandes exactes sont préparées dans `docs/https-duckdns.md`, avec accords
+séparés pour bootstrap staging, production ACME, migration Jitsi et nettoyage.
+La migration manuelle proposée réutilise les valeurs effectives de la release
+pour préserver secrets/IP JVB ; le rollback capture sa révision avant migration.
+Le profil localhost reste déployé tant qu'aucune migration n'a lieu. Après
+migration publique, le port-forward seul ne suffira pas à rétablir localhost.
+La future CD devra sélectionner explicitement public-edge ; une CD localhost
+pourrait sinon remettre l'ancienne URL. Aucun flag GitHub n'a été modifié.
+Aucun certificat, déploiement Caddy, réunion publique ni charge n'est validé.
+
+
+### Derniers contrôles avant bootstrap et procédure courte
+
+Le contrôle en lecture seule du 16 novembre confirme les quotas précédents,
+quatre pods Ready sans redémarrage, la release révision 2 et aucun Warning
+retourné. `kubectl top nodes` donne 97m/103m CPU et 2308Mi/2115Mi mémoire.
+Aucune adresse réservée ni PVC n'existe. Le manifeste de stockage demande bien
+10Gi de pd-balanced via standard-rwo. Les tests confirment 48/48 autorisations
+opérateur Helm et 4/4 permissions IAM de réservation IPv4 interrogées ; get PVC
+reste refusé au compte CD. Aucun droit modifié.
+
+Lint/rendus edge, invariants, `caddy validate` staging et production et rendu
+Jitsi public avec le domaine réel sont de nouveau réussis. Aucune émission de
+certificat ni validation média n'en est déduite. DNS Google reste A 37.67.80.37,
+sans réponse AAAA. La PR nº 3 est toujours ouverte, deux checks verts sur c591ad4 ;
+ces CI ne couvrent pas les nouveaux fichiers locaux non poussés.
+
+La procédure courte est dans `docs/bootstrap-https-court.md`. Ses blocs Bash
+passent le contrôle syntaxique sans exécution. Elle sépare réservation/PVC/edge,
+DNS, staging, production ACME, migration Jitsi et rollback, avec points d'arrêt
+soumis à accord. La disponibilité d'une IPv4 précise et le coût réel du compte
+ne sont pas garantis par les quotas/tarifs publics. Aucun nouveau coût créé,
+aucune fusion, aucun changement IAM/RBAC ou activation CD.
+
+
+### Bootstrap staging autorisé : précontrôles réussis, arrêt sur erreur
+
+Le 16 novembre 2026, l'utilisateur a explicitement autorisé les étapes 1 et 2
+(IP régionale, PVC 10Gi, Caddy staging), avec arrêt à la première erreur.
+Les précontrôles confirment quatre pods Ready, absence de ressources edge et
+réservation homonyme, domaine attendu et ACME staging. Le lint strict passe.
+La révision Jitsi 2 a été enregistrée exclusivement dans le fichier local ignoré
+`deploy/local/jitsi-before-public.revision`, sans extraction de secret.
+
+La tentative `gcloud compute addresses create` a échoué :
+`IP Version is not supported for regional addresses.` La commande préparée
+utilisait à tort `--ip-version=IPV4`. L'aide locale précise que cette option est
+réservée aux adresses globales et que le défaut est IPV4. Les deux guides ont
+été corrigés sans relancer la commande.
+
+Les opérations de création ont été arrêtées immédiatement. Une nouvelle lecture
+confirme aucune adresse réservée, aucun PVC, aucune release Caddy, et Jitsi
+inchangé (révision 2, quatre pods Ready, zéro redémarrage). Aucune IP Web n'est
+donc disponible. Aucun changement DNS, IAM/RBAC, ACME production, migration Jitsi,
+merge ou activation CD. Les modifications Git préexistantes sont conservées.
+
+
+### Reprise autorisée : bootstrap Caddy staging réussi — 16 novembre 2026
+
+Après nouvel accord explicite de l'utilisateur, la commande régionale corrigée
+(sans `--ip-version`) a réussi. Les précontrôles ont retrouvé Jitsi en révision 2,
+quatre pods Ready et aucune ressource edge existante. La capture de révision
+locale existante a été conservée sans écrasement.
+
+1. Réservation `jitsi-edge-ip`, région `europe-west1`, EXTERNAL/PREMIUM :
+   **34.78.71.58**. État RESERVED juste après création, puis IN_USE après
+   attribution au LoadBalancer.
+2. Création du PVC `jitsi-edge-data`, 10Gi, `standard-rwo`. Pending initial avec
+   événement normal WaitForFirstConsumer, puis Bound après installation Caddy.
+   Le disque `pvc-4e3f507f-f61b-46e1-9639-8bfece68b3b9` est READY,
+   pd-balanced, 10 GiB, dans `europe-west1-b`.
+3. `helm install jitsi-edge ... -f deploy/jitsi-edge-duckdns.yaml --wait
+   --timeout 10m` a réussi : release `jitsi-edge` révision 1, statut deployed,
+   chart 0.1.0, Caddy 2.11.9 avec digest épinglé. Le pod
+   `jitsi-edge-7d57f56b9c-k4hg2` est Running, 1/1 Ready, zéro redémarrage.
+4. Le Service `jitsi-edge` est LoadBalancer, IP externe 34.78.71.58,
+   TCP 80/443 vers 8080/8443. L'EndpointSlice pointe vers 10.56.1.12.
+   La règle GCP `a6fe9a20c97314fed8dbd53cb70e98b6` est régionale, TCP,
+   ports discrets 80/443, Premium. L'événement SyncLoadBalancerSuccessful
+   confirme la convergence Kubernetes. Les deux nœuds existants restent Ready.
+
+Les connexions TCP externes vers 34.78.71.58:80 et :443 ont réussi depuis le
+poste d'exécution. Une requête HTTP avec résolution ponctuelle `curl --resolve`
+(sans modification DNS) retourne 308 et
+`Location: https://jitsi-meet-m2.duckdns.org/`, sans port interne dans l'URL.
+Le test `test -w /data` dans le conteneur confirme l'accessibilité en écriture
+du volume, sans écrire de fichier ni lire de clé ACME. Cela ne valide pas encore
+la conservation des certificats après redémarrage.
+
+La ConfigMap active utilise exclusivement l'ACME **staging** Let's Encrypt.
+Aucun certificat de production demandé par cette procédure ; aucun certificat
+staging ou accès HTTPS avec validation TLS n'est présenté comme validé. Caddy
+peut tenter automatiquement l'émission staging ; le DNS n'a pas été modifié
+et ces tentatives ne sont pas qualifiées ici.
+
+Contrôle final : Jitsi reste deployed en révision 2, ses quatre pods Ready sans
+redémarrage, et son LB UDP garde l'IP 34.62.165.81. Aucun événement Warning
+n'est retourné dans le namespace. Aucun changement Jitsi, DuckDNS, IAM/RBAC,
+activation CD, merge ou déchiffrement de secret. Les ressources créées sont
+celles du bootstrap autorisé ; aucune facture réelle ni coût contractuel n'a été
+vérifié. IP/LB/disque sont désormais à considérer dans le suivi des coûts.
+Les modifications Git préexistantes sont préservées ; seule cette section de
+rapport est ajoutée pendant la reprise.
+
+Étapes suivantes en attente : autorisation de modification DNS vers 34.78.71.58,
+validation ACME staging, accord séparé ACME production, puis migration Jitsi et
+tests fonctionnels. Aucune de ces étapes n'a été exécutée.
+
+
+### DNS et certificat ACME staging validés — 16 novembre 2026
+
+Après modification DuckDNS effectuée par l'utilisateur, les lectures du résolveur
+local, de Google DNS et de Cloudflare DNS renvoient toutes A **34.78.71.58** pour
+`jitsi-meet-m2.duckdns.org`. Google et Cloudflare répondent NOERROR sans réponse
+AAAA. Aucun DNS n'a été modifié par l'agent.
+
+Caddy est Running, 1/1 Ready, zéro redémarrage, release `jitsi-edge` révision 1
+`deployed`. Le PVC reste Bound à 10Gi et le Service expose TCP 80/443 sur
+34.78.71.58. La ConfigMap utilise toujours exclusivement le serveur ACME staging.
+Les quatre pods Jitsi et la release révision 2 restent inchangés ; aucun Warning
+n'est actuellement retourné dans le namespace.
+
+Les journaux filtrés montrent six échecs de challenge entre 20 h 18 min 49 s et
+20 h 22 min 39 s (heure de Paris), HTTP-01 et TLS-ALPN-01. Leurs problèmes ACME
+sont de type connection et mentionnent l'ancienne IP 37.67.80.37. Ces erreurs
+historiques correspondent aux tentatives précédant la convergence DNS ; elles
+ne sont pas masquées. Un challenge HTTP-01 ultérieur a abouti, et le message
+`certificate obtained successfully` est daté de **20 h 24 min 45 s, Paris**.
+
+Le certificat réellement présenté sur le port 443 contient :
+
+- sujet et SAN : `jitsi-meet-m2.duckdns.org` ;
+- émetteur : `Let's Encrypt / (STAGING) Artificial Amaranth YE1` ;
+- validité publiée : 16 novembre 2026 18:26:12 UTC au 19 janvier 2027 18:26:11 UTC ;
+- empreinte SHA256 :
+  `81:3F:F5:DB:CB:CC:4D:42:68:DB:5D:CD:6A:8D:91:E1:22:4C:B3:CB:7B:99:F9:DC:07:9E:32:3E:98:38:EC:AA`.
+
+La requête HTTP publique renvoie **308** avec
+`Location: https://jitsi-meet-m2.duckdns.org/`, sans port interne. Avec le magasin
+de confiance système, curl HTTPS échoue avec le code 60, « unable to get local
+issuer certificate » : résultat attendu pour staging, qui n'est pas une autorité
+reconnue par les clients habituels.
+
+Pour qualifier le staging sans désactiver la vérification TLS, les racines
+staging publiques ont été téléchargées depuis les liens de la documentation
+[officielle Let's Encrypt](https://letsencrypt.org/docs/staging-environment/)
+dans un répertoire temporaire. Un contexte TLS réservé au test et OpenSSL avec
+`-CAfile`, `-verify_hostname` et `-verify_return_error` valident la chaîne et le
+nom DNS. Ce magasin isolé a ensuite été supprimé ; aucune racine n'a été ajoutée
+au système et aucun `curl -k` n'a été utilisé.
+
+Avec cette confiance staging temporaire, HTTPS renvoie **200** sur `/`,
+`/config.js` et `/http-bind`, et **404** sur `/colibri/stats`, `/metrics` et
+`/healthz`. Ces contrôles valident routage et protections testées, pas une session
+BOSH/XMPP ni une réunion audio/vidéo. Le profil Jitsi reste localhost et n'a pas
+encore été migré ; la qualité d'une réunion publique n'est pas revendiquée.
+
+#### Passage en production : procédure préparée, non exécutée
+
+Le staging est validé pour émission, chaîne TLS de test, domaine et HTTP/HTTPS.
+Après accord explicite, recontrôler DNS, état de la release et PVC ; conserver
+les ports 80/443 joignables pour ACME et le renouvellement, puis exécuter :
+
+```bash
+helm upgrade jitsi-edge charts/jitsi-edge -n jitsi \
+  -f deploy/jitsi-edge-duckdns.yaml --set acmeEnvironment=production \
+  --wait --timeout 10m --no-hooks --hide-notes
+```
+
+Le fichier local reste par défaut staging : la surcharge production doit être
+explicite pour éviter qu'une réapplication ultérieure ne rétablisse staging.
+Après émission, vérifier sans racine de test et sans contournement TLS :
+
+```bash
+curl --head --max-time 15 https://jitsi-meet-m2.duckdns.org/
+timeout 15 openssl s_client -connect jitsi-meet-m2.duckdns.org:443 \
+  -servername jitsi-meet-m2.duckdns.org \
+  -verify_hostname jitsi-meet-m2.duckdns.org -verify_return_error </dev/null
+```
+
+Vérifier aussi l'émetteur de production, les dates, les 404 des routes privées,
+les pods et les événements. `helm --wait` seul ne prouve pas l'émission TLS.
+En cas de problème, arrêter et diagnostiquer ; le retour à la révision edge 1
+est préparé par `helm rollback jitsi-edge 1 -n jitsi --wait --timeout 10m
+--no-hooks`, après accord et contrôle de l'historique. Ce retour rétablit un
+certificat staging non reconnu et conserve le PVC. La migration Jitsi vers
+l'URL publique et toute activation CD restent des actions distinctes à autoriser.
+
+Aucune commande de bascule production ou rollback ci-dessus n'a été exécutée.
+Aucun changement Jitsi, DuckDNS, secret, permissions, CD ou autre ressource ; seul
+le rapport a été complété pendant cette vérification. Aucun renouvellement ni
+test de persistance après redémarrage n'est encore validé.
+
+
+### Bascule Caddy ACME production autorisée — 16 novembre 2026
+
+L'utilisateur a explicitement autorisé uniquement la mise à jour de `jitsi-edge`
+vers ACME production, avec conservation des valeurs et du stockage. Les
+précontrôles confirment DNS local/Google/Cloudflare A 34.78.71.58, aucune réponse
+AAAA publique, cinq pods Ready et le PVC d'origine Bound à 10Gi. La release
+Jitsi est toujours en révision 2, edge initialement en révision 1 staging.
+
+Commande réellement exécutée avec succès :
+
+```bash
+helm upgrade jitsi-edge charts/jitsi-edge -n jitsi --reuse-values \
+  --set acmeEnvironment=production --wait --timeout 10m --no-hooks --hide-notes
+```
+
+La release edge est maintenant **révision 2, deployed**. Une comparaison en
+mémoire des valeurs des révisions 1 et 2 confirme que seul `acmeEnvironment`
+a changé, de staging à production. Aucun contenu sensible de valeurs n'a été
+publié. Le nouveau pod `jitsi-edge-6b74c6cf6-t4t4k` est 1/1 Ready, sans
+redémarrage. Le PVC `jitsi-edge-data` reste Bound sur le même volume
+`pvc-4e3f507f-f61b-46e1-9639-8bfece68b3b9`, 10Gi. L'IP Web reste 34.78.71.58.
+
+**Erreur observée et évolution automatique :** à 20 h 28 min 41 s (Paris),
+le challenge HTTP-01 a échoué avec un problème ACME connection : timeout lors
+de la connexion à 34.78.71.58. Le message suggère un problème de pare-feu, mais
+cette cause n'est pas établie par ce seul événement. Aucune nouvelle mutation,
+relance manuelle ou modification réseau n'a été effectuée après cette erreur.
+Caddy a ensuite finalisé automatiquement l'autorisation à 20 h 28 min 45 s et
+journalisé `certificate obtained successfully` à **20 h 28 min 47 s**. Les
+vérifications suivantes sont uniquement des constats en lecture seule de cet
+état finalement convergé ; le timeout transitoire n'est pas masqué.
+
+Le certificat effectivement présenté et vérifié contient :
+
+- sujet et SAN : `jitsi-meet-m2.duckdns.org` ;
+- émetteur : `Let's Encrypt`, intermédiaire **YE1**, sans mention STAGING ;
+- validité : **16 novembre 2026 18:30:15 UTC au 14 février 2027 18:30:14 UTC** ;
+- empreinte SHA256 :
+  `33:AE:FB:29:C6:25:25:BC:22:72:E2:09:07:29:05:D2:92:0C:1B:F9:43:50:20:89:6D:8E:7B:B4:58:18:1A:93`.
+
+La connexion Python avec `ssl.create_default_context()` valide la confiance
+système et le nom DNS, en TLS 1.3. OpenSSL avec `-verify_hostname` et
+`-verify_return_error`, sans CAfile staging, confirme
+**Verify return code: 0 (ok)**. Aucun `-k`, contexte TLS non vérifié ou ajout
+d'autorité de test n'a été utilisé.
+
+| Route HTTPS | Résultat avec confiance système normale |
+|---|---|
+| `/` | 200 |
+| `/config.js` | 200 |
+| `/http-bind` | 200 |
+| `/colibri` et `/colibri/stats` | 404 |
+| `/colibri-ws` | 404 |
+| `/metrics` | 404 |
+| `/debug` | 404 |
+| `/healthz` | 404 |
+| `/about/health` | 404 |
+
+Le contrôle de ressources après émission confirme Jitsi deployed révision 2,
+quatre pods Jitsi Ready sans redémarrage, LB UDP JVB toujours 34.62.165.81,
+et aucun événement Warning actuellement retourné. Seule la release edge a été
+mise à jour. Aucun changement DuckDNS, valeurs Jitsi, secret, permissions,
+pipeline CI/CD, activation CD ou suppression de PVC. Les modifications Git
+préexistantes sont conservées ; seul le rapport a été complété.
+
+L'entrée HTTPS est désormais reconnue par la confiance système. Les HTTP 200
+ne valident ni une session XMPP ni une réunion publique ; la configuration
+Jitsi reste localhost en attente d'une migration distincte autorisée. Aucun
+renouvellement automatique futur ou test de reprise après panne n'est encore
+qualifié. Le fichier de valeurs DuckDNS local demeure staging : une future
+réapplication devra conserver explicitement production pour éviter un retour
+involontaire au certificat de test.
+
+
+### Migration Jitsi vers l'URL publique autorisée — 16 novembre 2026
+
+L'utilisateur a autorisé la migration de Jitsi vers
+`https://jitsi-meet-m2.duckdns.org`, en préservant les paramètres, secrets, Caddy,
+DuckDNS et le pipeline. Avant modification, la release Jitsi était deployed en
+révision 2 avec PUBLIC_URL localhost ; Caddy production restait en révision 2.
+
+#### Sauvegarde et modification minimale
+
+Une sauvegarde locale exclusive a été créée sous
+`deploy/local/backups/jitsi-revision-2-before-public-20261116/` : répertoire
+0700, fichiers 0600, chemin exclu de Git et confirmé par `git check-ignore`.
+Elle contient les valeurs utilisateur et calculées, le manifeste de révision 2,
+la copie précédente de `values-gke.yaml` et des empreintes d'intégrité privées.
+Les valeurs/manifeste peuvent contenir des secrets : ils n'ont pas été affichés
+ni ajoutés à Git. Commandes de sauvegarde, avec sorties dirigées vers ces
+fichiers privés :
+
+```bash
+helm get values jitsi -n jitsi --revision 2 -o yaml
+helm get values jitsi -n jitsi --revision 2 --all -o yaml
+helm get manifest jitsi -n jitsi --revision 2
+```
+
+Dans `values-gke.yaml`, seule la ligne `publicURL` a été changée de
+`http://localhost:8081` à `https://jitsi-meet-m2.duckdns.org`. Le lint strict du
+chart avec ce fichier a réussi. Une surcharge privée ne contenant que cette
+clé a été générée depuis la même URL. Le fichier complet n'a pas été appliqué
+pour éviter de remplacer les valeurs effectives spécifiques au cluster :
+
+```bash
+helm upgrade jitsi charts-officiels/jitsi-meet -n jitsi --reuse-values \
+  -f deploy/local/backups/jitsi-revision-2-before-public-20261116/public-url-only.yaml \
+  --wait --timeout 10m --no-hooks --hide-notes
+```
+
+Résultat : **Jitsi révision 3, deployed**. La comparaison en mémoire des valeurs
+révisions 2/3 confirme que seule `publicURL` a changé. Les empreintes du contenu
+des Secrets applicatifs sont identiques ; aucune rotation ni modification de
+leur contenu n'est observée et aucun secret SOPS n'a été déchiffré.
+
+#### Rechargement des composants et difficultés
+
+Le chart n'inclut pas la ConfigMap commune contenant PUBLIC_URL dans les
+checksums qui déclenchent un rollout. Les pods devaient donc être rechargés pour
+prendre la nouvelle variable d'environnement. Des redémarrages contrôlés ont
+été réalisés successivement, avec attente de disponibilité après chacun :
+
+```bash
+for resource in statefulset/jitsi-jitsi-meet-prosody deployment/jitsi-jitsi-meet-jicofo deployment/jitsi-jitsi-meet-jvb-0 deployment/jitsi-jitsi-meet-web; do
+  kubectl -n jitsi rollout restart "$resource"
+  kubectl -n jitsi rollout status "$resource" --timeout=180s
+done
+```
+
+Les quatre rollouts ont réussi. Des événements Warning de sondes readiness
+« connection refused » ont été observés pendant l'arrêt/démarrage de Prosody,
+Jicofo et JVB. Ils sont documentés comme transitoires : au contrôle final,
+les quatre nouveaux pods sont Running, 1/1 Ready, zéro redémarrage. Les quatre
+processus exposent désormais la PUBLIC_URL publique attendue. Le pod Caddy
+n'a pas été redémarré par cette migration.
+
+#### HTTPS et cohérence des URL vérifiées
+
+Avec la confiance TLS système normale, sans désactivation de vérification :
+
+| Route | Résultat | Contrôle du contenu |
+|---|---|---|
+| `/` | 200 | Absence de `localhost:8081` |
+| `/config.js` | 200 | Absence de `localhost:8081`, URL publique HTTPS correcte |
+| `/interface_config.js` | 200 | Absence de `localhost:8081` |
+| `/http-bind` | 200 | Absence de `localhost:8081` |
+
+La configuration publique générée référence
+`https://jitsi-meet-m2.duckdns.org/` et conserve
+`config.bosh = window.location.origin + '/http-bind';`, donc la même origine
+HTTPS. Le contrôle `scripts/check-render.py --edge --ready` du manifeste réel
+Helm révision 3 réussit. Ces vérifications ne simulent pas l'exécution complète
+dans un navigateur et ne prouvent pas une session XMPP ni un transport média.
+
+#### JVB : exposition confirmée, média externe non validé
+
+Le Service JVB conserve son UID, sa spec et l'IP **34.62.165.81**, UDP **10000**.
+Le JVB annonce cette même IP ; un EndpointSlice pointe vers son nouveau pod
+10.56.1.15 sur UDP10000. L'écoute noyau sur le port 10000 du pod est confirmée.
+La règle de forwarding GCP reste UDP 10000-10000 en europe-west1 ; ses deux
+backends sont HEALTHY. Le pare-feu UDP10000 est actif, source 0.0.0.0/0.
+Les statistiques JVB indiquent healthy=true, un client MUC connecté, zéro
+conférence et zéro participant lors du relevé.
+
+Une unique requête STUN Binding sans authentification a été envoyée au port
+public ; elle n'a reçu aucune réponse dans les cinq secondes. Ce résultat est
+**non concluant**, sans preuve de panne ni preuve d'accessibilité média de bout
+en bout. Aucun autre générateur de trafic n'a été lancé. Une réunion externe
+avec négociation ICE reste nécessaire pour valider réellement UDP/audio/vidéo.
+Aucun test audio/vidéo n'est déclaré réussi.
+
+#### Conservation, retour arrière et limite CI
+
+Les UID et specs du Service edge, du Service JVB et du PVC Caddy sont inchangés.
+Caddy reste révision 2 production ; aucune modification DNS, secrets, droits,
+CI/CD ni nouvelle infrastructure. Les modifications Git existantes sont
+préservées. Seuls `values-gke.yaml` et cette section de rapport ont été modifiés
+pendant la migration, en plus de la sauvegarde privée ignorée.
+
+Un script privé `rollback-prepared.sh`, vérifié avec `bash -n` mais **non
+exécuté**, prépare `helm rollback jitsi 2 -n jitsi --wait --timeout 10m --no-hooks`,
+puis les rechargements progressifs nécessaires de PUBLIC_URL. Il faut relire
+l'historique et confirmer le contexte avant une éventuelle exécution ; la copie
+`values-gke-before.yaml` permet de restaurer la seule ligne locale après revue.
+Aucun rollback n'a été engagé sur la seule absence de réponse STUN non authentifiée.
+
+Point à traiter avant un prochain push : le contrôle historique
+`scripts/check-render.py` sans `--edge` impose explicitement localhost et
+`scripts/validate.sh` l'appelle ainsi pour `values-gke.yaml`. Le changement
+publicURL demandé rend cette hypothèse obsolète. Le lint et le contrôle public
+explicite réussissent, mais la CI complète n'est pas annoncée verte pour ces
+modifications ; les checks distants antérieurs ne les couvrent pas. Le pipeline
+et ses scripts n'ont pas été modifiés conformément à la consigne : une adaptation
+cohérente des validations des profils doit être autorisée séparément.
+
+
+### Visioconférence publique : test manuel confirmé par l'utilisatrice
+
+**Résultats communiqués par l'utilisatrice le 16 novembre 2026**, après la
+migration Jitsi en révision 3. L'agent n'a pas participé à la réunion et ne
+présente pas ces observations comme des mesures automatisées.
+
+| Élément | Résultat manuel confirmé par l'utilisatrice |
+|---|---|
+| Salle | `jitsitest` |
+| URL | `https://jitsi-meet-m2.duckdns.org/jitsitest` |
+| Participants | Deux connexions simultanées, un ordinateur et un téléphone |
+| Vidéo | Visible dans les deux sens |
+| Audio | Fonctionnel dans les deux sens |
+| Accès | HTTPS public fonctionnel |
+
+Ce test valide le scénario utilisateur audio/vidéo à deux participants décrit
+ci-dessus. Le transport P2P ou via JVB n'a pas été instrumenté pendant cet essai :
+il ne permet donc pas, à lui seul, d'attribuer les médias au JVB ou de lever
+la réserve sur son trajet UDP externe. Aucune durée, statistique réseau ou
+configuration de navigateur non fournie n'est inventée. Aucun résultat de partage
+d'écran, de charge ou de capacité n'est revendiqué pour ce test.
+
+La soutenance est actualisée avec l'accès public HTTPS, Jitsi révision 3 et
+Caddy production, et distingue cette confirmation manuelle des validations
+techniques précédentes. Les mentions antérieures « réunion non testée »
+décrivaient l'état avant ce retour utilisatrice.
+
+
+### Validation CI des profils local et HTTPS public adaptée
+
+À la demande de l'utilisatrice, le validateur qui imposait encore
+`http://localhost:8081` a été adapté, sans changement des workflows GitHub ni des
+garde-fous de déploiement. `scripts/check-render.py` expose désormais un mode
+explicite `--auto-profile` utilisé par `scripts/validate.sh` : il accepte soit
+l'origine locale exacte, soit une origine HTTPS DNS du profil edge. Les modes
+stricts existants restent disponibles : défaut localhost, `--edge` et `--public`
+pour l'ancien profil Ingress GCE, avec options mutuellement exclusives.
+
+Les origines HTTP publiques, IP comme hôte HTTPS, localhost HTTPS, ports publics
+explicites, identifiants dans l'URL, chemins de salle, requêtes/fragments et noms
+DNS malformés sont refusés. Les contrôles du Service Web ClusterIP, de BOSH même
+origine, de l'absence d'Ingress en mode edge/local et du JVB UDP10000 restent en
+place. `--ready` exige toujours une IP JVB publique annoncée. La validation
+locale ajoute un rendu explicitement surchargé localhost, même lorsque
+`values-gke.yaml` contient désormais l'URL publique ; le profil local reste donc
+vérifié sans modifier le profil déployé.
+
+Six tests de régression ont été ajoutés dans `tests/test_render_profiles.py` :
+acceptation des deux profils, maintien des modes stricts, rejet d'origines non
+conformes, maintien des invariants BOSH/Web privé, contrôle d'IP JVB et refus
+d'options de profils contradictoires. Une première exécution a révélé deux
+erreurs dans la fixture de test sur des ConfigMaps avec `data: null` ; le test a
+été corrigé pour les ignorer comme le validateur, puis toute la suite a été
+relancée avec succès.
+
+Résultats locaux réellement obtenus :
+
+| Commande / contrôle | Résultat |
+|---|---|
+| `python3 -m unittest discover -s tests -p 'test_*.py' -v` | **31 tests réussis** |
+| `sh scripts/validate.sh` | Lint/rendus Jitsi du profil courant public et régression localhost réussis ; Terraform fmt/init sans backend/validate réussis |
+| `CADDY_BIN=/tmp/jitsi-remise-caddy/caddy python3 scripts/validate-edge.py` | Lint/rendu edge, profil public et validation réelle du Caddyfile réussis |
+| `sh -n scripts/validate.sh` et `bash -n scripts/deploy-gke.sh` | Syntaxe valide |
+| `git diff --check` | Aucune erreur |
+
+Terraform a été initialisé sur une copie temporaire sans backend ni accès à
+l'état du projet. Ces tests ne déploient rien et n'ont pas utilisé les sauvegardes
+privées ou déchiffré SOPS. Aucun test de charge, partage d'écran ou nouvelle
+réunion n'a été exécuté par l'agent. La validation manuelle à deux participants
+reste celle confirmée par l'utilisatrice, distincte des contrôles statiques.
+Toutes les modifications antérieures sont préservées. **Aucun commit ni push**
+n'a été effectué ; aucune nouvelle CI distante n'est donc revendiquée.
+
+
+### Préparation de publication GitHub, sans commit ni push
+
+Branche contrôlée : `feature/jitsi-public-edge`, HEAD `c591ad4`, index vide.
+Les modifications existantes ont été conservées. Le lot proposé comporte 12
+fichiers : README, valeurs GKE, deux surcharges DuckDNS, deux scripts de
+validation, un fichier de régression et cinq documents. La liste explicite et
+le message de commit proposés sont préparés localement sous `/tmp`, sans ajout
+à l'index et sans exécution de commit/push/merge.
+
+L'audit automatisé des 177 fichiers suivis ou candidats n'a détecté aucun motif
+de clé privée, jeton GitHub/Google ou jeton DuckDNS affecté. La comparaison en
+mémoire aux contenus longs des secrets applicatifs actuels, en clair et base64,
+n'a trouvé aucune correspondance dans ces fichiers. Il s'agit d'un contrôle de
+motifs et de correspondances connues, pas d'une garantie exhaustive. Les mots
+de passe du fichier `values-secrets.sops.yaml` sont toujours ENC[AES256_GCM] ;
+ce fichier est inchangé. Aucun déchiffrement SOPS effectué.
+
+Les exclusions Git sont confirmées pour `deploy/local/` (dont toutes les
+sauvegardes Helm), les états/plans Terraform, valeurs locales de démonstration,
+valeurs de secrets en clair, rendus locaux et mesures `tests/results/`. Aucun
+chemin de sauvegarde, clé privée, état ou kubeconfig n'est déjà suivi dans le
+périmètre inspecté. Ces fichiers ne font pas partie du lot proposé.
+
+L'audit a corrigé deux écarts de publication : le README décrit maintenant
+l'accès public et les révisions actuelles ; la surcharge spécifique au domaine
+Caddy est désormais `acmeEnvironment: production`, correspondant au live.
+Le défaut du chart générique reste staging ; les deux guides de bootstrap
+imposent explicitement `--set acmeEnvironment=staging` pour un nouveau bootstrap.
+La surcharge Jitsi DuckDNS inclut l'IP JVB actuelle 34.62.165.81 pour reproduire
+le réseau réel sans modifier le profil générique. Des encadrés distinguent les
+constats historiques des ressources déjà créées ; aucun bootstrap ne doit être
+rejoué sur l'environnement existant.
+
+Comparaison effectuée en lecture seule : le rendu edge candidat est identique
+au manifeste Helm edge révision 2 ; le rendu Jitsi candidat est identique au
+manifeste Helm Jitsi révision 3 hors hooks. Pour cette comparaison, les secrets
+existants ont été lus en mémoire puis utilisés dans des fichiers temporaires
+privés, supprimés ensuite, sans publication. Les contrôles de cohérence réseau,
+secrets et disponibilité de `check-cd-render.py --after` réussissent. Cinq pods
+Ready, PVC Bound 10Gi, IP Web 34.78.71.58 et JVB 34.62.165.81 ont été observés.
+Aucune ressource cluster n'a été modifiée par cet audit.
+
+Nouvelle validation du lot final : **31 tests Python réussis**,
+`scripts/validate.sh` réussi (Helm courant public, rendu localhost explicite,
+Terraform sur copie temporaire sans backend), validation edge fixtures et
+Caddyfile de production réel réussie, `git diff --check` sans erreur.
+Les blocs Bash des guides sont vérifiés syntaxiquement, sans exécution.
+
+Risques à conserver visibles : IPs spécifiques à revalider après recréation ;
+CD toujours désactivée avec premier échange OIDC non validé et droit get PVC du
+compte CD manquant ; son mode localhost strict ne convient pas au profil source
+public et doit être revu avant activation. Les résultats manuels à deux ne
+qualifient pas le trajet JVB ni une charge/partage d'écran. Le renouvellement
+futur et la reprise après panne ne sont pas qualifiés. Les CI distantes vertes
+précédentes concernent c591ad4 et ne couvrent pas encore ce lot local.
+Aucun commit, push, merge, changement de permissions ou activation CD effectué.

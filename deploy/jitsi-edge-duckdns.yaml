@@ -1,0 +1,6 @@
+# Profil correspondant a la release jitsi-edge revision 2, deja deployee.
+# Bootstrap neuf : surcharger explicitement acmeEnvironment=staging apres accord.
+publicDomain: jitsi-meet-m2.duckdns.org
+acmeEnvironment: production
+service:
+  addressName: jitsi-edge-ip

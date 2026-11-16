@@ -1,26 +1,41 @@
 # Jitsi Meet sur GCP — Master 2 DevOps
 
-Architecture de demonstration sans domaine : Web prive par port-forward sur
-`http://localhost:8081`, BOSH de meme origine, JVB public via LoadBalancer UDP
-10000. Aucun Ingress ni certificat requis. Controle du 16 novembre 2026 : cluster actif, quatre pods Jitsi prets et release
-Helm `jitsi` revision 2 deployee. Voir le rapport pour la portee des tests.
+Accès public : **https://jitsi-meet-m2.duckdns.org**. Caddy termine TLS avec un
+certificat Let's Encrypt de production, puis transmet au Web privé et à BOSH.
+L'IP Web est `34.78.71.58` ; JVB utilise un LoadBalancer séparé en UDP 10000
+sur `34.62.165.81`. Aucun Ingress n'est déployé.
 
-La release retenue est `jitsi`, dans le namespace `jitsi`. Les Services sont
-`jitsi-jitsi-meet-web` et `jitsi-jitsi-meet-jvb` ; le Deployment du bridge est
-`jitsi-jitsi-meet-jvb-0`.
+État vérifié le 16 novembre 2026 : release `jitsi` révision 3, `jitsi-edge`
+révision 2, quatre composants Jitsi et Caddy prêts, PVC Caddy 10Gi Bound.
+L'utilisatrice confirme un test manuel à deux participants (ordinateur et
+téléphone), audio et vidéo dans les deux sens sur la salle `jitsitest`.
+Le trajet P2P/JVB n'a pas été instrumenté ; aucun résultat de partage d'écran
+ou de charge n'est revendiqué pour cet essai.
 
-Le chart utilise est `charts-officiels/jitsi-meet` ; `jitsi/` est un ancien
-squelette Nginx. Consulter le [guide et rapport](docs/rapport.md) pour les deux
-phases de deploiement, VS Code Remote SSH, les participants et le nettoyage.
+Le chart applicatif est `charts-officiels/jitsi-meet` ; `jitsi/` est un ancien
+squelette. Le chart complémentaire est `charts/jitsi-edge`. La configuration
+publique versionnée est composée de `values-gke.yaml`,
+`deploy/jitsi-duckdns.yaml` (dont l'IP JVB existante) et des secrets SOPS traités
+uniquement dans un contexte privé autorisé. Le profil Caddy spécifique au domaine
+est `deploy/jitsi-edge-duckdns.yaml`, désormais en production. Le chart générique
+reste par défaut staging ; tout nouveau bootstrap doit utiliser explicitement
+staging avant production et faire l'objet d'une autorisation de coût.
 
 ```sh
 python3 -m pip install -r scripts/requirements.txt
 sh scripts/validate.sh
 ```
 
-La CI ne deploie rien. Les tests locaux ne valident pas la visioconference.
-Installer `values-gke.yaml` sur GKE cree un LoadBalancer facturable et requiert
-une autorisation. L'IP annoncee par JVB doit ensuite etre finalisee avec
-`scripts/jvb-values.py`. Le generateur historique `scripts/gke-values.py`
-concerne une ancienne alternative publique. Le profil Caddy prepare est documente
-dans [le guide HTTPS](docs/jitsi-public-edge.md), sans deploiement autorise.
+La validation conserve un rendu localhost explicite et accepte aussi le profil
+HTTPS public. Les tests statiques ne prouvent pas une réunion. Le retour au
+profil localhost nécessite une surcharge explicite et un rechargement des pods ;
+un port-forward seul ne modifie pas la configuration publique déployée.
+
+La CI valide ; la CD préparée reste désactivée et son premier échange OIDC runner
+n'est pas validé. Ne pas activer la CD avant revue du profil et des droits PVC.
+Aucun secret ou sauvegarde Helm ne doit être affiché ou ajouté à Git.
+
+Consulter le [rapport](docs/rapport.md), la [soutenance](docs/soutenance.md),
+le [guide HTTPS](docs/https-duckdns.md) et la [séquence de bootstrap](docs/bootstrap-https-court.md).
+Les créations/suppressions GCP sont soumises à accord ; le PVC indépendant et
+l'adresse réservée ne disparaissent pas avec une simple désinstallation Helm.

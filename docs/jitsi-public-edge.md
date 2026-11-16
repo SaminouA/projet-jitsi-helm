@@ -1,5 +1,11 @@
 # Accès public HTTPS : préparation de jitsi-edge
 
+> Mise à jour de publication : le bootstrap, TLS production et la migration
+> Jitsi ont été réalisés avec autorisation. Jitsi est en révision 3, Caddy en
+> révision 2, Web 34.78.71.58, JVB 34.62.165.81. Les sections de préparation
+> ci-dessous conservent leur contexte historique ; le rapport et le README
+> décrivent l'état actuel. La CD reste désactivée.
+
 Préparation du 16 novembre 2026. Aucun bootstrap, certificat, DNS ou déploiement
 public n'a été réalisé dans cette étape. Le profil localhost reste disponible.
 
@@ -54,7 +60,8 @@ une exploitation publique durable.
 
 ## Profils et validation hors cluster
 
-`values-gke.yaml` demeure le profil localhost. Ordre des valeurs du futur profil
+`values-gke.yaml` porte désormais l’URL HTTPS publique. Pour un profil localhost,
+surcharger explicitement `publicURL=http://localhost:8081`. Ordre des valeurs du profil
 public : `values-gke.yaml`, `values-jitsi-public.yaml`, URL réelle générée,
 overlay contenant l'IP réelle JVB, secrets déchiffrés temporairement.
 Les valeurs structurantes publiques n'ont pas de domaine par défaut.
@@ -176,3 +183,11 @@ PVC indépendant ni l'adresse réservée. Aucune commande de nettoyage n'est lan
 Sources techniques : [HTTPS automatique Caddy](https://caddyserver.com/docs/automatic-https),
 [stockage Caddy](https://caddyserver.com/docs/conventions),
 [tarification réseau GCP](https://cloud.google.com/vpc/network-pricing).
+
+
+## Domaine réel réservé : préparation complémentaire
+
+Le sous-domaine déclaré est désormais `jitsi-meet-m2.duckdns.org`. Les surcharges
+réelles et le mode opératoire de bootstrap/retour arrière sont détaillés dans
+[la préparation DuckDNS](https-duckdns.md). Le nom `jitsi-edge-ip` y est proposé,
+mais aucune réservation GCP n'a été créée. Cette préparation n'active pas la CD.
