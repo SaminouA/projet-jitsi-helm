@@ -2643,3 +2643,243 @@ push, merge ou lancement GitHub Actions effectué. Le compte CD conserve ses
 permissions applicatives : la sûreté du diagnostic repose aussi sur le code
 relu et le nettoyage des données temporairement déchiffrées. Ce risque reste
 visible dans le guide avant autorisation d'exécution.
+
+
+### Fusion autorisée de la PR nº 3 et vérification de la CD ignorée
+
+**16 novembre 2026.** L'utilisateur a autorisé la sortie du mode Draft et la
+fusion de la PR nº 3, après recontrôle immédiat du SHA/cible, des checks requis
+et de la désactivation CD. Avant l'opération : PR ouverte vers main, tête exacte
+`11d9784c95ffe01fdce328c979f19a897b797463`, deux checks obligatoires Validation
+Helm réussis, GKE_CD_ENABLED absente. Aucun conflit signalé.
+
+Opérations réellement effectuées via GitHub, sans contournement administrateur :
+
+```bash
+gh pr ready 3
+gh pr checks 3 --required
+gh pr merge 3 --merge --match-head-commit 11d9784c95ffe01fdce328c979f19a897b797463
+```
+
+La cible, le SHA et le flag CD ont aussi été recontrôlés entre la sortie du
+brouillon et la fusion. Les protections ont été respectées ; aucune option
+admin, auto-merge ou suppression de branche n'a été utilisée.
+
+GitHub confirme la PR merged le **16 novembre 2026 à 20:54:59 UTC**, soit
+**21:54:59 à Paris**. Le SHA final de main est
+**`3d9a37c1bec4e98de70750aa211099bded524cbe`**. La branche distante
+`feature/jitsi-public-edge` existe toujours et pointe sur
+`11d9784c95ffe01fdce328c979f19a897b797463`.
+
+#### Résultats réels après fusion
+
+| Vérification | Résultat |
+|---|---|
+| CI Validation Helm et Terraform | **success**, événement push, branche main, SHA final exact |
+| Run CI | [43954679027](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43954679027) |
+| Workflow Deploy Jitsi to GKE | completed, conclusion **skipped**, événement workflow_run |
+| Run CD | [43954755012](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43954755012) |
+| Job Deploy Jitsi (trusted main) | **skipped**, liste d'étapes vide |
+| Variable GKE_CD_ENABLED | Toujours absente/inactive au dernier contrôle |
+| Workflow diagnostic | Présent/enregistré et active sur main, **non lancé** |
+
+Le job CD n'a exécuté aucune étape : ni authentification Google, configuration
+GKE, déchiffrement SOPS ou commande Helm de déploiement par ce workflow.
+La création automatique de son exécution workflow_run n'est pas une activation
+CD ; le garde d'opt-in a empêché le job. Aucun lancement manuel Actions, changement
+de variable ou opération GCP/Kubernetes n'a été effectué par l'agent.
+
+#### Rapport local et étapes encore prévues
+
+Cette section est ajoutée **uniquement au fichier local de la branche feature**,
+après vérification de la branche courante. Aucun nouveau commit/push n'est
+réalisé pour ces notes et main n'est pas modifiée après sa fusion autorisée.
+Le rapport publié dans main s'arrête donc à l'état documenté par le commit
+fusionné ; les faits post-fusion consignés ici restent locaux.
+
+La prochaine étape possible est le diagnostic manuel sur main avec confirmation
+confirm_read_only=true, **uniquement après un nouvel accord explicite**. Les
+APIs et le droit PVC ont été validés auparavant, mais l'échange OIDC, GKE et le
+déchiffrement KMS depuis le runner restent non testés tant que ce diagnostic
+n'est pas exécuté. La réussite de la CI ne constitue pas leur validation et
+n'autorise aucune activation CD implicite.
+
+
+### Premier diagnostic manuel OIDC/GKE/SOPS : échec au contrôle d'identité GKE
+
+**16 novembre 2026.** L'utilisateur autorise un seul lancement du workflow
+`.github/workflows/diagnose-gke.yml` sur main, confirm_read_only=true, sans
+modification applicative ou activation CD. Les précontrôles ont confirmé main
+sur `3d9a37c1bec4e98de70750aa211099bded524cbe`, GKE_CD_ENABLED absente et le
+workflow diagnostic exact (ID 420594675), actif et limité à workflow_dispatch.
+Son contenu distant a été comparé au contenu relu, et aucun autre workflow
+n'a été ciblé. Aucune exécution diagnostic n'existait avant le dispatch.
+
+Un seul dispatch a été envoyé :
+
+```bash
+gh workflow run 420594675 --repo SaminouA/projet-jitsi-helm \
+  --ref main -f confirm_read_only=true
+```
+
+Exécution [43955701042](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43955701042),
+créée le 16 novembre à **21:01:02 UTC (22:01:02 Paris)**,
+événement workflow_dispatch, branche main, SHA attendu, **run_attempt=1**.
+Le contrôle final de la liste confirme exactement **une exécution**, sans relance.
+La conclusion est **failure**, job diagnose (133609551874), code de sortie 1.
+
+#### Étapes réellement réalisées et limites
+
+| Vérification / étape | Résultat observé |
+|---|---|
+| Checkout, Python et dépendances | success |
+| Garde de confiance avant OIDC | success |
+| Helm et installation SOPS avec checksum | success ; installer SOPS ne valide pas son déchiffrement |
+| Action Authentification OIDC vers Google Cloud | **success** |
+| Installation/configuration gcloud et plugin GKE | success |
+| Action get-gke-credentials, cluster existant | **success**, accès aux informations GCP du cluster et kubeconfig runner préparé |
+| Garde répété au début du script et nom du contexte | Franchis avant le contrôle suivant ; pas de preuve suffisante d'accès Kubernetes |
+| Identité effective Kubernetes via kubectl auth whoami | **Échec**, message fixe `Echec diagnostic : identite GKE ; details non publies.` |
+| Comparaison du nom utilisateur Kubernetes | Non réalisée : la commande whoami n'a pas réussi |
+| 49 contrôles RBAC dans le runner | **Non réalisés**, arrêt avant cette étape |
+| Lecture/vérification du PVC par le runner | **Non réalisée** |
+| Déchiffrement SOPS/KMS et comparaison des secrets | **Non réalisés** |
+| Lint/rendus applicatifs et contrôles de disponibilité du diagnostic | **Non réalisés** |
+| Nettoyage always() de secours | success |
+| Nettoyage post-action auth des credentials fédérés | success |
+
+L'étape de récupération des credentials GKE a réussi, mais cela ne prouve pas
+l'accès effectif à l'API Kubernetes depuis le runner. Le résultat permet de
+constater la réussite de la configuration OIDC et de l'accès aux informations
+Google Cloud utilisées par l'action ; l'identité Kubernetes effective reste
+non confirmée. Aucun succès SOPS/KMS n'est revendiqué sur la seule installation
+du binaire ou le succès de l'authentification Google.
+
+#### Analyse sans divulgation et sans nouvelle exécution
+
+Les logs ont été capturés uniquement pour extraction en mémoire de messages
+fixes et des états d'étapes. Aucun log brut, jeton, secret ou valeur déchiffrée
+n'a été publié. L'erreur native de whoami avait été volontairement masquée par
+le script ; son détail n'est donc pas disponible dans les logs GitHub. La cause
+précise (réseau, authentification/plugin ou autorisation Kubernetes) n'est **pas
+établie** à ce stade. Les avertissements Node.js 20/runner Ubuntu sont des
+avertissements de plateforme ; aucune causalité avec cette erreur n'est prouvée.
+
+Un contrôle complémentaire local, seulement en lecture et par impersonation,
+a été effectué : create SelfSubjectReview est autorisé et `kubectl auth whoami`
+réussit avec l'identité attendue. Cela ne reproduit pas l'authentification
+fédérée depuis le runner et ne remplace pas le diagnostic échoué. Ce résultat
+ne justifie aucune extension RBAC à l'aveugle ; aucun droit n'a été modifié.
+
+Le script s'est arrêté avant de créer son répertoire de déchiffrement et avant
+SOPS : aucune valeur SOPS en clair n'a été générée par cette exécution.
+Les étapes de nettoyage des credentials ont terminé avec succès. Aucun Helm
+upgrade/install/rollback/uninstall, changement de PVC/pod, attribution de droit,
+variable GitHub ou autre ressource n'a été effectué. Aucun workflow deploy-gke
+n'a été lancé manuellement et aucun second diagnostic n'a été demandé.
+Main reste au SHA attendu ; la liste des variables du dépôt reste vide.
+
+#### Prochaine action nécessaire, non exécutée
+
+Préparer après accord une instrumentation minimale et expurgée du seul contrôle
+whoami : présence/version du plugin, distinction timeout réseau / échec de
+credentials / réponse 401 ou 403, sans publier stderr brut ou token. Revoir cette
+correction, l'intégrer sur main avec CI, puis obtenir une nouvelle autorisation
+pour une tentative distincte sur le nouveau SHA attendu. Ne pas modifier IAM/RBAC
+sans cause établie et ne pas activer la CD avant le succès complet du diagnostic.
+
+Cette section est ajoutée uniquement au rapport **local sur la branche feature**,
+en conservant les notes post-fusion existantes. Aucun commit, push, merge ou
+modification de main n'a été réalisé pour ces notes. Les vérifications runner
+non atteintes restent explicitement prévues, pas validées.
+
+
+### Instrumentation expurgée du contrôle whoami — correction locale uniquement
+
+**16 novembre 2026.** L'utilisateur demande une correction minimale pour analyser
+l'échec du run GitHub `43955701042`, sans relance, publication ou changement
+IAM/RBAC/cloud. Les notes locales post-fusion et du premier diagnostic sont
+conservées. Aucun contenu existant n'a été supprimé du rapport.
+
+#### Échec réel et hypothèse, non confondus avec les tests locaux
+
+Le run réel reste en échec sur la commande `kubectl auth whoami`, après les
+étapes OIDC et get-gke-credentials réussies. Les contrôles runner RBAC/PVC et
+SOPS/KMS n'ont pas été atteints. La cause native n'a pas été enregistrée car
+le script masquait tout stderr. Le contrôle local précédent par impersonation
+réussissait pour whoami et SelfSubjectReview, sans reproduire l'authentification
+ni le réseau GitHub.
+
+L'hypothèse de travail est donc un problème dans le chemin spécifique au runner
+vers Kubernetes (réseau/TLS ou exécution du plugin/credentials), plutôt qu'un
+manque déjà démontré du droit PVC. Cela reste une **hypothèse**, sans classement
+prouvé entre ces causes et sans preuve suffisante pour modifier IAM/RBAC.
+Les avertissements de versions Node/Ubuntu ne sont pas retenus comme cause sans
+preuve. Le workflow et ses actions ont été examinés ; aucun changement YAML ou
+permission GitHub n'est nécessaire pour instrumenter le script existant.
+
+#### Correction proposée dans scripts/diagnose-cd.py
+
+1. Vérifier la présence du binaire `gke-gcloud-auth-plugin` et son invocation
+   `--version`, sortie capturée. Ce contrôle ne demande pas directement de token.
+2. Lire en mémoire le seul champ serveur du contexte minifié, sans exporter ou
+   afficher le kubeconfig, son certificat ou ses credentials. Refuser une URL
+   endpoint anormale (HTTP, identifiants, chemin ou requête).
+3. Tester une connexion TCP vers cet endpoint sans credential, avec timeout
+   de connexion 5 secondes. N'afficher ni hostname ni adresse de l'endpoint.
+4. Exécuter whoami avec `--request-timeout=15s` et limite processus 30 secondes.
+   Classer les stdout/stderr capturés uniquement en catégories fixes. Aucun
+   extrait natif ne doit apparaître dans le message d'erreur.
+5. Vérifier la structure de la réponse et l'identité attendue, sans afficher
+   l'identité reçue. Arrêter avant les autres lectures applicatives et SOPS
+   si la vérification échoue.
+
+Les catégories couvrent plugin absent/défaillant/timeout, credentials refusés,
+authentification 401, refus d'autorisation 403, DNS, timeout réseau, TLS,
+connexion refusée et autre erreur de transport. Une erreur non reconnue reste
+INDETERMINE ; un timeout global whoami est DELAI_INDETERMINE et n'est pas
+attribué automatiquement au réseau. Un 403 exige une analyse ultérieure et
+n'est pas une autorisation d'ajouter un rôle (RBAC/IAM à distinguer).
+
+TCP OK ne prouve pas TLS/auth/RBAC. Un échec TCP direct peut aussi être non
+concluant avec un proxy : whoami est tout de même exécuté une fois et reste le
+contrôle autoritatif. Le fonctionnement effectif du plugin et la fraîcheur des
+credentials sont testés par whoami, pas par le seul succès de --version.
+Aucune nouvelle commande de mutation n'a été ajoutée. Les deux seules nouvelles
+commandes autorisées sont plugin --version et lecture locale du champ serveur.
+Les déclencheurs manuels/main/SHA, permissions GitHub, opt-in CD, nettoyage SOPS
+et interdictions Helm restent inchangés.
+
+#### Tests et validations réellement réalisés
+
+Neuf tests de régression supplémentaires ont été ajoutés à
+`tests/test_diagnostic.py`, avec sous-cas synthétiques pour les catégories :
+plugin absent/défaillant/timeout, erreurs réseau, erreurs d'authentification et
+403, masquage de sentinelles de secrets, réponse invalide, identité inattendue,
+TCP non concluant et arrêt avant RBAC/déchiffrement. Aucun plugin réel, accès
+réseau au cluster, jeton GitHub ou déchiffrement réel n'est utilisé par ces tests.
+Les simulations complètes préexistantes ont été adaptées aux probes simulés.
+
+| Contrôle local | Résultat |
+|---|---|
+| `python3 -m unittest discover -s tests -p 'test_*.py' -v` | **51 tests réussis** (42 existants + 9 nouveaux) |
+| `sh scripts/validate.sh` | Réussi : Helm public/local et Terraform sans backend sur copie temporaire |
+| Validation edge avec CADDY_BIN | Réussie : lint/rendu et Caddyfile |
+| Syntaxe Python, YAML, blocs Bash et script de déploiement | Valide, sans exécution distante |
+| `git diff --check` | Aucune erreur |
+
+Fichiers concernés : `scripts/diagnose-cd.py`, `tests/test_diagnostic.py`,
+`docs/cd-diagnostic.md` et ce rapport. Le workflow lui-même reste inchangé.
+Les sorties des probes ne publient que catégories/statuts fixes, jamais token,
+credential, endpoint, kubeconfig, identité reçue ou valeur déchiffrée.
+
+#### Toujours non réalisé
+
+La correction est **locale, non committée et non poussée**, sur la branche
+feature ; elle n'est pas dans main et n'a pas été exécutée sur GitHub. Aucun
+second run n'a été lancé et aucun succès runner n'est revendiqué. La prochaine
+étape sera une revue puis publication/intégration après accord, suivie d'une
+nouvelle autorisation de diagnostic sur le SHA main contenant cette correction.
+Aucune permission IAM/RBAC, ressource GCP/Kubernetes, variable GitHub ou release
+Helm n'a été modifiée pendant cette préparation. Aucune opération de déploiement
+n'a été effectuée.

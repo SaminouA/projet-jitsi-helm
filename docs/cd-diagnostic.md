@@ -173,3 +173,41 @@ Helm public/local, Terraform sans backend et Caddyfile réussies. YAML et blocs
 Bash vérifiés sans exécution GitHub. Le contrôle réel d'inventaire API réussit désormais pour les six services. Aucun déchiffrement
 SOPS réel ou échange OIDC runner n'a été exécuté. Aucun commit/push ni mutation
 cloud/RBAC/variable pendant la préparation de publication. Voir le rapport pour le détail et les limites.
+
+
+## Instrumentation de l'échec whoami : correction locale non publiée
+
+Le premier run réel `43955701042` a échoué au contrôle whoami après les étapes
+OIDC et get-gke-credentials réussies. Ses logs n'exposent que le label expurgé ;
+la cause exacte n'est pas établie. L'impersonation locale whoami réussit, ce qui
+ne reproduit pas les credentials ou le réseau du runner et ne justifie pas
+une extension RBAC.
+
+Le script local ajoute, sans changer le workflow ni ses déclencheurs :
+
+- recherche du binaire `gke-gcloud-auth-plugin` et test `--version`, sortie
+  capturée sans affichage ni génération directe de token ;
+- lecture du seul champ server du contexte minifié, sans export du kubeconfig,
+  puis une connexion TCP sans credentials avec délai de cinq secondes ;
+- whoami avec request-timeout de 15 secondes et limite processus de 30 secondes ;
+- classification en mémoire des erreurs, avec messages fixes uniquement :
+  PLUGIN_ABSENT/EXECUTION/TIMEOUT, AUTHENTIFICATION_CREDENTIALS/401, RBAC_403,
+  RESEAU_DNS/TIMEOUT/TLS/CONNEXION_REFUSEE/TRANSPORT, ou INDETERMINE.
+
+Un délai global whoami produit DELAI_INDETERMINE : il n'est pas attribué
+aveuglément au réseau alors que le plugin peut aussi attendre. TCP OK ne prouve
+pas TLS, authentification ou RBAC. Un échec TCP direct n'empêche pas whoami de
+réussir via un proxy ; whoami reste la vérification autoritative de l'identité.
+Un 403 indique un refus d'autorisation à analyser (RBAC/IAM éventuel), sans
+justifier automatiquement l'attribution d'un nouveau rôle. Les catégories
+reposent sur des signatures connues ; toute erreur inconnue reste INDETERMINE.
+
+Aucune sortie brute stdout/stderr, URL endpoint, identité reçue, version brute,
+token ou credential n'est publiée par ces probes. Une réponse whoami invalide
+ou une identité inattendue arrête le diagnostic. Les erreurs continuent à
+bloquer avant les vérifications applicatives et le déchiffrement SOPS.
+
+Les nouveaux tests sont synthétiques, sans connexion réseau/plugin réel.
+La correction doit être revue, publiée et intégrée sur main avec CI après
+accord ; un nouvel accord de lancement sera ensuite requis. **Aucun résultat
+GitHub de cette correction n'est encore disponible et aucune relance n'a eu lieu.**
