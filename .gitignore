@@ -39,3 +39,5 @@ values-gke.demo.yaml
 
 # Mesures locales de surveillance Jitsi
 tests/results/
+
+/values-secrets.plain.yaml
