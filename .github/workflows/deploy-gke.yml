@@ -1,0 +1,117 @@
+name: Deploy Jitsi to GKE
+
+on:
+  workflow_run:
+    workflows: ["Validation Helm et Terraform"]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-jitsi-gke-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Jitsi (trusted main)
+    # Opt-in explicite apres revue ; aucune PR, aucun fork, aucun artefact reutilise.
+    if: >-
+      vars.GKE_CD_ENABLED == 'true' &&
+      github.repository == 'SaminouA/projet-jitsi-helm' &&
+      github.event.workflow_run.status == 'completed' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.repository.full_name == github.repository &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+      CD_ENABLE: ${{ vars.GKE_CD_ENABLED }}
+      JITSI_ACCESS_PROFILE: ${{ vars.JITSI_ACCESS_PROFILE }}
+      JITSI_EDGE_CD_ENABLED: ${{ vars.JITSI_EDGE_CD_ENABLED || 'false' }}
+      JITSI_PUBLIC_DOMAIN: ${{ vars.JITSI_PUBLIC_DOMAIN }}
+      JITSI_EDGE_ADDRESS_NAME: ${{ vars.JITSI_EDGE_ADDRESS_NAME }}
+    steps:
+      - name: Verifier que la CI concerne toujours la tete de main
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          current_sha=$(gh api repos/SaminouA/projet-jitsi-helm/git/ref/heads/main --jq '.object.sha')
+          test "$current_sha" = "$EXPECTED_SHA"
+      - name: Recuperer uniquement le commit main valide par la CI
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: SaminouA/projet-jitsi-helm
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python3 -m pip install -r scripts/requirements.txt
+      - name: Verifier les garde-fous sans acceder au cloud
+        run: |
+          bash -n scripts/deploy-gke.sh
+          python3 scripts/check-cd-event.py
+          case "$JITSI_ACCESS_PROFILE" in
+            localhost) ;;
+            public-edge)
+              test "$JITSI_EDGE_CD_ENABLED" = true
+              test "$JITSI_PUBLIC_DOMAIN" = jitsi-meet-m2.duckdns.org
+              test "$JITSI_EDGE_ADDRESS_NAME" = jitsi-edge-ip
+              ;;
+            *) echo 'Profil CD explicite requis : localhost ou public-edge.' >&2; exit 1 ;;
+          esac
+          python3 -m unittest discover -s tests -p test_cd.py -v
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+        with:
+          version: v3.22.1
+      - name: Installer SOPS epingle avec verification SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_dir=$(mktemp -d "$RUNNER_TEMP/sops-install.XXXXXX")
+          trap 'rm -rf "$download_dir"' EXIT
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/getsops/sops/releases/download/v3.11.0/sops-v3.11.0.linux.amd64 \
+            --output "$download_dir/sops"
+          echo "775f1384d55decfad228e7196a3f683791914f92a473f78fc47700531c29dfef  $download_dir/sops" | sha256sum --check --status
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 "$download_dir/sops" "$HOME/.local/bin/sops"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Authentification OIDC vers Google Cloud (sans cle privee JSON)
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: project-fcf2ef91-c005-4910-a10
+          workload_identity_provider: projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-provider
+          service_account: github-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com
+          create_credentials_file: true
+          cleanup_credentials: true
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+        with:
+          install_components: kubectl,gke-gcloud-auth-plugin
+      - name: Configurer l'acces au cluster existant
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3
+        with:
+          project_id: project-fcf2ef91-c005-4910-a10
+          cluster_name: jitsi-cluster
+          location: europe-west1-b
+          use_auth_provider: true
+      - name: Preflight, dechiffrement temporaire, validation et mise a jour
+        shell: bash
+        run: bash scripts/deploy-gke.sh
+      - name: Nettoyer les fichiers temporaires de deploiement
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${CD_TMP_DIR:-}" && "$CD_TMP_DIR" == "$RUNNER_TEMP"/jitsi-cd.* ]]; then
+            rm -rf -- "$CD_TMP_DIR"
+          fi

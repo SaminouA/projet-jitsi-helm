@@ -1,0 +1,27 @@
+# Applique le 16 novembre 2026 apres accord, dry-run serveur et diff.
+# Versionne pour tracabilite ; ne pas reappliquer pour publier le diagnostic.
+# Role additionnel : ne remplace pas le Role/RoleBinding CD existant.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-jitsi-caddy-pvc-reader
+  namespace: jitsi
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    resourceNames: [jitsi-edge-data]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-jitsi-caddy-pvc-reader
+  namespace: jitsi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: github-jitsi-caddy-pvc-reader
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: github-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com

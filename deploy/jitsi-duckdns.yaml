@@ -1,0 +1,6 @@
+# Surcharge publique correspondant a Jitsi revision 3 ; aucune valeur sensible.
+# IP JVB existante : a revalider apres toute recreation du LoadBalancer.
+publicURL: https://jitsi-meet-m2.duckdns.org
+jvb:
+  publicIPs:
+    - 34.62.165.81

@@ -1,8 +1,5 @@
-# Demonstration sans domaine : Web prive via localhost:8081, JVB public UDP.
-# Phase 1 : installer pour obtenir l'IP du LoadBalancer (pas encore de reunion).
-# Phase 2 : ajouter values-gke.demo.yaml genere avec l'IP reelle du Service.
-# Une installation GKE cree un LoadBalancer facturable : autorisation requise.
-publicURL: "http://localhost:8081"
+
+publicURL: "https://jitsi-meet-m2.duckdns.org"
 enableAuth: false
 enableGuests: true
 websockets:

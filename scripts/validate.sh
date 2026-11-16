@@ -14,13 +14,17 @@ for values in mes-valeurs.yaml values-gke.yaml; do
     helm lint --strict ./charts-officiels/jitsi-meet -f "$values"
     helm template jitsi --namespace jitsi ./charts-officiels/jitsi-meet -f "$values" > "$tmp_dir/render.yaml"
     if [ "$values" = values-gke.yaml ]; then
-        python3 scripts/check-render.py "$tmp_dir/render.yaml"
+        python3 scripts/check-render.py "$tmp_dir/render.yaml" --auto-profile
     fi
 done
+# Conserver une regression explicite localhost meme si le profil courant est public.
+helm template jitsi --namespace jitsi ./charts-officiels/jitsi-meet -f values-gke.yaml \
+    --set-string publicURL=http://localhost:8081 > "$tmp_dir/localhost.yaml"
+python3 scripts/check-render.py "$tmp_dir/localhost.yaml"
 if [ -n "${GKE_VALUES_FILE:-}" ]; then
     helm lint --strict ./charts-officiels/jitsi-meet -f values-gke.yaml -f "$GKE_VALUES_FILE"
     helm template jitsi --namespace jitsi ./charts-officiels/jitsi-meet -f values-gke.yaml -f "$GKE_VALUES_FILE" > "$tmp_dir/demo.yaml"
-    python3 scripts/check-render.py "$tmp_dir/demo.yaml" --ready
+    python3 scripts/check-render.py "$tmp_dir/demo.yaml" --auto-profile --ready
 fi
 # Copie isolee : aucun acces au backend, a .terraform ou aux etats du projet.
 terraform fmt -check -recursive terraform

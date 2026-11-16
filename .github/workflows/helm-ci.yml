@@ -25,3 +25,11 @@ jobs:
       - run: python3 -m pip install -r scripts/requirements.txt
       - name: Valider les deux profils Helm et Terraform sans backend
         run: sh scripts/validate.sh
+      - name: Preparer Caddy pour validation statique uniquement
+        run: sh scripts/fetch-caddy.sh "$RUNNER_TEMP/caddy-validation"
+      - name: Valider le profil public et les protections edge
+        env:
+          CADDY_BIN: ${{ runner.temp }}/caddy-validation/caddy
+        run: |
+          python3 scripts/validate-edge.py
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
