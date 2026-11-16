@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: jitsi-edge-config
+  labels:
+    app.kubernetes.io/instance: jitsi-edge
+    app.kubernetes.io/name: jitsi-edge
+data:
+  Caddyfile: |
+    {
+      admin off
+      http_port 8080
+      https_port 8443
+      servers {
+        protocols h1 h2
+      }
+      {{- if eq .Values.acmeEnvironment "staging" }}
+      acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+      {{- else }}
+      acme_ca https://acme-v02.api.letsencrypt.org/directory
+      {{- end }}
+    }
+    https://{{ .Values.publicDomain }} {
+      @private path /colibri /colibri/* /colibri-ws /colibri-ws/* /metrics /debug /debug/* /healthz /about/health
+      handle @private {
+        respond 404
+      }
+      handle {
+        reverse_proxy http://jitsi-jitsi-meet-web.jitsi.svc.cluster.local:8000
+      }
+    }
+    http://:8082 {
+      respond /healthz "ok" 200
+      respond 404
+    }

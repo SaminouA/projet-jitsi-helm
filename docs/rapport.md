@@ -1606,3 +1606,55 @@ rédaction a été utilisée au cours du projet. Si l'établissement impose une
 déclaration d'usage d'outils d'intelligence artificielle ou d'autres
 contributions, elle devra être renseignée selon ses consignes, sans supprimer
 cette information ni inventer une répartition de travail non documentée.
+
+## Préparation d'un accès public HTTPS avec Caddy — 16 novembre 2026
+
+Après la validation de la démonstration via localhost, une évolution a été
+préparée sur la branche `feature/jitsi-public-edge` pour permettre un accès HTTPS
+avec un futur sous-domaine DuckDNS. Cette étape porte uniquement sur les fichiers
+et les contrôles locaux : aucun DNS, certificat public, LoadBalancer, disque ou
+déploiement supplémentaire n'a été créé. Elle ne remplace pas les résultats
+fonctionnels précédemment rapportés et ne constitue pas un test public réussi.
+
+Le chart complémentaire `charts/jitsi-edge` prépare un proxy Caddy 2.11.9,
+un Service LoadBalancer L4 TCP 80/443 et une ConfigMap. TLS sera terminé par
+Caddy, puis les requêtes transmises au Service Web privé sur le port 8000.
+Le profil `values-jitsi-public.yaml`, distinct de localhost, conserve BOSH sur
+l'origine du navigateur. Le LoadBalancer JVB UDP 10000 et son annonce d'IP restent
+indépendants. Aucun WebSocket Colibri n'est annoncé sans route correspondante.
+
+Un PVC indépendant de 10 Gi est décrit dans `deploy/jitsi-edge-storage.yaml`
+pour conserver les certificats et clés ACME sous `/data`. Une seule réplique
+Caddy et une stratégie Recreate ont été retenues pour le volume RWO. Ce choix
+limite la disponibilité pendant les mises à jour et implique une politique de
+sauvegarde et de nettoyage explicite. Le conteneur est préparé sans root, sans
+token Kubernetes et avec système racine en lecture seule. Ses sondes internes
+ne sont pas exposées par le Service ; elles ne prouvent pas la validité TLS.
+
+Les fixtures utilisent exclusivement `jitsi.invalid`. Le générateur des valeurs
+réelles refuse les domaines réservés et n'écrase pas les fichiers locaux.
+Les tests ont validé les rendus Helm, le Caddyfile avec le binaire Caddy, les
+invariants d'exposition réseau et 25 tests Python. Les validations Helm et
+Terraform existantes ont également réussi, sans accès au backend Terraform.
+Aucun secret SOPS n'a été déchiffré pour ces contrôles. Ces résultats statiques
+ne prouvent ni l'émission ACME, ni la propagation DNS, ni un relais média externe.
+
+La CI conserve son contrôle `Validation Helm` et ajoute ces vérifications.
+La CD publique reste une préparation désactivée par défaut : les contrôles
+OIDC, dépôt, branche, succès CI, SHA et nettoyage SOPS/KMS sont conservés.
+Le mode public exige un bootstrap autorisé préalable, des objets Helm existants,
+un PVC Bound et un droit de lecture du PVC qui reste à confirmer. Il ne crée
+pas implicitement cette nouvelle infrastructure et n'autorise pas une migration
+DNS automatique. La mise à jour des deux releases n'est pas transactionnelle.
+
+Avant toute mise en service restent nécessaires : le choix du domaine réel,
+l'accord sur les coûts disque/IP/LB, le bootstrap, les contrôles ACME staging
+puis production, la politique d'accès des utilisateurs, les tests BOSH et une
+réunion externe mesurée sur JVB. Le dimensionnement et les commandes de contrôle
+sont consignés dans [la préparation technique](jitsi-public-edge.md). Les coûts
+supplémentaires dépendent notamment du groupe de règles réseau déjà facturé au
+projet, du disque et du trafic ; aucun total mensuel n'a été mesuré.
+
+*Preuves à joindre après réalisation : DNS réel, certificat reconnu, état du
+Service edge et du PVC, réunion externe et exécution CI/CD. Ces captures ne sont
+pas disponibles à cette étape.*

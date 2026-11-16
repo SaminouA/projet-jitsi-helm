@@ -1,0 +1,14 @@
+# PREPARATION SEULEMENT. Creation payante a autoriser separement.
+# PVC independant de la release Helm : uninstall jitsi-edge ne le supprime pas.
+# ATTENTION : standard-rwo a reclaimPolicy=Delete ; effacer ce PVC efface son disque.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jitsi-edge-data
+  namespace: jitsi
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: standard-rwo
+  resources:
+    requests:
+      storage: 10Gi

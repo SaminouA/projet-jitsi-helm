@@ -1,0 +1,5 @@
+# UNIQUEMENT TEST STATIQUE : jamais deployer, domaine reserve RFC 2606.
+publicDomain: jitsi.invalid
+acmeEnvironment: staging
+service:
+  addressName: jitsi-edge-test-only

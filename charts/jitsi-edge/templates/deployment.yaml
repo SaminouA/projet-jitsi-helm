@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: jitsi-edge
+  labels:
+    app.kubernetes.io/instance: jitsi-edge
+    app.kubernetes.io/name: jitsi-edge
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jitsi-edge
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jitsi-edge
+        app.kubernetes.io/instance: jitsi-edge
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: caddy
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [caddy]
+          args: [run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+          env:
+            - name: XDG_DATA_HOME
+              value: /data
+            - name: XDG_CONFIG_HOME
+              value: /config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          ports:
+            - {name: http, containerPort: 8080, protocol: TCP}
+            - {name: https, containerPort: 8443, protocol: TCP}
+            - {name: health, containerPort: 8082, protocol: TCP}
+          startupProbe:
+            httpGet: {path: /healthz, port: health}
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /healthz, port: health}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: health}
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/caddy, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: runtime-config, mountPath: /config}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap:
+            name: jitsi-edge-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | quote }}
+        - name: runtime-config
+          emptyDir: {sizeLimit: 16Mi}
+        - name: tmp
+          emptyDir: {sizeLimit: 16Mi}

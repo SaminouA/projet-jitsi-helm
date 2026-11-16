@@ -157,7 +157,7 @@ class WorkflowEventTests(unittest.TestCase):
         script = (ROOT / 'scripts/deploy-gke.sh').read_text()
         # shlex verifie les frontieres des arguments, que bash -n ne detecte pas.
         for line in script.splitlines():
-            if 'kubectl auth can-i' in line:
+            if 'kubectl auth can-i' in line and '$resource' in line:
                 tokens = shlex.split(line)
                 self.assertIn('$resource', tokens)
                 self.assertIn('-n', tokens)

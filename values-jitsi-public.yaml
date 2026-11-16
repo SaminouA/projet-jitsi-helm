@@ -1,0 +1,19 @@
+# Surcharge structurelle, a fusionner APRES values-gke.yaml.
+# Le domaine reel est obligatoire dans une derniere surcharge locale.
+# Ne pas utiliser ce profil incomplet seul pour deployer.
+publicURL: ""
+web:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  gateway:
+    enabled: false
+  httpRedirect: false
+  custom:
+    configs:
+      _custom_config_js: |
+        config.bosh = window.location.origin + '/http-bind';
+websockets:
+  xmpp:
+    enabled: false

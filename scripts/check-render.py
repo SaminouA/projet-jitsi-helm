@@ -12,8 +12,9 @@ def require(condition, message):
 docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
 common = next(d["data"] for d in docs if d["kind"] == "ConfigMap" and "PUBLIC_URL" in (d.get("data") or {}))
 web = next(d["data"] for d in docs if d["kind"] == "ConfigMap" and "XMPP_BOSH_URL_BASE" in (d.get("data") or {}))
-public = len(sys.argv) > 2 and sys.argv[2] == "--public"
-ready = len(sys.argv) > 2 and sys.argv[2] == "--ready"
+public = "--public" in sys.argv[2:]
+edge = "--edge" in sys.argv[2:]
+ready = "--ready" in sys.argv[2:]
 if public:
     url = urlparse(common["PUBLIC_URL"])
     require(url.scheme == "https" and url.hostname and url.netloc == url.hostname and url.path in ("", "/") and not url.query and not url.fragment, "URL publique HTTPS avec DNS requise")
@@ -29,6 +30,11 @@ if public:
     for value in advertised.split(","):
         ip = ipaddress.IPv4Address(value)
         require(ip.is_global and not ip.is_multicast, "IP JVB publique unicast requise")
+elif edge:
+    url = urlparse(common["PUBLIC_URL"])
+    require(url.scheme == "https" and url.hostname and url.netloc == url.hostname and
+            url.path in ("", "/") and not url.query and not url.fragment,
+            "Profil edge : origine HTTPS complete requise")
 else:
     require(common["PUBLIC_URL"] == "http://localhost:8081", "URL locale incoherente")
 require(common["ENABLE_XMPP_WEBSOCKET"] == "false", "Profil attendu : BOSH")

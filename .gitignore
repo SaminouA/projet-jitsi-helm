@@ -41,3 +41,6 @@ values-gke.demo.yaml
 tests/results/
 
 /values-secrets.plain.yaml
+
+# Parametres publics propres au deploiement
+/deploy/local/

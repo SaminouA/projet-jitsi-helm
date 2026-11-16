@@ -19,6 +19,19 @@ identity=$(kubectl auth whoami -o json | python3 -c 'import json,sys; print(json
 [[ "$identity" == github-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com ]] || {
   echo 'Identite Kubernetes inattendue : deploiement refuse.' >&2; exit 1;
 }
+access_profile=${JITSI_ACCESS_PROFILE:-localhost}
+case "$access_profile" in
+  localhost) ;;
+  public-edge)
+    [[ ${JITSI_EDGE_CD_ENABLED:-false} == true ]] || {
+      echo 'Profil public non active : bootstrap et migration a autoriser.' >&2; exit 1;
+    }
+    [[ $(kubectl auth can-i get persistentvolumeclaims -n jitsi 2>/dev/null) == yes ]] || {
+      echo 'Lecture PVC requise pour la CD edge.' >&2; exit 1;
+    }
+    ;;
+  *) echo 'Profil CD inconnu.' >&2; exit 1 ;;
+esac
 namespace=jitsi
 release=jitsi
 chart=./charts-officiels/jitsi-meet
@@ -70,23 +83,51 @@ assert address.is_global and not address.is_multicast, 'IPv4 publique attribuee 
 print(ip)
 PY
 python3 scripts/jvb-values.py --jvb-ip "$(cat "$CD_TMP_DIR/ip")" > "$CD_TMP_DIR/network.yaml"
+profile_values=()
+edge_check=()
+if [[ "$access_profile" == public-edge ]]; then
+  # Generateur rejette les domaines de test ; fichiers dans le repertoire prive.
+  (
+    cd "$CD_TMP_DIR"
+    python3 "$GITHUB_WORKSPACE/scripts/public-values.py" \
+      --domain "${JITSI_PUBLIC_DOMAIN:?Domaine reel manquant}" \
+      --address-name "${JITSI_EDGE_ADDRESS_NAME:?Reservation existante manquante}" --acme production
+  )
+  edge_values="$CD_TMP_DIR/deploy/local/edge.yaml"
+  profile_values=(-f values-jitsi-public.yaml -f "$CD_TMP_DIR/deploy/local/jitsi.yaml")
+  edge_check=(--edge)
+  quiet 'lint edge' helm lint --strict charts/jitsi-edge -n jitsi -f "$edge_values"
+  if ! helm template jitsi-edge charts/jitsi-edge -n jitsi -f "$edge_values" \
+      > "$CD_TMP_DIR/edge-render.yaml" 2> "$CD_TMP_DIR/command.err"; then
+    echo 'Rendu edge refuse.' >&2; exit 1
+  fi
+  python3 scripts/check-edge-live.py "$CD_TMP_DIR/edge-render.yaml" "$JITSI_PUBLIC_DOMAIN"
+fi
 # Aucun dechiffrement sur la VM pendant la preparation. Ce code est pour le runner.
 quiet 'dechiffrement SOPS/KMS' sops --decrypt --output "$CD_TMP_DIR/secrets.yaml" values-secrets.sops.yaml
 chmod 600 "$CD_TMP_DIR/secrets.yaml"
 quiet 'lint Helm avec les valeurs fusionnees' helm lint --strict "$chart" \
-  -f values-gke.yaml -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml"
+  -f values-gke.yaml "${profile_values[@]}" -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml"
 if ! helm template "$release" "$chart" -n "$namespace" --skip-tests \
-  -f values-gke.yaml -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml" \
+  -f values-gke.yaml "${profile_values[@]}" -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml" \
   > "$CD_TMP_DIR/render.yaml" 2> "$CD_TMP_DIR/command.err"; then
   echo 'Rendu Helm refuse ; details sensibles non publies.' >&2; exit 1
 fi
-quiet 'invariants Web/BOSH et JVB' python3 scripts/check-render.py "$CD_TMP_DIR/render.yaml" --ready
+quiet 'invariants Web/BOSH et JVB' python3 scripts/check-render.py "$CD_TMP_DIR/render.yaml" --ready "${edge_check[@]}"
 # Refuse les ressources ajoutees, les changements d'exposition et la rotation implicite.
 python3 scripts/check-cd-render.py "$CD_TMP_DIR/render.yaml" "$CD_TMP_DIR/secrets.yaml"
 check_main
+if [[ "$access_profile" == public-edge ]]; then
+  # Le preflight exige les objets existants : aucune installation edge implicite.
+  quiet 'mise a jour edge existant' helm upgrade jitsi-edge charts/jitsi-edge -n jitsi \
+    -f "$edge_values" --wait --timeout 5m --no-hooks --hide-notes
+  quiet 'verification edge finale' python3 scripts/check-edge-live.py \
+    "$CD_TMP_DIR/edge-render.yaml" "$JITSI_PUBLIC_DOMAIN" --after
+fi
+check_main
 # Pas de --create-namespace, --force, --debug, --dry-run ou affichage de manifests.
 quiet 'mise a jour Helm' helm upgrade --install "$release" "$chart" --namespace "$namespace" \
-  -f values-gke.yaml -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml" \
+  -f values-gke.yaml "${profile_values[@]}" -f "$CD_TMP_DIR/network.yaml" -f "$CD_TMP_DIR/secrets.yaml" \
   --wait --timeout 10m --no-hooks --hide-notes
 quiet 'verification finale des valeurs et de la disponibilite' \
   python3 scripts/check-cd-render.py "$CD_TMP_DIR/render.yaml" "$CD_TMP_DIR/secrets.yaml" --after

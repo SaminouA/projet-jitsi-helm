@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["publicDomain", "acmeEnvironment", "image", "service", "persistence", "resources"],
+  "properties": {
+    "publicDomain": {"type": "string", "minLength": 3, "maxLength": 253, "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"},
+    "acmeEnvironment": {"type": "string", "enum": ["staging", "production"]},
+    "image": {"type": "string", "pattern": "^caddy:[0-9.]+-alpine@sha256:[0-9a-f]{64}$"},
+    "service": {"type": "object", "additionalProperties": false, "required": ["addressName"], "properties": {"addressName": {"type": "string", "minLength": 1, "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"}}},
+    "persistence": {"type": "object", "additionalProperties": false, "required": ["existingClaim"], "properties": {"existingClaim": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$", "minLength": 1}}},
+    "resources": {"type": "object"}
+  }
+}
