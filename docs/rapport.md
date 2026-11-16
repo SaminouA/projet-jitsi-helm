@@ -1658,3 +1658,81 @@ projet, du disque et du trafic ; aucun total mensuel n'a été mesuré.
 *Preuves à joindre après réalisation : DNS réel, certificat reconnu, état du
 Service edge et du PVC, réunion externe et exécution CI/CD. Ces captures ne sont
 pas disponibles à cette étape.*
+
+
+## Contrôle de remise — 16 novembre 2026 (heure de Paris)
+
+Cette section actualise les états historiques précédents. Le dépôt était propre
+sur `feature/jitsi-public-edge`. L'ordre chronologique est `ab53548`
+(documentation), `84a19b7` (CD), puis `f3a5aef` (HTTPS). La branche a été poussée
+vers `SaminouA/projet-jitsi-helm`, sans fusion ni activation CD.
+
+### Résultats effectivement observés
+
+| Contrôle | Résultat | Portée |
+|---|---|---|
+| CI GitHub du SHA `f3a5aef65ffcc8edbc640a7a276f7008fe89b723` | Succès, run `43929749540` | Validation statique, aucun déploiement |
+| Helm/Terraform via hook pre-push | Succès | Deux profils Jitsi, backend Terraform désactivé sur copie temporaire |
+| Tests Python | 25/25 réussis | Garde-fous CD et edge |
+| Caddy | Lint/rendu edge et `caddy validate` réussis | Aucun serveur ni certificat lancé |
+| GKE | Deux nœuds Ready | Observation ponctuelle |
+| Jitsi | Web, Prosody, Jicofo, JVB : quatre pods Ready, zéro redémarrage | Observation ponctuelle |
+| Helm | `jitsi`, révision 2, `deployed`, chart 3.10.0, application stable-11248 | Release existante préservée |
+| Réseau interne | Services et EndpointSlices Web/Prosody/JVB présents | Ne prouve pas le transport média externe |
+| Événements | Aucun Warning retourné dans `jitsi` | Seulement la rétention actuelle des événements |
+| HTTP via port-forward sur loopback | `/`, `/config.js`, `/http-bind` : HTTP 200 | Disponibilité des routes, pas de session XMPP ni de réunion validée |
+| Collecte ponctuelle | Un relevé, zéro erreur de collecte | Aucun générateur de charge |
+
+La collecte locale est conservée dans
+`tests/results/20261116T183203.174107Z_remise-observation/`, exclue de Git.
+JVB indiquait `healthy=true`, un client MUC connecté, zéro conférence et zéro
+participant. Les compteurs cumulés historiques ne sont pas attribués à cet essai.
+Les usages CPU observés des nœuds étaient environ 0,100 et 0,107 cœur ; ces
+mesures ponctuelles ne démontrent aucune capacité sous charge.
+Aucune nouvelle réunion ni charge média n'a été exécutée.
+
+### Premier déploiement OIDC : conditions et limites
+
+Les lectures GCP confirment un provider WIF ACTIVE, une condition limitée au dépôt
+et à `refs/heads/main`, `roles/iam.workloadIdentityUser` sur le compte de service,
+`roles/container.clusterViewer` sur le projet et
+`roles/cloudkms.cryptoKeyDecrypter` sur la clé SOPS. Le RoleBinding cible le compte
+attendu ; le Role inclut les lectures Pods/ReplicaSets et les opérations Helm.
+Aucune politique IAM/RBAC n'a été modifiée. Aucun secret n'a été déchiffré.
+
+La liste des variables de dépôt GitHub est vide : `GKE_CD_ENABLED` n'est pas
+activée au niveau dépôt et n'a pas été créée. Les éventuelles variables héritées
+d'organisation ne sont pas attestées par cette seule commande. L'API de protection
+de `main` renvoie HTTP 404 « Branch not protected » : il ne faut donc pas affirmer
+qu'une revue ou un statut obligatoire est actuellement imposé par cette protection.
+Les rulesets éventuels ne sont pas qualifiés dans ce contrôle.
+
+Avant le premier essai réel : revoir la PR et la CI du SHA final, faire approuver
+la fusion puis, séparément, l'activation CD ; recontrôler les autorisations
+effectives complètes et l'accès réseau du runner. L'essai devra confirmer l'échange
+OIDC, KMS, les comparaisons de secrets sans divulgation, la conservation de l'IP JVB
+et la disponibilité après Helm. Rien de cela n'est présenté comme déjà exécuté.
+
+### HTTPS : blocages concrets
+
+Aucune release `jitsi-edge` ni aucun PVC n'apparaît dans le namespace. La classe
+`standard-rwo` existe, avec `WaitForFirstConsumer` et politique `Delete`.
+La liste des adresses réservées du projet est vide. Aucun domaine réel n'a été
+fourni ou vérifié. Le test d'autorisation impersonné
+`get persistentvolumeclaims` du compte CD retourne `no` : blocage pour la CD
+publique, sans conséquence sur le profil localhost.
+
+Il reste à autoriser le budget, choisir le domaine, confirmer les quotas et les
+coûts, approuver le stockage ACME et sa sauvegarde, puis autoriser le bootstrap
+IP/PVC/LB/Caddy et la migration Jitsi. La CD préparée ne fait pas ce bootstrap.
+Aucune ressource payante, règle DNS ou certificat n'a été créé par cette étape.
+Les tarifs ne sont pas réévalués dans ce contrôle ; aucun coût mensuel validé
+n'est annoncé. Voir `docs/jitsi-public-edge.md` pour l'ordre des opérations.
+
+### Préparation de la soutenance et validations restantes
+
+Le support de prise de parole est dans `docs/soutenance.md` et le protocole
+borné dans `docs/validation-remise.md`. Ces livrables séparent l'infrastructure
+observée, les tests statiques et les essais encore nécessaires. Les résultats
+fonctionnels du 15 novembre restent des résultats historiques, distincts du
+contrôle actuel. Le README a été corrigé : le cluster est actif aujourd'hui.

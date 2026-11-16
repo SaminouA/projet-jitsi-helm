@@ -2,7 +2,8 @@
 
 Architecture de demonstration sans domaine : Web prive par port-forward sur
 `http://localhost:8081`, BOSH de meme origine, JVB public via LoadBalancer UDP
-10000. Aucun Ingress ni certificat requis. Le cluster est actuellement detruit.
+10000. Aucun Ingress ni certificat requis. Controle du 16 novembre 2026 : cluster actif, quatre pods Jitsi prets et release
+Helm `jitsi` revision 2 deployee. Voir le rapport pour la portee des tests.
 
 La release retenue est `jitsi`, dans le namespace `jitsi`. Les Services sont
 `jitsi-jitsi-meet-web` et `jitsi-jitsi-meet-jvb` ; le Deployment du bridge est
@@ -21,4 +22,5 @@ La CI ne deploie rien. Les tests locaux ne valident pas la visioconference.
 Installer `values-gke.yaml` sur GKE cree un LoadBalancer facturable et requiert
 une autorisation. L'IP annoncee par JVB doit ensuite etre finalisee avec
 `scripts/jvb-values.py`. Le generateur historique `scripts/gke-values.py`
-concerne uniquement l'alternative publique HTTPS avec domaine, non retenue.
+concerne une ancienne alternative publique. Le profil Caddy prepare est documente
+dans [le guide HTTPS](docs/jitsi-public-edge.md), sans deploiement autorise.
