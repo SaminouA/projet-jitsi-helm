@@ -19,14 +19,15 @@ identity=$(kubectl auth whoami -o json | python3 -c 'import json,sys; print(json
 [[ "$identity" == github-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com ]] || {
   echo 'Identite Kubernetes inattendue : deploiement refuse.' >&2; exit 1;
 }
-access_profile=${JITSI_ACCESS_PROFILE:-localhost}
+access_profile=${JITSI_ACCESS_PROFILE:?Profil CD explicite requis : localhost ou public-edge}
+profile_values=()
 case "$access_profile" in
-  localhost) ;;
+  localhost) profile_values=(--set-string publicURL=http://localhost:8081) ;;
   public-edge)
     [[ ${JITSI_EDGE_CD_ENABLED:-false} == true ]] || {
       echo 'Profil public non active : bootstrap et migration a autoriser.' >&2; exit 1;
     }
-    [[ $(kubectl auth can-i get persistentvolumeclaims -n jitsi 2>/dev/null) == yes ]] || {
+    [[ $(kubectl auth can-i get persistentvolumeclaims/jitsi-edge-data -n jitsi 2>/dev/null) == yes ]] || {
       echo 'Lecture PVC requise pour la CD edge.' >&2; exit 1;
     }
     ;;
@@ -83,7 +84,6 @@ assert address.is_global and not address.is_multicast, 'IPv4 publique attribuee 
 print(ip)
 PY
 python3 scripts/jvb-values.py --jvb-ip "$(cat "$CD_TMP_DIR/ip")" > "$CD_TMP_DIR/network.yaml"
-profile_values=()
 edge_check=()
 if [[ "$access_profile" == public-edge ]]; then
   # Generateur rejette les domaines de test ; fichiers dans le repertoire prive.

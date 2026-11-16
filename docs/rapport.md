@@ -2314,3 +2314,332 @@ qualifient pas le trajet JVB ni une charge/partage d'écran. Le renouvellement
 futur et la reprise après panne ne sont pas qualifiés. Les CI distantes vertes
 précédentes concernent c591ad4 et ne couvrent pas encore ce lot local.
 Aucun commit, push, merge, changement de permissions ou activation CD effectué.
+
+
+### Corrections CD et diagnostic OIDC/KMS préparés localement
+
+**16 novembre 2026 — préparation uniquement, après audit en lecture seule.**
+L'utilisateur autorise les modifications locales, mais interdit toute activation
+API, attribution IAM/RBAC, modification de variable GitHub, lancement de workflow,
+commit ou push. Ces interdictions ont été respectées. L'état déployé HTTPS n'a
+pas été modifié pendant cette étape.
+
+#### Changements proposés, non appliqués au cloud
+
+- `.github/workflows/deploy-gke.yml` exige désormais `JITSI_ACCESS_PROFILE`
+  explicitement, sans fallback silencieux. Avant OIDC, le mode public exige le
+  flag edge, le domaine `jitsi-meet-m2.duckdns.org` et `jitsi-edge-ip`.
+  Le déclenchement workflow_run de CI push main réussie, SHA exact/tête de main,
+  dépôt d'origine, opt-in `GKE_CD_ENABLED`, permissions et concurrence restent
+  conservés. Aucune variable n'a été définie ni activée.
+- `scripts/deploy-gke.sh` conserve la sélection explicite et prépare une vraie
+  surcharge `publicURL=http://localhost:8081` pour le mode local, malgré la base
+  publique. Le mode public conserve ses valeurs HTTPS et contrôles existants.
+  Le test de droit PVC cible le nom `persistentvolumeclaims/jitsi-edge-data`.
+- `deploy/cd-pvc-reader.yaml` propose un Role/RoleBinding additionnel dans
+  `jitsi`, seulement `get` sur le PVC nommé `jitsi-edge-data`, pour le compte
+  CD. Il ne remplace aucun Role existant, ne crée pas de PVC et n'accorde ni
+  list/watch global, create/delete PVC, ni administration RBAC. **Non appliqué.**
+- `scripts/check-gcp-apis.py` inventorie les six APIs requises en lecture seule
+  sous identité opérateur, sans possibilité d'activation. Le diagnostic runner
+  ne requiert pas un droit Service Usage supplémentaire pour cet inventaire.
+
+La proposition de variables et les commandes d'administration futures,
+explicitement non exécutées, sont documentées dans `docs/cd-diagnostic.md`.
+`GKE_CD_ENABLED` et `JITSI_EDGE_CD_ENABLED` restent absentes/désactivées pendant
+le diagnostic. Leur future activation est une décision séparée.
+
+#### Workflow de diagnostic sans déploiement
+
+`.github/workflows/diagnose-gke.yml` est un nouveau workflow manuel préparé,
+indépendant de la CD. Il exige une confirmation booléenne, le dépôt exact,
+la branche main, le SHA checkout égal à la tête actuelle de main. Le garde
+`scripts/diagnose-cd.py --guard-only` s'exécute avant l'authentification Google ;
+le SHA est recontrôlé à la fin. Les actions sont épinglées et SOPS est vérifié
+par SHA256. Le verrou de concurrence est partagé avec la CD pour éviter une
+observation pendant une autre exécution automatisée du déploiement.
+
+Après OIDC et configuration du kubeconfig local au runner, le diagnostic prévu
+vérifie l'identité GKE, les URL/configurations publiques existantes, les releases,
+49 autorisations (requêtes `can-i`, sans exécuter les verbes CRUD), le PVC Bound,
+SOPS/KMS, les rendus et la correspondance des secrets/IP/disponibilités.
+Le droit minimal PVC proposé correspond exactement au nom interrogé.
+
+Le déchiffrement futur est limité à un dossier RUNNER_TEMP privé 0700 avec
+fichiers 0600, sans sortie brute d'outil, debug, artefact ou cache sensible.
+Nettoyage Python à la sortie et à l'erreur, traitement SIGTERM et nettoyage
+always() de secours sont préparés ; l'action auth nettoie ses credentials WIF.
+Aucun helm upgrade/install/rollback/uninstall, aucune écriture de ressource
+applicative ou opération de bootstrap n'est prévue. Les fichiers temporaires,
+kubeconfig et credentials sont locaux au runner. Les opérations KMS/runner
+peuvent avoir un coût d'opération/temps, sans création d'infrastructure.
+
+#### Résultats réellement obtenus ici
+
+| Contrôle | Résultat | Portée |
+|---|---|---|
+| `python3 scripts/check-gcp-apis.py` | Sortie 1 attendue : **STS et Resource Manager manquantes** ; IAM/IAMCredentials/GKE/KMS actives | Lecture réelle de l'inventaire, aucune activation |
+| Suite `unittest` locale | **42 tests réussis**, dont 11 nouveaux | Données synthétiques/mocks pour le diagnostic ; aucun appel runner/OIDC/KMS réel |
+| `sh scripts/validate.sh` | Réussi | Helm public et localhost ; Terraform fmt/init/validate sur copie temporaire sans backend |
+| `scripts/validate-edge.py` avec CADDY_BIN | Réussi | Lint/rendu edge et validation Caddyfile ; aucun serveur lancé |
+| Syntaxe | YAML du workflow lu, blocs run validés avec bash -n ; Python compilé ; Bash de déploiement valide | Aucun déclenchement GitHub ; actionlint non disponible |
+| `git diff --check` et scan de motifs sensibles | Réussis | Aucune clé privée/jeton détecté dans les nouveaux fichiers contrôlés |
+
+Les tests couvrent contexte/fork/branche/SHA/confirmation refusés, droit PVC
+nommé, commandes de mutation refusées, erreurs sensibles masquées, scénario
+synthétique de réussite et nettoyage après échec SOPS. Les messages de réussite
+simulée ne sont pas présentés comme un résultat réel d'authentification.
+Aucun SOPS n'a été réellement déchiffré pendant cette préparation.
+
+#### Toujours prévu, non réalisé
+
+Publication et intégration du nouveau workflow sur main, activation approuvée
+des APIs manquantes, application approuvée du seul droit PVC, sélection des
+variables sans activer la CD, puis lancement manuel autorisé du diagnostic.
+L'échange OIDC, l'accès GKE depuis GitHub et le déchiffrement KMS sous l'identité
+CD restent **non testés sur runner**. Les workflows GitHub n'ont pas été lancés.
+Aucun commit/push/merge effectué pour ces corrections locales.
+
+Risques : le compte CD garde ses droits applicatifs existants ; le caractère
+sans déploiement repose donc aussi sur le code relu, pas sur une identité
+entièrement read-only. Le durcissement WIF par ID immuable/workflow exact et
+l'approbation humaine/environnement GitHub restent à discuter. Les upgrades
+CD ne sont pas transactionnels ; une future migration PUBLIC_URL nécessitera
+son rechargement contrôlé. Le diagnostic ne valide ni renouvellement TLS,
+reprise après panne ou conférence. Aucun succès du diagnostic ne devra être
+interprété comme une autorisation implicite d'activer la CD.
+
+
+### Activation limitée des APIs nécessaires au diagnostic CD — 16 novembre 2026
+
+L'utilisateur a autorisé uniquement l'activation de `sts.googleapis.com` et
+`cloudresourcemanager.googleapis.com` dans
+`project-fcf2ef91-c005-4910-a10`, sous réserve de précontrôles. Les modifications
+locales préparées précédemment ont été conservées ; aucune autre configuration
+ou permission n'a été modifiée.
+
+#### Précontrôles réellement effectués avant modification
+
+- `gcloud config get-value project` correspond exactement au projet attendu ;
+  une seule identité authentifiée est active. Aucun changement de projet ou
+  d'identité n'a été effectué.
+- Les lectures directes Service Usage indiquent **DISABLED** pour les deux APIs.
+- `testIamPermissions` confirme pour l'identité courante les permissions
+  `serviceusage.services.get`, `serviceusage.services.list` et
+  **`serviceusage.services.enable`**. Aucun rôle nouveau attribué.
+- La documentation officielle Google sur
+  [WIF et les pipelines de déploiement](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines)
+  inclut les APIs IAM, Resource Manager, IAMCredentials et STS parmi les
+  prérequis. STS sert à l'échange du jeton fédéré ; ces deux services manquaient
+  au jeu de prérequis retenu. Cela ne constituait pas une preuve d'échange OIDC.
+
+#### Commande autorisée et résultat
+
+```bash
+gcloud services enable sts.googleapis.com cloudresourcemanager.googleapis.com \
+  --project=project-fcf2ef91-c005-4910-a10
+```
+
+La commande a terminé avec succès. Les inventaires complets des services actifs,
+lus avant et après, donnent exactement deux ajouts :
+
+| API | Avant | Après, confirmé par Service Usage |
+|---|---|---|
+| `sts.googleapis.com` | DISABLED | **ENABLED** |
+| `cloudresourcemanager.googleapis.com` | DISABLED | **ENABLED** |
+
+Aucun autre service activé et aucun service désactivé selon cette comparaison.
+Le projet actif est resté identique.
+
+#### Contrôle après activation
+
+`python3 -B scripts/check-gcp-apis.py` termine avec le **code 0** et confirme
+les six APIs actives : IAM, IAMCredentials, STS, Resource Manager, GKE et KMS.
+La sortie précise : « Prerequis API presents ; aucun echange OIDC teste ici. »
+Les mentions antérieures d'APIs manquantes décrivent donc l'état avant cette
+activation autorisée, désormais levé.
+
+Aucune modification IAM/RBAC, variable GitHub, ressource Kubernetes, secret,
+configuration Jitsi/Caddy ou autre service. Aucun déploiement ni workflow lancé,
+aucun commit, push ou merge. Seule cette section a été ajoutée au rapport pendant
+l'opération, sans écraser les changements précédents. Aucun jeton n'a été affiché.
+
+Le diagnostic OIDC/GKE/SOPS sur runner reste **préparé, non exécuté** ; la lecture
+minimale du PVC et l'intégration du workflow demeurent des étapes séparées
+nécessitant leur propre accord. Aucune activation CD n'est déduite de ce succès.
+
+
+### Droit de lecture minimal du PVC Caddy appliqué après validation
+
+**16 novembre 2026.** L'utilisateur a autorisé uniquement l'application de
+`deploy/cd-pvc-reader.yaml` après contrôle du contexte, du sujet et validation
+sans persistance. Aucune autre permission ou ressource n'était autorisée.
+
+Le contexte courant est
+`gke_project-fcf2ef91-c005-4910-a10_europe-west1-b_jitsi-cluster` ; son serveur
+correspond à l'endpoint du cluster GKE `jitsi-cluster`, état RUNNING,
+`europe-west1-b`, projet attendu. Le namespace `jitsi` est Active.
+
+**Précision d'identité :** la CD utilise le compte de service Google
+`github-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com`
+via OIDC/GKE, représenté dans Kubernetes par un sujet **kind: User**, comme dans
+le RoleBinding CD préexistant et le contrôle d'identité du script. Ce n'est pas
+un Kubernetes ServiceAccount de forme `system:serviceaccount:namespace:nom`.
+Le nouveau binding cible exactement cette identité existante, sans substitution.
+
+Le manifeste a été contrôlé structurellement : exactement deux objets nouveaux,
+Role et RoleBinding `github-jitsi-caddy-pvc-reader`, dans `jitsi`. Le Role
+contient une seule règle :
+
+```yaml
+apiGroups: [""]
+resources: [persistentvolumeclaims]
+resourceNames: [jitsi-edge-data]
+verbs: [get]
+```
+
+Aucun Role/RoleBinding homonyme n'existait avant intervention. Les tests initiaux
+par impersonation retournaient no pour get du PVC nommé, create, update, patch
+et delete. Le contrôle préparatoire a été réalisé avant toute application :
+
+```bash
+kubectl apply --dry-run=server -f deploy/cd-pvc-reader.yaml
+kubectl diff -f deploy/cd-pvc-reader.yaml
+```
+
+La validation serveur réussit sans persistance ; le diff affiché ne contient que
+les deux ajouts attendus (code 1 de kubectl diff, signifiant différence et non
+échec). L'empreinte du manifeste et le contexte ont été revérifiés immédiatement
+avant l'application autorisée :
+
+```bash
+kubectl apply -f deploy/cd-pvc-reader.yaml
+```
+
+Résultat : Role et RoleBinding **created**, puis relecture des règles et du
+sujet conformes. Aucune commande n'a ciblé le PVC en écriture.
+
+#### Résultats effectifs après application
+
+Les contrôles `kubectl auth can-i ... --as=COMPTE_CD -n jitsi` donnent :
+
+| Opération | Résultat |
+|---|---|
+| get `persistentvolumeclaims/jitsi-edge-data` | **yes** |
+| get `persistentvolumeclaims/autre-pvc` | no |
+| list / watch `persistentvolumeclaims` | no |
+| create `persistentvolumeclaims` | no |
+| update / patch / delete `persistentvolumeclaims/jitsi-edge-data` | no |
+| create / update / patch / delete `persistentvolumeclaims` sans nom | no |
+| deletecollection `persistentvolumeclaims` | no |
+
+Une véritable lecture `kubectl get pvc jitsi-edge-data` avec impersonation du
+compte CD réussit : Bound, 10Gi. La comparaison avant/après confirme UID, spec
+et statut du PVC identiques. Les UID des cinq pods sont inchangés et tous sont
+Ready. Les releases Helm sont identiques à la capture initiale (Jitsi révision 3,
+Caddy révision 2). Les règles et bindings préexistants du namespace sont
+inchangés ; seuls les deux objets approuvés ont été ajoutés.
+
+Ces résultats prouvent la permission effective de lecture nommée et les refus
+d'écriture interrogés, sans tentative de création/modification/suppression de
+PVC. Ils ne constituent pas un test du workflow OIDC depuis GitHub. Le diagnostic
+runner reste préparé, non lancé, et la CD reste désactivée.
+
+Aucun changement du PVC, pods, releases, variables GitHub, secrets ou droits IAM.
+Aucun autre droit RBAC modifié, aucun commit/push/merge ou workflow déclenché.
+Les modifications locales antérieures sont préservées ; seule cette section a
+été ajoutée au rapport pendant l'intervention.
+
+
+### Publication du diagnostic CD préparée, sans opération Git distante
+
+**16 novembre 2026.** L'utilisateur demande la préparation de publication, sans
+commit, push, merge, workflow ou modification cloud. La branche active reste
+`feature/jitsi-public-edge`, HEAD `ff74090`, index vide. Le lot local contient
+11 fichiers : les deux workflows CD/diagnostic, `scripts/deploy-gke.sh`,
+`scripts/diagnose-cd.py`, `scripts/check-gcp-apis.py`, le manifeste PVC reader,
+les trois tests CD/edge/diagnostic et les documents rapport/diagnostic.
+Une liste explicite et un message de commit sont préparés localement sous
+`/tmp/jitsi-diagnostic-publication-{files,message}.txt`, sans indexation.
+
+#### Audit du lot et du périmètre sans déploiement
+
+Les fichiers modifiés et non suivis ont été inspectés. Le scan des motifs de
+clés privées, jetons GitHub/Google/DuckDNS et credentials Google, ainsi que la
+comparaison aux secrets applicatifs connus en clair et base64, ne détectent
+aucun secret dans le lot. Les sauvegardes Helm sous `deploy/local/`, états/plans
+Terraform, valeurs en clair, rendus et résultats locaux restent ignorés et
+exclus du lot. Ces contrôles ne constituent pas une garantie exhaustive contre
+toute forme de secret inconnue ; aucun contenu sensible n'a été affiché.
+
+Le workflow diagnostic a uniquement workflow_dispatch, confirmation par défaut
+false, dépôt/branche main stricts et garde de SHA avant OIDC et en fin de test.
+Il n'a aucun déclencheur push, PR, schedule ou workflow_run. Un dispatch reste
+une action explicite d'un utilisateur/API GitHub autorisé, pas une conséquence
+du push ou du merge. Permissions globales vides ; seuls contents:read et
+id-token:write au job. Pas de permission d'écriture du dépôt ou de gestion des
+workflows. Actions épinglées, absence de commande de déploiement et contrôles
+appelés en lecture seule confirmés ; les opérations CRUD RBAC sont seulement
+interrogées avec can-i. Le contexte local de diagnostic reste public-edge.
+
+Le Role PVC déjà appliqué a seulement son commentaire de provenance actualisé,
+sans changement de règle. Le guide distingue maintenant les APIs/PVC déjà
+validés de l'intégration GitHub encore à faire. Aucune réapplication du manifeste
+ou activation de service ne fait partie de cette publication.
+
+#### Prérequis de lancement revérifiés en lecture seule
+
+- Les six APIs sont actives ; `scripts/check-gcp-apis.py` réussit.
+- get du PVC nommé répond yes par impersonation ; aucune permission modifiée.
+- Provider WIF ACTIVE, émetteur GitHub, condition dépôt attendu et refs/heads/main.
+  Clé primaire KMS ENABLED. Le succès réel OIDC/KMS depuis GitHub reste non testé.
+- GitHub Actions est activé et les actions utilisées sont autorisées. Le défaut
+  du GITHUB_TOKEN est read ; le job déclare précisément les permissions utiles.
+- **Aucun secret GitHub ajouté ou variable de dépôt n'est nécessaire au
+  diagnostic.** GH_TOKEN est le jeton automatique github.token ; OIDC remplace
+  une clé JSON permanente. Les valeurs SOPS chiffrées sont déjà dans le dépôt.
+  Aucun PAT personnel, token DuckDNS ou mot de passe en clair ne doit être créé.
+- Les variables du dépôt sont toujours vides. Les propositions public-edge
+  documentées concernent la future CD ; elles ne bloquent pas le diagnostic.
+  GKE_CD_ENABLED doit rester absente/false pendant toute cette validation.
+- La branche par défaut est main. Le workflow diagnostic y est **absent (404)** ;
+  seule la CI y est actuellement enregistrée. La PR nº 3 est ouverte en
+  brouillon, head ff74090. Aucune disponibilité manuelle depuis la seule branche
+  feature n'est supposée.
+
+#### Validations locales relancées
+
+La suite complète termine avec **42 tests réussis**. `scripts/validate.sh`
+réussit (Helm public et localhost ; Terraform sans backend sur copie temporaire),
+ainsi que `validate-edge.py` avec Caddy, syntaxe Bash, lecture YAML et
+`git diff --check`. Tous les blocs run du workflow ont été contrôlés avec
+bash -n, sans exécution ; les commandes futures du guide sont vérifiées
+syntaxiquement, sans lancement. Les tests OIDC/KMS sont simulés : aucun nouveau
+déchiffrement réel, jeton OIDC GitHub ou runner n'est utilisé pour ces tests.
+
+#### Actions restantes pour une exécution réelle
+
+1. Obtenir l'accord commit/push des 11 fichiers, puis publier sur la branche et
+   attendre les CI du nouveau SHA. Aucun commit n'a encore été créé ici.
+2. Revoir la PR nº 3 complète, qui contient aussi les dépendances HTTPS/CD
+   précédentes : copier seulement le YAML diagnostic sur main ne suffirait pas.
+   Obtenir un accord distinct de fusion, avec GKE_CD_ENABLED toujours désactivée.
+3. Après fusion autorisée, attendre une CI verte du **push main**, relever le
+   SHA final et confirmer que le nouveau workflow et ses dépendances sont
+   présents sur main et enregistrés dans Actions.
+4. Obtenir un accord de lancement manuel, par un opérateur disposant du droit
+   d'exécuter Actions. Sélectionner main et confirm_read_only=true. La commande
+   préparée dans le guide est `gh workflow run diagnose-gke.yml --repo
+   SaminouA/projet-jitsi-helm --ref main -f confirm_read_only=true` ; **non lancée**.
+5. Vérifier l'ID de run, l'événement workflow_dispatch, la branche main et le SHA
+   attendu ; attendre la conclusion et relire identité, RBAC, PVC, KMS, rendus et
+   nettoyage. Garder main stable pendant le test. Aucun succès ne doit activer
+   implicitement la CD ou autoriser un déploiement.
+
+Les fichiers locaux existants sont préservés. Seuls les commentaires de
+provenance et la documentation ont été actualisés pendant cette préparation ;
+aucun service/droit/variable ou ressource applicative modifié. Aucun commit,
+push, merge ou lancement GitHub Actions effectué. Le compte CD conserve ses
+permissions applicatives : la sûreté du diagnostic repose aussi sur le code
+relu et le nettoyage des données temporairement déchiffrées. Ce risque reste
+visible dans le guide avant autorisation d'exécution.

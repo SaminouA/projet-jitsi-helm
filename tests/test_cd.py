@@ -120,7 +120,7 @@ class WorkflowEventTests(unittest.TestCase):
         self.sha = 'a' * 40
         self.env = {'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'workflow_run',
                     'GITHUB_REPOSITORY': 'SaminouA/projet-jitsi-helm', 'CD_ENABLE': 'true',
-                    'EXPECTED_SHA': self.sha, 'GITHUB_REF': 'refs/heads/default-workflow-branch'}
+                    'EXPECTED_SHA': self.sha, 'JITSI_ACCESS_PROFILE': 'localhost', 'GITHUB_REF': 'refs/heads/default-workflow-branch'}
         self.payload = {'repository': {'full_name': 'SaminouA/projet-jitsi-helm'}, 'workflow_run': {
             'repository': {'full_name': 'SaminouA/projet-jitsi-helm'},
             'head_repository': {'full_name': 'SaminouA/projet-jitsi-helm'},

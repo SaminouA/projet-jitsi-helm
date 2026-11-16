@@ -34,7 +34,7 @@ jobs:
       EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}
       CD_ENABLE: ${{ vars.GKE_CD_ENABLED }}
-      JITSI_ACCESS_PROFILE: ${{ vars.JITSI_ACCESS_PROFILE || 'localhost' }}
+      JITSI_ACCESS_PROFILE: ${{ vars.JITSI_ACCESS_PROFILE }}
       JITSI_EDGE_CD_ENABLED: ${{ vars.JITSI_EDGE_CD_ENABLED || 'false' }}
       JITSI_PUBLIC_DOMAIN: ${{ vars.JITSI_PUBLIC_DOMAIN }}
       JITSI_EDGE_ADDRESS_NAME: ${{ vars.JITSI_EDGE_ADDRESS_NAME }}
@@ -60,6 +60,15 @@ jobs:
         run: |
           bash -n scripts/deploy-gke.sh
           python3 scripts/check-cd-event.py
+          case "$JITSI_ACCESS_PROFILE" in
+            localhost) ;;
+            public-edge)
+              test "$JITSI_EDGE_CD_ENABLED" = true
+              test "$JITSI_PUBLIC_DOMAIN" = jitsi-meet-m2.duckdns.org
+              test "$JITSI_EDGE_ADDRESS_NAME" = jitsi-edge-ip
+              ;;
+            *) echo 'Profil CD explicite requis : localhost ou public-edge.' >&2; exit 1 ;;
+          esac
           python3 -m unittest discover -s tests -p test_cd.py -v
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
         with:

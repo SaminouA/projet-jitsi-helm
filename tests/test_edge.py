@@ -90,7 +90,7 @@ class EdgeTests(unittest.TestCase):
 
     def test_default_cd_does_not_enable_public_mode(self):
         workflow = yaml.load((ROOT / '.github/workflows/deploy-gke.yml').read_text(), Loader=yaml.BaseLoader)
-        self.assertIn("|| 'localhost'", workflow['jobs']['deploy']['env']['JITSI_ACCESS_PROFILE'])
+        self.assertEqual(workflow['jobs']['deploy']['env']['JITSI_ACCESS_PROFILE'], '${{ vars.JITSI_ACCESS_PROFILE }}')
         self.assertIn("|| 'false'", workflow['jobs']['deploy']['env']['JITSI_EDGE_CD_ENABLED'])
         guard = (ROOT / 'scripts/check-edge-live.py').read_text()
         self.assertIn('Bound', guard)
