@@ -1705,7 +1705,11 @@ activée au niveau dépôt et n'a pas été créée. Les éventuelles variables 
 d'organisation ne sont pas attestées par cette seule commande. L'API de protection
 de `main` renvoie HTTP 404 « Branch not protected » : il ne faut donc pas affirmer
 qu'une revue ou un statut obligatoire est actuellement imposé par cette protection.
-Les rulesets éventuels ne sont pas qualifiés dans ce contrôle.
+Le contrôle complémentaire des règles effectives (`rules/branches/main`) confirme
+toutefois un ruleset : passage par PR, statut `Validation Helm` requis, refus des
+suppressions et des pushes non fast-forward. Le nombre minimal d’approbations
+est zéro : aucune approbation humaine obligatoire n’est attestée. Le HTTP 404
+concerne donc la protection classique, pas l’absence de règles effectives.
 
 Avant le premier essai réel : revoir la PR et la CI du SHA final, faire approuver
 la fusion puis, séparément, l'activation CD ; recontrôler les autorisations

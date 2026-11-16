@@ -10,7 +10,7 @@ si les conditions réseau et les participants le permettent.
 | 3. Terraform et GKE | Déclaration réseau/cluster/nœuds ; état à préserver ; deux nœuds Ready | `terraform/main.tf`, validation sans backend ; aucun apply durant la remise |
 | 4. Helm | Chart Jitsi officiel versionné, valeurs GKE, installation en deux phases pour l'IP JVB | Release jitsi révision 2, chart 3.10.0 ; ancien dossier jitsi distinct |
 | 5. Secrets SOPS/KMS | Valeurs chiffrées dans Git ; déchiffrement temporaire privé et nettoyage | IAM KMS relu ; pas de secret affiché ni de rotation |
-| 6. GitHub Actions | CI Helm/Terraform et tests Python ; PR vers main | CI verte sur f3a5aef ; protection de branche non constatée |
+| 6. GitHub Actions | CI Helm/Terraform et tests Python ; PR vers main | CI verte sur f3a5aef ; ruleset PR et statut Validation Helm requis, zéro approbation minimale |
 | 7. OIDC et CD | Jeton GitHub → WIF limité au dépôt/main → compte de déploiement → GKE/KMS | Configuration IAM présente ; premier échange runner non validé, CD désactivée |
 | 8. HTTPS préparé | Internet → LB TCP 80/443 → Caddy → Web ; JVB UDP séparé ; ACME persistant | Chart/Caddyfile validés localement ; domaine, budget, droits PVC et bootstrap manquants |
 | 9. Tests et résultats | 25 tests Python, HTTP 200 sur trois routes, collecte JVB saine au repos | Aucun nouveau résultat de réunion/charge ; résultats du 15 novembre identifiés comme historiques |
