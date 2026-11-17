@@ -7,8 +7,17 @@ resource "google_container_cluster" "jitsi" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  # Environnement de test : suppression autorisée
+  # Preuve limitee : label GCP, pas un label de noeud Kubernetes.
+  resource_labels = {
+    devops-apply-proof = "github-actions"
+  }
+
+  # Valeur existante conservee ; aucune modification distante pendant la preparation.
   deletion_protection = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_container_node_pool" "jitsi_nodes" {
@@ -17,6 +26,10 @@ resource "google_container_node_pool" "jitsi_nodes" {
   cluster  = google_container_cluster.jitsi.name
 
   node_count = 2
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   node_config {
     machine_type = "e2-standard-2"

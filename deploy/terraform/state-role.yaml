@@ -1,0 +1,9 @@
+title: Jitsi Terraform state backend
+description: Acces au seul bucket state, y compris creation et suppression du verrou
+stage: GA
+includedPermissions:
+  - storage.buckets.get
+  - storage.objects.get
+  - storage.objects.list
+  - storage.objects.create
+  - storage.objects.delete

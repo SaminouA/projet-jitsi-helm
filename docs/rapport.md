@@ -11,6 +11,107 @@
 | Année universitaire | À confirmer |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 
+## Premier essai contrôlé de CD Helm réussi — 17 novembre 2026
+
+Cette section actualise les états historiques « CD non validée » plus bas.
+Le premier déploiement Helm automatisé contrôlé est désormais validé sur le
+SHA main `ed49e2d6f829a926eeb7e9e534272a345f9ee7f5`. Il a été déclenché par
+une unique relance de la CI push main existante, sans nouveau commit applicatif.
+La CD permanente reste désactivée après l’essai. Cette réussite ne valide ni
+Terraform apply automatisé, ni Malleus/Selenium Grid, ni Chaos Mesh.
+
+### Autorisation, précontrôles et déroulement réellement exécuté
+
+L’utilisatrice a autorisé un seul essai et son éventuel rollback. Avant activation :
+SHA main attendu confirmé, contexte jitsi-cluster/europe-west1-b vérifié, cinq
+pods prêts sans redémarrage, releases deployed, PVC Bound et IP inchangées.
+Les statistiques internes Jicofo (port 8888 /stats) et JVB (port 8080
+/colibri/stats) ont été interrogées deux fois : conférences=0 et participants=0
+pour les deux composants ; JVB indiquait également zéro endpoint actif au premier
+relevé. Aucun nom de salle ni identifiant de participant n’a été exporté.
+
+Les révisions, UID des Services, UID/volume du PVC et IP ont été relevés dans un
+fichier privé de métadonnées sous /tmp avant toute activation ; aucune sauvegarde
+de valeurs Helm déchiffrées n’a été écrite. Les quatre variables de profil ont
+été définies, puis GKE_CD_ENABLED=true en dernier :
+
+| Variable | Valeur après l’essai |
+|---|---|
+| JITSI_ACCESS_PROFILE | public-edge |
+| JITSI_PUBLIC_DOMAIN | jitsi-meet-m2.duckdns.org |
+| JITSI_EDGE_ADDRESS_NAME | jitsi-edge-ip |
+| JITSI_EDGE_CD_ENABLED | true — reste subordonnée au flag général |
+| GKE_CD_ENABLED | **false**, désactivée et relue après l’essai |
+
+Commande de relance exécutée une seule fois :
+
+```bash
+gh run rerun 44055927650 --repo SaminouA/projet-jitsi-helm
+```
+
+La [CI 44055927650, tentative 2](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44055927650/attempts/2)
+a réussi ; son événement source reste push, branche main, SHA attendu.
+Elle a déclenché le [CD 44057014445, tentative 1](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445),
+réussi lui aussi. OIDC, configuration exec ADC, préflights, déchiffrement SOPS,
+vérifications et upgrades Helm ont réussi ; les nettoyages du répertoire privé,
+du kubeconfig et des credentials de l’action OIDC sont marqués success.
+
+Le CD a terminé le 17 novembre à 10:40:17, heure de Paris (09:40:17 UTC).
+GKE_CD_ENABLED=false a été confirmé à 10:40:20, soit trois secondes après la
+fin indiquée par GitHub. Aucun autre essai ou déploiement n’a été lancé.
+
+### Révisions avant/après et vérifications indépendantes
+
+| Élément | Avant | Après |
+|---|---|---|
+| Release Jitsi | Révision 3, deployed | **Révision 4, deployed** |
+| Release Caddy jitsi-edge | Révision 2, deployed | **Révision 3, deployed** |
+| Chart Jitsi / application | 3.10.0 / stable-11248 | Inchangés |
+| Chart Caddy / application | 0.1.0 / 2.11.9 | Inchangés |
+| Pods | 5 prêts, 0 redémarrage | Mêmes noms, 5 prêts, 0 redémarrage |
+| PVC Caddy | 10 Gi, Bound, standard-rwo, RWO | Bound ; UID et volume inchangés |
+| Services / IP | Web 34.78.71.58, JVB 34.62.165.81 | UID des Services et IP inchangés ; TCP 80/443 et UDP 10000 conservés |
+| Événements Warning présents lors du contrôle final | Non utilisé comme mesure initiale | 0 |
+
+Les mots de passe Jicofo/JVB actifs correspondent aux valeurs SOPS après
+l’essai, comparaison en mémoire par booléens sans affichage ni fichier en clair.
+Aucune rotation de secret n’est observée. Les logs ont été analysés au moyen
+de messages fixes autorisés, sans reproduction des sorties brutes.
+
+Le DNS résout vers l’IP Web attendue. La connexion TLS est validée par le magasin
+de confiance système, avec vérification du nom, sans -k : certificat valide du
+16 novembre 2026 à 18:30:15 UTC au 14 février 2027 à 18:30:14 UTC.
+
+| Route HTTPS contrôlée après l’essai | Réponse |
+|---|---|
+| / | 200 |
+| /config.js | 200 |
+| /http-bind | 200 sur GET ; disponibilité HTTP, pas un test de session BOSH complète |
+| /metrics, /colibri/stats, /debug, /healthz, /about/health | 404 |
+
+La configuration servie conserve BOSH sur window.location.origin et ne contient
+aucune référence à localhost:8081. Ces contrôles confirment la disponibilité
+technique ; aucune nouvelle réunion audio/vidéo, aucun partage d’écran ni test
+de charge n’a été exécuté après cet upgrade. Le test manuel utilisateur précédent
+reste une preuve antérieure distincte.
+
+### Résultat, retour arrière et limites
+
+Aucune erreur ni dégradation n’a été observée ; le rollback autorisé n’a donc
+pas été nécessaire et n’a pas été exécuté. Les cibles relevées avant cet essai
+étaient Jitsi 3 et edge 2. Un rollback futur devrait faire l’objet d’un nouveau
+contrôle de contexte et de révisions : ne pas réutiliser ces cibles aveuglément.
+Le PVC, les IP et les secrets n’ont pas été supprimés ou remplacés.
+
+La réussite prouve la chaîne CI push main → workflow_run → OIDC/exec ADC →
+SOPS/préflights → deux upgrades Helm contrôlés. Elle ne prouve pas la création
+automatisée de l’infrastructure, la haute disponibilité, la résilience ou une
+capacité de charge. Aucun Terraform apply, changement IAM ni autre déploiement
+n’a été effectué. Les deux upgrades restent non transactionnels ensemble.
+
+Ce compte rendu est préparé localement sur la branche documentaire
+`docs/first-controlled-helm-cd`, sans commit ni push et sans modification de main.
+
 ## Avancement du 17 novembre — diagnostic réussi, correction CD préparée
 
 La PR nº 5 est fusionnée au SHA cbe2192bc2104b2f40b88633b24ae691eb854788.
@@ -1251,6 +1352,169 @@ commit ou push n'est effectué pour cette correction. Il reste à relire et
 intégrer le code par PR, activer explicitement la CD après accord et vérifier
 l'accès depuis le runner, l'échange OIDC/KMS puis une première mise à jour
 sécurisée. Aucune exécution distante réussie de cette CD n'est revendiquée.
+
+### Préparation Terraform initiale — état historique du 17 novembre 2026
+
+Ce journal décrit la préparation initiale. Les statuts de backend, IAM et
+déclenchement sont actualisés par la réconciliation et la revue finale ci-dessous.
+Les procédures anciennes ne doivent pas être rejouées.
+
+Les attendus pédagogiques précisent Terraform et Helm après push, secrets,
+Malleus/Selenium Grid, Chaos Mesh et Cloud Monitoring. La CD Helm a réussi comme
+détaillé plus bas ; **aucun apply Terraform automatisé n’est encore validé**.
+Cette étape prépare uniquement une PR et ses contrôles. La branche documentaire
+originale et ses modifications sont conservées dans leur worktree ; ce rapport
+reprend aussi le compte rendu du premier CD, sans l’écraser.
+
+#### Audit et plan réellement effectués
+
+L’état Terraform local est au format 4, Terraform 1.16.6, serial 9 ; deux ressources
+sont suivies : google_container_cluster.jitsi et google_container_node_pool.jitsi_nodes.
+Il n’y a pas de backend distant configuré dans la base auditée. Aucun bucket
+GCS du projet n’a été retourné par la liste. Le cluster jitsi-cluster est RUNNING,
+zone europe-west1-b ; Logging et Monitoring Kubernetes sont configurés. Le label
+observé avant modification est goog-terraform-provisioned=true. Le compte OIDC
+Helm existant a container.clusterViewer au projet ; aucun compte Terraform dédié
+n’a été trouvé. Le provider WIF existant est actif et restreint au dépôt/main.
+
+Un worktree séparé prépare un label de preuve `devops-apply-proof=github-actions`
+sur le cluster, avec prevent_destroy sur cluster et pool. Un plan a été calculé
+avec les credentials opérateur existants, sur copie privée de la configuration
+et de l’état, backend local isolé ; il lit GCP sans appliquer ni écrire dans
+l’état original. Résultat : **cluster update, pool no-op**, changements limités
+à resource_labels, terraform_labels et effective_labels ; aucune valeur inconnue
+après apply, aucune création, suppression ou remplacement. Le garde strict a
+accepté ce vrai plan. La [preuve expurgée](terraform-plan-preuve.json) ne contient
+ni état, ni plan complet, ni credential. Ce plan local ne valide pas les futures
+permissions du compte runner et doit être recalculé après migration.
+
+#### Backend, identité et workflow proposés
+
+Le [guide Terraform contrôlé](terraform-cd-controlee.md) détaille les commandes
+préparées, coûts, conditions d’arrêt et preuves futures. Backend GCS proposé :
+bucket dédié régional europe-west1, versioning, accès uniforme et prévention
+d’accès public, préfixe jitsi/gke, workspace default, verrouillage GCS natif.
+Le bucket doit préexister ; aucun bucket n’est géré par l’état qu’il héberge.
+Le nom global reste à vérifier. Aucun bucket n’a été créé, aucun état migré.
+La migration exigera un accord distinct, une copie privée conservant l’original,
+la comparaison lineage/serial/adresses/IDs et l’interdiction de tout état vide.
+
+Le compte proposé terraform-jitsi-deployer est séparé de Helm, sans clé statique,
+RBAC Kubernetes ou déchiffrement KMS. Deux rôles personnalisés sont proposés :
+lecture/mise à jour cluster et opérations au projet, accès objets/lock au seul
+bucket. Le droit cluster update reste plus large qu’un label ; la restriction
+par champ est assurée par le garde logiciel et la revue, pas par IAM. Un nouveau
+provider OIDC est proposé avec dépôt/main/workflow_ref Terraform et attribut
+pipeline dédié pour son binding SA. Aucun rôle, binding, provider ou SA n’a été
+créé ou modifié pendant cette préparation.
+
+Le workflow terraform-gke.yml attend une CI push main réussie, TF_CD_ENABLED=true,
+TF_APPROVED_SHA égal au SHA CI et à la tête main, et Helm désactivé. Il partage
+la sérialisation Helm/diagnostic et utilise l’environnement terraform-controlled,
+**dont les protections humaines devront être configurées et vérifiées avant
+activation**. Il prépare fmt/init/validate, vérifie bucket/lineage/serial et les
+deux ressources, calcule un plan privé, refuse tout changement hors label,
+puis prévoit apply du seul binaire contrôlé, sous verrou. Le code d’apply n’a
+pas été exécuté contre GCP. Après un futur apply autorisé, il vérifiera label,
+cluster RUNNING, serial et plan final sans changement, puis supprimera les
+fichiers privés. Aucun état/plan n’est téléversé comme artefact ou affiché.
+
+#### Validations locales de cette préparation
+
+78 tests unitaires ont réussi : les 64 précédents et 14 nouveaux tests Terraform.
+Les outils externes de ces tests sont simulés, y compris le scénario d’apply ;
+il ne constitue aucune preuve d’application réelle. Helm public/localhost et
+Terraform fmt/init backend=false/validate ont réussi sur copies isolées. Les
+contrôles documentaires couvrent 12 documents, 28 liens locaux et 66 blocs shell
+sans erreur ; les URLs externes sont contrôlées syntaxiquement seulement.
+Le vrai plan privé de lecture a également été accepté par le validateur strict.
+
+#### Limites et autorisations restantes
+
+Avant le premier apply : autoriser séparément bucket et coûts, identité/rôles/WIF,
+migration préservant l’état, protections GitHub, fusion, variables et fenêtre de
+l’unique essai. Le flag Terraform restera absent/false jusque-là ; Helm reste
+false. L’opérateur devra désactiver TF_CD_ENABLED après l’essai, même en échec ;
+le token workflow n’a volontairement aucun droit de modification des variables.
+Un échec n’autorise pas une relance, un destroy, un déverrouillage forcé ou une
+restauration aveugle du state. Le retrait du label demanderait une nouvelle revue
+et un plan autorisé, car le garde de premier essai refuse les changements généraux.
+
+GCS ajoute stockage/versioning et opérations facturables, sur un état actuel
+d’environ 24 Ko ; pas de nouveau calcul GKE ou LB pour le label. Aucun budget
+mensuel n’est chiffré sans tarification/consommation confirmées et aucune ressource
+payante n’est créée dans cette préparation. Les essais Malleus/Chaos et les
+preuves Cloud Monitoring corrélées restent distincts et non réalisés ici.
+
+
+### Réconciliation de la PR Terraform nº 7 — 17 novembre 2026
+
+La branche de la PR a intégré la base main actuelle ; le conflit add/add sur
+`terraform-gke.yml` a été résolu en conservant le diagnostic readonly et en
+ajoutant un mode manuel `operation=apply-label`. Aucun apply ni fusion dans main
+n'a été exécuté. Le mode readonly reste celui par défaut, avec sa confirmation
+explicite et son invariant de plan sans changement. Avant la preuve de label,
+ce diagnostic pourra refuser le changement attendu : ce refus ne vaut pas apply.
+
+Le fournisseur OIDC existant impose le dépôt, ses identifiants immuables, main,
+le chemin exact de ce workflow et le sujet de l'environnement terraform-controlled.
+Ce chemin est conservé pour ne pas modifier IAM. Le mode apply exige le flag
+Terraform, le flag Helm désactivé, le SHA main explicitement saisi, une CI push
+réussie sur ce SHA et une seconde vérification avant application. Le job de
+précontrôle n'a pas de droit OIDC. Le job apply attend l'approbation humaine de
+l'environnement puis utilise des identifiants externes sans clé JSON.
+Le contrôle GitHub impose un reviewer configuré, interdit le bypass administrateur
+et n'autorise que main. L'auto-approbation par l'utilisatrice déclenchante reste
+permise par le paramètre existant ; il ne s'agit pas d'une séparation à deux personnes.
+
+Le 17 novembre, les lectures IAM ont confirmé les rôles dédiés cluster et bucket,
+la permission compute.instanceGroupManagers.list, le binding WIF, le versioning,
+l'accès uniforme et la prévention publique du bucket europe-west1. Le garde
+recontrôle ces protections, le workspace, le lineage privé et les deux ressources.
+Un plan frais a été exécuté avec les ADC de l'opératrice, sur une copie privée
+avec le backend GCS (ce n'est pas un essai d'apply avec le compte du runner) : **une mise
+à jour du seul label devops-apply-proof, zéro création, destruction ou remplacement,
+node pool inchangé**. L'état distant était identique avant et après. Le plan privé
+a été supprimé et aucune valeur sensible n'a été publiée.
+
+L'approbation de l'environnement intervient avant le job plan/apply. Elle ne
+constitue pas une approbation interactive du plan binaire intermédiaire : le
+contenu de celui-ci est contraint par le garde label-only testé, conservé sur le
+même runner et appliqué sans recalcul. Aucun artefact state/plan n'est transféré.
+Le fichier du plan est privé, son empreinte et l'état complet sont recontrôlés.
+Les flags restent false. Pour une future exécution autorisée, il faudra activer
+explicitement TF_CD_ENABLED au niveau dépôt **et environnement**, saisir le SHA
+main approuvé, puis approuver humainement le job. Aucune de ces opérations n'a
+été faite dans cette préparation.
+
+#### Correction de la revue finale : approbation du plan exact
+
+La première préparation ci-dessus approuvait le job avant génération du plan.
+Elle ne satisfaisait donc pas une revue humaine du plan exact. Elle est remplacée
+par la chaîne manuelle suivante : génération du plan privé, publication de sa
+projection exhaustive des seuls changements autorisés et de son SHA-256,
+attente d'un job distinct sous terraform-apply-review, puis apply du même binaire.
+L'environnement de revue est distinct de celui de génération et n'a aucun droit
+OIDC. Son absence ou une protection insuffisante bloque dès le précontrôle.
+
+Le plan et l'état de référence sont transférés uniquement chiffrés, avec
+AES-256-CBC/PBKDF2 et HMAC-SHA256 encrypt-then-MAC à clés indépendantes. Un secret
+GitHub dédié TF_PLAN_TRANSPORT_KEY, à provisionner après accord, est requis ;
+aucune clé réelle n'a été créée ou révélée. Les secrets Jitsi SOPS/KMS restent
+inchangés. L'artefact est limité au même run/attempt et conservé un jour.
+L'apply vérifie HMAC, SHA du plan, SHA du commit, run/attempt, revue et état
+courant avant toute mutation. Il ne régénère pas le plan avant application.
+Un rerun partiel, une dérive d'état, un artefact altéré ou une revue absente
+imposent une nouvelle préparation et une nouvelle approbation.
+
+Le résumé public contient l'ajout du label de preuve, ses champs exacts et le
+pool no-op ; les attributs inchangés et les secrets ne sont pas publiés.
+Le garde refuse désormais un label de preuve déjà présent, même avec une autre
+valeur : aucun avant secret ou arbitraire n'est nécessaire dans cette revue.
+Les tests locaux portent sur cette chaîne et le transport, pas sur un apply réel.
+Aucun nouveau plan cloud n'a été lancé pendant cette revue finale, la configuration
+Terraform et les preuves du dernier plan étant inchangées.
+
 
 ## 8. Analyse critique, limites et perspectives
 
