@@ -1,0 +1,18 @@
+# PREPARE, NON APPLIQUE. Nom/UID du pod a revalider juste avant autorisation.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: jitsi-web-kill-once
+  namespace: jitsi
+spec:
+  action: pod-kill
+  mode: one
+  gracePeriod: 10
+  selector:
+    namespaces: [jitsi]
+    labelSelectors:
+      app.kubernetes.io/instance: jitsi
+      app.kubernetes.io/name: jitsi-meet
+      app.kubernetes.io/component: web
+    pods:
+      jitsi: [jitsi-jitsi-meet-web-8454659c99-gpjzl]
