@@ -40,10 +40,11 @@ def verify(plan):
         else:
             require(c['actions'] == ['update'])
             require(before.get('name') == after.get('name') == 'jitsi-cluster')
-            require((before.get('resource_labels') or {}).get(LABEL) != VALUE)
+            require(LABEL not in (before.get('resource_labels') or {}))
             require({k: v for k, v in before.items() if k not in LABEL_FIELDS} ==
                     {k: v for k, v in after.items() if k not in LABEL_FIELDS})
             for field in LABEL_FIELDS:
+                require(LABEL not in (before.get(field) or {}))
                 expected = dict(before.get(field) or {})
                 expected[LABEL] = VALUE
                 require(after.get(field) == expected)

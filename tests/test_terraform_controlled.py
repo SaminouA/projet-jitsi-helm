@@ -74,7 +74,7 @@ class TerraformRunnerTests(unittest.TestCase):
         self.lineage = '11111111-1111-1111-1111-111111111111'
         self.env = {'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_REF': 'refs/heads/main', 'GITHUB_SHA': self.sha, 'TF_OPERATION': 'apply-label', 'GITHUB_REPOSITORY': tf.REPO,
                     'EXPECTED_SHA': self.sha, 'TF_APPROVED_SHA': self.sha, 'TF_CD_ENABLED': 'true',
-                    'HELM_CD_ENABLED': 'false', 'TF_STATE_BUCKET': tf.BUCKET, 'TF_STATE_LINEAGE': self.lineage}
+                    'GITHUB_RUN_ID': '123', 'GITHUB_RUN_ATTEMPT': '1', 'HELM_CD_ENABLED': 'false', 'TF_STATE_BUCKET': tf.BUCKET, 'TF_STATE_LINEAGE': self.lineage}
         self.payload = {'inputs': {'operation': 'apply-label'}, 'repository': {'full_name': tf.REPO}, 'workflow_run': {
             'repository': {'full_name': tf.REPO}, 'head_repository': {'full_name': tf.REPO},
             'name': tf.event.CI_NAME, 'event': 'push', 'status': 'completed', 'conclusion': 'success',
@@ -142,6 +142,10 @@ class TerraformRunnerTests(unittest.TestCase):
             credential = Path(tmp) / 'credentials.json'
             credential.write_text(json.dumps({'type': 'external_account', 'service_account_impersonation_url': 'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/' + tf.ACCOUNT + ':generateAccessToken'}))
             env = dict(self.env, RUNNER_TEMP=tmp, GITHUB_ENV=str(Path(tmp) / 'env'), GOOGLE_APPLICATION_CREDENTIALS=str(credential))
+            binary = b'fixture-private-binary-plan'
+            key = '01' * 64
+            review = tf.bundle.seal(binary, self.state, tf.public_changes(plan_fixture()), key, env, Path(tmp) / 'reviewed-plan-download')
+            env.update(TF_PLAN_TRANSPORT_KEY=key, TF_EXPECTED_PLAN_SHA256=review['plan_sha256'], TF_REVIEWED_PLAN_SHA256=review['plan_sha256'])
             calls = []; pulls = 0
             def fake(args, accepted=(0,)):
                 nonlocal pulls
@@ -168,6 +172,19 @@ class TerraformRunnerTests(unittest.TestCase):
             self.assertFalse(Path(applies[0][-1]).exists())
             self.assertFalse(any('-migrate-state' in c or '-lock=false' in c for c in calls))
 
+    def test_changed_state_is_rejected_before_apply_or_replan(self):
+        from contextlib import nullcontext
+        with tempfile.TemporaryDirectory() as tmp:
+            state = copy.deepcopy(self.state); state['serial'] += 1
+            review = {'changes': tf.public_changes(plan_fixture())}
+            env = dict(self.env, RUNNER_TEMP=tmp)
+            with patch.dict(os.environ, env), patch.object(tf.bundle, 'unseal', return_value=(b'plan', self.state, review)), \
+                 patch.object(tf, 'workspace', return_value=nullcontext((Path(tmp), ['terraform']))), \
+                 patch.object(tf, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(state))) as call:
+                with self.assertRaises(SystemExit): tf.controlled_apply()
+                self.assertEqual(call.call_args_list[0].args[0], ['terraform', 'state', 'pull'])
+                self.assertEqual(call.call_count, 1)
+
     def test_real_tool_failure_is_sanitized_and_tf_injection_removed(self):
         completed = subprocess.CompletedProcess([], 1, stdout='fixture-private', stderr='fixture-token')
         with patch.dict(os.environ, TF_CLI_ARGS_apply='-destroy', TF_WORKSPACE='other'), \
@@ -177,13 +194,16 @@ class TerraformRunnerTests(unittest.TestCase):
             env = tool.call_args.kwargs['env']
             self.assertNotIn('TF_CLI_ARGS_apply', env); self.assertNotIn('TF_WORKSPACE', env)
 
-    def test_workflow_is_optin_pinned_serialized_and_has_no_plan_artifact(self):
+    def test_workflow_is_optin_pinned_serialized_and_downloads_only_reviewed_artifact(self):
         w = yaml.load((ROOT / '.github/workflows/terraform-gke.yml').read_text(), Loader=yaml.BaseLoader)
         j = w['jobs']['apply']
         self.assertEqual(set(w['on']), {'workflow_dispatch'})
         self.assertEqual(j['environment'], 'terraform-controlled')
         self.assertIn("vars.TF_CD_ENABLED == 'true'", w['jobs']['apply-preflight']['if'])
-        self.assertEqual(j['needs'], 'apply-preflight')
+        self.assertEqual(j['needs'], ['prepare-plan', 'review-plan'])
+        self.assertEqual(w['jobs']['review-plan']['needs'], 'prepare-plan')
+        self.assertEqual(w['jobs']['review-plan']['environment']['name'], 'terraform-apply-review')
+        self.assertEqual(w['jobs']['review-plan']['permissions'], {})
         self.assertEqual(j['env']['TF_APPROVED_SHA'], '${{ inputs.approved_sha }}')
         self.assertEqual(w['concurrency']['group'], 'deploy-jitsi-gke-main')
         self.assertEqual(j['permissions'], {'contents': 'read', 'actions': 'read', 'id-token': 'write'})
@@ -195,3 +215,77 @@ class TerraformRunnerTests(unittest.TestCase):
         self.assertTrue(auth['with']['workload_identity_provider'].endswith('/github-terraform-provider'))
         self.assertNotIn('credentials_json', auth['with'])
         self.assertEqual(j['steps'][-1]['if'], '${{ always() }}')
+        download = next(s for s in j['steps'] if 'actions/download-artifact@' in s.get('uses', ''))
+        self.assertEqual(download['with']['artifact-ids'], '${{ needs.prepare-plan.outputs.artifact_id }}')
+        self.assertNotIn('run-id', download['with'])
+        self.assertNotIn('repository', download['with'])
+        self.assertNotIn('github-token', download['with'])
+        self.assertIn('--apply-reviewed-plan', '\n'.join(s.get('run', '') for s in j['steps']))
+
+
+class ReviewedBundleTests(unittest.TestCase):
+    def fixture(self, directory):
+        env = {'GITHUB_SHA': 'a'*40, 'GITHUB_RUN_ID': '123', 'GITHUB_RUN_ATTEMPT': '1'}
+        key = '01' * 64
+        state = {'private': 'fixture-super-private-state'}
+        path = Path(directory) / 'artifact'
+        review = tf.bundle.seal(b'fixture-super-private-plan', state, tf.public_changes(plan_fixture()), key, env, path)
+        env['TF_REVIEWED_PLAN_SHA256'] = review['plan_sha256']
+        return env, key, state, path, review
+
+    def test_exact_binary_roundtrip_without_public_plaintext(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env, key, state, path, review = self.fixture(tmp)
+            binary, actual_state, actual_review = tf.bundle.unseal(path, key, env, review['plan_sha256'])
+            self.assertEqual(binary, b'fixture-super-private-plan'); self.assertEqual(actual_state, state)
+            self.assertEqual(actual_review, review)
+            for p in path.iterdir():
+                self.assertNotIn(b'fixture-super-private', p.read_bytes())
+
+    def test_tamper_ciphertext_mac_and_manifest_refused_before_decryption(self):
+        for filename in ['bundle.enc', 'bundle.hmac', 'review.json']:
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as tmp:
+                env, key, state, path, review = self.fixture(tmp)
+                p = path/filename
+                if filename == 'review.json':
+                    data=json.loads(p.read_text());data['changes']['after']='unapproved';p.write_text(json.dumps(data))
+                else:p.write_bytes(p.read_bytes()+b'X')
+                with patch.object(tf.bundle, 'crypt') as decrypt:
+                    with self.assertRaises(SystemExit):tf.bundle.unseal(path,key,env,review['plan_sha256'])
+                    decrypt.assert_not_called()
+
+    def test_wrong_key_sha_run_attempt_and_missing_review_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env,key,state,path,review=self.fixture(tmp)
+            variants=[(dict(env,GITHUB_SHA='b'*40),key,review['plan_sha256']),
+                      (dict(env,GITHUB_RUN_ID='124'),key,review['plan_sha256']),
+                      (dict(env,GITHUB_RUN_ATTEMPT='2'),key,review['plan_sha256']),
+                      (dict(env,TF_REVIEWED_PLAN_SHA256=''),key,review['plan_sha256']),
+                      (env,'02'*64,review['plan_sha256']), (env,key,'f'*64)]
+            for changed,k,digest in variants:
+                with self.assertRaises(SystemExit):tf.bundle.unseal(path,k,changed,digest)
+
+    def test_missing_transport_key_and_existing_proof_label_refused(self):
+        for key in ['', 'fixture', '01'*32]:
+            with self.assertRaises(SystemExit):tf.bundle.key_material(key)
+        p=plan_fixture()
+        for field in tf.plan_guard.LABEL_FIELDS:
+            p['resource_changes'][0]['change']['before'][field][tf.plan_guard.LABEL]='old'
+        with self.assertRaises(SystemExit):tf.public_changes(p)
+
+    def test_cli_has_no_default_apply(self):
+        p=subprocess.run(['python3',str(ROOT/'scripts/terraform-controlled.py')],capture_output=True,text=True)
+        self.assertNotEqual(p.returncode,0)
+        self.assertIn('Action explicite requise',p.stderr)
+
+    def test_prepare_plan_cannot_apply(self):
+        import ast
+        tree=ast.parse((ROOT/'scripts/terraform-controlled.py').read_text())
+        prepare=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='prepare_plan')
+        literal=[n.value for n in ast.walk(prepare) if isinstance(n,ast.Constant)]
+        self.assertNotIn('apply',literal)
+        apply=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='controlled_apply')
+        for n in ast.walk(apply):
+            if isinstance(n,ast.List):
+                values=[e.value for e in n.elts if isinstance(e,ast.Constant)]
+                if 'plan' in values:self.assertNotIn('-out=',values)

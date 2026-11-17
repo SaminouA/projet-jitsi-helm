@@ -219,3 +219,17 @@ constitue pas une séparation des tâches à deux personnes. Le job recontrôle
 les protections avant application. L'approbation précède le job plan/apply,
 pas un transfert de plan binaire entre deux runners. Aucun artefact privé
 n'est exposé. Le workflow général multi-ressources reste hors périmètre.
+
+
+## 6. Correction finale obligatoire : revue après génération du plan
+
+La section 5 décrit l'étape préparatoire antérieure. Elle est remplacée pour
+l'activation par la chaîne prepare-plan → review-plan → apply documentée dans
+[la validation actuelle](terraform-plan-apply-validation.md). L'approbation de
+terraform-controlled avant plan ne suffit pas. Une seconde approbation distincte
+sur terraform-apply-review, après publication du résumé lié au plan exact, est
+obligatoire. L'artefact binaire est chiffré et authentifié ; son empreinte est
+recontrôlée et aucun nouveau plan n'est calculé avant apply. Un secret privé de
+transport et ce nouvel environnement protégé restent à provisionner après accord.
+Ne pas activer les flags avant vérification de ces prérequis. Aucun apply réel
+n'a été exécuté ; les procédures de bootstrap historiques ne sont pas à rejouer.
