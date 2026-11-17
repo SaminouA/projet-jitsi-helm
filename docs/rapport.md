@@ -11,6 +11,46 @@
 | Année universitaire | À confirmer |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 
+## Avancement du 17 novembre — diagnostic réussi, correction CD préparée
+
+La PR nº 5 est fusionnée au SHA cbe2192bc2104b2f40b88633b24ae691eb854788.
+Le [diagnostic 44053382824](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44053382824)
+a réussi en une seule tentative : OIDC, exec ADC, plugin GKE, identité kubectl,
+49 contrôles RBAC, PVC Bound, SOPS/KMS, comparaison des secrets/rendus et nettoyage.
+La CI du merge a réussi et le job CD a été ignoré, sans aucune étape exécutée.
+Ces faits remplacent les mentions d’un diagnostic encore bloqué dans les
+sections historiques ci-dessous ; ils ne prouvent aucun déploiement CD.
+
+La correction CD préparée ensuite réutilise les primitives exec ADC du diagnostic,
+avec un adaptateur `scripts/configure-cd-gke.py`. Celui-ci valide l’événement
+workflow_run via check-cd-event.py, exige une CI push main réussie, le dépôt
+attendu, CD_ENABLE=true, le SHA actuel et un profil explicite. Il ne réutilise
+pas le garde workflow_dispatch du diagnostic. Le kubeconfig CD est créé
+exclusivement en 0600 sous RUNNER_TEMP, propagé au step suivant puis supprimé
+par le nettoyage always ; les sorties sensibles restent capturées. Aucun droit
+IAM/RBAC ou paramètre applicatif n’est changé.
+
+Quand GKE_CD_ENABLED est absente ou false, la condition du job refuse le CD.
+Un second contrôle dans le script refuse également tout flag autre que true
+avant lecture cloud. Les gardes de CI préalable, main/SHA, SOPS/KMS, RBAC,
+ressources existantes et comparaison des secrets/réseau restent présents.
+Les validations locales de cette correction ont réussi : 64 tests unitaires
+(58 précédents et 6 nouveaux tests CD avec outils distants simulés), contrôles
+documentaires (11 documents, 26 liens locaux, 63 blocs shell) et diff --check.
+Les URLs externes sont contrôlées syntaxiquement seulement. Le diagnostic
+réussi cité plus haut précède cette nouvelle correction CD : aucune validation
+runner de l’adaptateur workflow_run ni aucun upgrade ne sont revendiqués.
+
+Cette préparation ne réalise aucun Helm upgrade, changement de variable ou
+mutation GCP/GKE. **La CD n’est pas encore validée de bout en bout.**
+
+La [procédure contrôlée](validation-cd-controlee.md) précise fusion/revue, contrôle
+de dérive avant l’essai sans modification fonctionnelle, variables publiques,
+révisions relevées immédiatement avant l’essai et rollback Jitsi puis edge si
+concernés. Une mise à jour peut néanmoins redémarrer des pods ; prévoir une
+fenêtre sans réunion. Aucun résultat de charge Malleus, résilience Chaos Mesh
+ou Terraform apply automatisé n’est ajouté par cette correction Helm.
+
 ## État actuel pour la remise — consolidation locale du 16 novembre
 
 Cette synthèse prévaut sur les descriptions historiques qui suivent. Aucune
