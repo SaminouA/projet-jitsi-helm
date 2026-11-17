@@ -1,3 +1,8 @@
+> Document historique conservé. Pour l’état consolidé du 17 novembre 2026,
+> consulter le [rapport final](rapport.md), les [preuves](preuves-livraison.md)
+> et le [plan oral final](presentation-finale.md). Les statuts antérieurs ci-dessous
+> ne décrivent pas nécessairement la version livrée.
+
 # Revue finale d'intégration des PR nº 7 et nº 13 — 17 novembre 2026
 
 Aucune PR n'est fusionnée. Aucun apply, test de charge ou chaos n'a été lancé.

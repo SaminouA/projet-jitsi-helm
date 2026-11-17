@@ -1,3 +1,8 @@
+> Document historique conservé. Pour l’état consolidé du 17 novembre 2026,
+> consulter le [rapport final](rapport.md), les [preuves](preuves-livraison.md)
+> et le [plan oral final](presentation-finale.md). Les statuts antérieurs ci-dessous
+> ne décrivent pas nécessairement la version livrée.
+
 # Protocole de validation pour la remise
 
 État du 16 novembre 2026 : contrôles HTTP et collecte ponctuelle effectués ;
