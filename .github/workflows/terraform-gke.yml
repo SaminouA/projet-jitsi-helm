@@ -1,0 +1,49 @@
+# Diagnostic only. PR #7's automatic apply remains unmerged and disabled.
+name: Terraform OIDC GCS readonly plan
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_read_only:
+        type: boolean
+        required: true
+        default: false
+permissions: {}
+concurrency:
+  group: deploy-jitsi-gke-main
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main' && inputs.confirm_read_only == true
+    environment: terraform-controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_CD_ENABLED: ${{ vars.TF_CD_ENABLED }}
+      GKE_CD_ENABLED: ${{ vars.GKE_CD_ENABLED }}
+      GH_TOKEN: ${{ github.token }}
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: project-fcf2ef91-c005-4910-a10
+          workload_identity_provider: projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider
+          service_account: terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com
+          create_credentials_file: true
+          cleanup_credentials: true
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Verify OIDC and GCS then validate and plan only
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_LINEAGE: ${{ vars.TF_STATE_LINEAGE }}
+        run: python3 -B scripts/terraform-readonly.py
