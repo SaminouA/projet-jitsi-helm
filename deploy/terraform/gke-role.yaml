@@ -1,0 +1,9 @@
+title: Jitsi Terraform label proof
+description: Lecture du cluster/pool et mise a jour du cluster pour la preuve controlee
+stage: GA
+includedPermissions:
+  - container.clusters.get
+  - container.clusters.update
+  - container.operations.get
+  - resourcemanager.projects.get
+  - serviceusage.services.use
