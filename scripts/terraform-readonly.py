@@ -57,9 +57,29 @@ def verify_plan(plan):
     return {'create': 0, 'update': 0, 'delete': 0, 'replace': 0}
 
 
+def safe_command_error(args, output):
+    # Categories and permission names only: never echo command args or raw output.
+    operation = args[2] if args[0] == 'terraform' and len(args) > 2 else args[0]
+    operation = operation if operation in ['init', 'workspace', 'state', 'validate', 'plan', 'show', 'gh', 'gcloud'] else 'unknown'
+    text = output.lower()
+    if '403' in text or 'permission denied' in text or 'forbidden' in text:
+        category = 'IAM_DENIED'
+    elif '429' in text or 'quota exceeded' in text:
+        category = 'QUOTA_EXCEEDED'
+    elif 'error acquiring the state lock' in text:
+        category = 'STATE_LOCK'
+    elif 'failed to install provider' in text or 'failed to query available provider' in text:
+        category = 'PROVIDER_INSTALL'
+    else:
+        category = 'UNCLASSIFIED'
+    matches = re.findall(r'(?:compute|container|storage|iam|serviceusage|resourcemanager)\.[A-Za-z]+\.[A-Za-z]+', output)
+    permissions = sorted({p for p in matches if p.split('.')[-1] in ['get', 'list', 'getCredentials', 'getAccessToken', 'getIamPolicy', 'setIamPolicy', 'create', 'update', 'delete', 'use']})
+    return 'READONLY_' + operation + '_' + category + (':' + ','.join(permissions) if permissions else '')
+
+
 def run(args, accepted=(0,)):
     p = subprocess.run(args, capture_output=True, text=True, timeout=240)
-    require(p.returncode in accepted, 'READONLY_COMMAND_FAILED_' + args[0])
+    require(p.returncode in accepted, safe_command_error(args, p.stderr + p.stdout))
     return p
 
 
@@ -72,6 +92,7 @@ def main():
     require(SA in unquote(credentials.get('service_account_impersonation_url', '')), 'TERRAFORM_IMPERSONATION_REQUIRED')
     account = run(['gcloud', 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)']).stdout.strip()
     require(account == SA, 'ACTIVE_TERRAFORM_IDENTITY_REQUIRED')
+    print('OIDC keyless and active Terraform identity verified.', flush=True)
     with tempfile.TemporaryDirectory(prefix='terraform-readonly.', dir=os.environ['RUNNER_TEMP']) as name:
         directory = Path(name)
         for p in (ROOT / 'terraform').glob('*.tf'):
@@ -82,9 +103,11 @@ def main():
         backend = json.loads((directory / '.terraform/terraform.tfstate').read_text())['backend']
         require(backend['type'] == 'gcs' and backend['config']['bucket'] == BUCKET and backend['config']['prefix'] == 'jitsi/gke', 'GCS_BACKEND_NOT_CONFIRMED')
         require(run(tf + ['workspace', 'show']).stdout.strip() == 'default', 'WORKSPACE_INVALID')
+        print('Remote GCS backend and default workspace verified.', flush=True)
         before = json.loads(run(tf + ['state', 'pull']).stdout)
         verify_state(before, os.environ['TF_STATE_LINEAGE'])
         run(tf + ['validate'])
+        print('Remote state verified; Terraform validate succeeded. Starting plan.', flush=True)
         planned = directory / 'readonly.tfplan'
         run(tf + ['plan', '-input=false', '-no-color', '-lock-timeout=60s', '-detailed-exitcode', '-out=' + str(planned)], accepted=(0, 2))
         plan = json.loads(run(tf + ['show', '-json', str(planned)]).stdout)
