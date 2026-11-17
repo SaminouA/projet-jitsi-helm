@@ -42,3 +42,45 @@ main approuvé, puis approuver humainement le job. Aucune de ces opérations n'a
 été faite dans cette préparation.
 
 PR : https://github.com/SaminouA/projet-jitsi-helm/pull/7
+
+## Correction de revue finale — procédure normative actuelle
+
+
+La première préparation ci-dessus approuvait le job avant génération du plan.
+Elle ne satisfaisait donc pas une revue humaine du plan exact. Elle est remplacée
+par la chaîne manuelle suivante : génération du plan privé, publication de sa
+projection exhaustive des seuls changements autorisés et de son SHA-256,
+attente d'un job distinct sous terraform-apply-review, puis apply du même binaire.
+L'environnement de revue est distinct de celui de génération et n'a aucun droit
+OIDC. Son absence ou une protection insuffisante bloque dès le précontrôle.
+
+Le plan et l'état de référence sont transférés uniquement chiffrés, avec
+AES-256-CBC/PBKDF2 et HMAC-SHA256 encrypt-then-MAC à clés indépendantes. Un secret
+GitHub dédié TF_PLAN_TRANSPORT_KEY, à provisionner après accord, est requis ;
+aucune clé réelle n'a été créée ou révélée. Les secrets Jitsi SOPS/KMS restent
+inchangés. L'artefact est limité au même run/attempt et conservé un jour.
+L'apply vérifie HMAC, SHA du plan, SHA du commit, run/attempt, revue et état
+courant avant toute mutation. Il ne régénère pas le plan avant application.
+Un rerun partiel, une dérive d'état, un artefact altéré ou une revue absente
+imposent une nouvelle préparation et une nouvelle approbation.
+
+Le résumé public contient l'ajout du label de preuve, ses champs exacts et le
+pool no-op ; les attributs inchangés et les secrets ne sont pas publiés.
+Le garde refuse désormais un label de preuve déjà présent, même avec une autre
+valeur : aucun avant secret ou arbitraire n'est nécessaire dans cette revue.
+Les tests locaux portent sur cette chaîne et le transport, pas sur un apply réel.
+Aucun nouveau plan cloud n'a été lancé pendant cette revue finale, la configuration
+Terraform et les preuves du dernier plan étant inchangées.
+
+Ordre du DAG : apply-preflight → prepare-plan → review-plan → apply.
+Le job review-plan n'est disponible qu'après création de l'artefact et affiche
+le SHA-256 dans son nom et le lien vers le résumé du run. Le reviewer doit lire
+ce résumé puis approuver cet environnement. Le job apply consomme exactement
+l'ID d'artefact immuable produit par prepare-plan, jamais un nom fourni par une PR.
+
+Avant activation : créer terraform-apply-review avec reviewer humain obligatoire,
+main uniquement et bypass administrateur interdit ; renseigner le secret de
+transport privé dans terraform-controlled pour les deux jobs OIDC. Les flags
+restent false. Aucun environnement, secret, IAM ou rôle GCP n'est modifié ici.
+Une approbation représente la décision du reviewer ; la lecture et la compréhension
+humaines ne peuvent pas être prouvées techniquement par le workflow.
