@@ -1,0 +1,25 @@
+# Reutilisation de la base Java DEJA en cache ; aucun demarrage du serveur Jicofo.
+FROM ghcr.io/jitsi/jicofo@sha256:380a4cd0c756d889ae2359b4e7de17cae0a22167a2b733f8d1880b1c72e4afca
+USER root
+COPY --chown=10001:10001 payload/ /opt/malleus/
+COPY run-malleus-container.sh /opt/malleus/run
+RUN chmod 0755 /opt/malleus/run
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
+    PATH=/opt/malleus/apache-maven-3.8.7/bin:$PATH \
+    MAVEN_OPTS="-Xmx384m -Duser.home=/tmp/malleus" \
+    MALLEUS_COMMIT=4c00915e97006ff2224bb509eb3582bf3a10ca85
+WORKDIR /opt/malleus/torture
+USER 10001:10001
+# Public dependencies only; build on hosted runner, never on the small VM.
+RUN mvn -B -Dmaven.repo.local=/opt/malleus/repository -DskipTests -Dcheckstyle.skip=true test-compile \
+    && mvn -B -Dmaven.repo.local=/opt/malleus/repository -DincludeScope=test \
+       org.apache.maven.plugins:maven-dependency-plugin:3.6.1:build-classpath \
+       -Dmdep.outputFile=/opt/malleus/classpath.txt \
+    && javac -cp "target/test-classes:target/classes:$(cat /opt/malleus/classpath.txt)" \
+       -d /opt/malleus /opt/malleus/MalleusSmoke.java \
+    && java -cp "/opt/malleus:target/test-classes:target/classes:$(cat /opt/malleus/classpath.txt)" \
+       MalleusSmoke --prepare-driver \
+    && mvn -B -Dmaven.repo.local=/opt/malleus/repository -Dcheckstyle.skip=true \
+       -Dsuite.xml=/opt/malleus/smoke-testng.xml test
+ENTRYPOINT ["/opt/malleus/run"]
+CMD ["--version"]

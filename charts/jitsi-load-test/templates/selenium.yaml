@@ -1,0 +1,69 @@
+{{- if .Values.selenium.enabled }}
+{{- if not .Values.selenium.imageValidated }}
+{{- fail "Selenium image must pass camera and microphone checks before enabling" }}
+{{- end }}
+{{- if not (regexMatch "^[^ ]+@sha256:[a-f0-9]{64}$" .Values.selenium.image) }}
+{{- fail "Selenium image must use a registry digest" }}
+{{- end }}
+{{- if not (has (int .Values.selenium.sessions) (list 2 3)) }}
+{{- fail "Only 2 or 3 Selenium sessions allowed" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-selenium
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: selenium}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: selenium}
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector: {kubernetes.io/arch: amd64}
+      securityContext: {runAsNonRoot: true, runAsUser: 1200, runAsGroup: 1201, fsGroup: 1201}
+      containers:
+        - name: selenium
+          image: {{ .Values.selenium.image | quote }}
+          imagePullPolicy: IfNotPresent
+          ports: [{name: webdriver, containerPort: 4444}]
+          env:
+            - {name: SE_NODE_MAX_SESSIONS, value: {{ .Values.selenium.sessions | quote }}}
+            - {name: SE_NODE_OVERRIDE_MAX_SESSIONS, value: 'true'}
+            - {name: SE_NODE_SESSION_TIMEOUT, value: '180'}
+            - {name: SE_START_VNC, value: 'false'}
+            - {name: SE_START_NO_VNC, value: 'false'}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+{{ toYaml .Values.selenium.resources | indent 12 }}
+          startupProbe:
+            httpGet: {path: /status, port: webdriver}
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            exec:
+              command: [/bin/bash, -ec, 'curl -fsS http://localhost:4444/status | grep -q ''"ready": true''']
+            periodSeconds: 5
+          volumeMounts:
+            - {name: shm, mountPath: /dev/shm}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 512Mi}
+        - name: tmp
+          emptyDir: {medium: Memory, sizeLimit: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-selenium
+spec:
+  type: ClusterIP
+  selector: {app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: selenium}
+  ports: [{name: webdriver, port: 4444, targetPort: webdriver}]
+{{- end }}

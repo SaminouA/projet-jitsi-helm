@@ -1,0 +1,6 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="Malleus offline execution" parallel="false">
+  <test name="Zero-peer orchestration only">
+    <classes><class name="MalleusSmoke"/></classes>
+  </test>
+</suite>
