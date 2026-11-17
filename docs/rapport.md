@@ -11,95 +11,6 @@
 | Année universitaire | À confirmer |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 
-## Automatisation Terraform : préparation contrôlée — 17 novembre 2026
-
-Les attendus pédagogiques précisent Terraform et Helm après push, secrets,
-Malleus/Selenium Grid, Chaos Mesh et Cloud Monitoring. La CD Helm a réussi comme
-détaillé plus bas ; **aucun apply Terraform automatisé n’est encore validé**.
-Cette étape prépare uniquement une PR et ses contrôles. La branche documentaire
-originale et ses modifications sont conservées dans leur worktree ; ce rapport
-reprend aussi le compte rendu du premier CD, sans l’écraser.
-
-### Audit et plan réellement effectués
-
-L’état Terraform local est au format 4, Terraform 1.16.6, serial 9 ; deux ressources
-sont suivies : google_container_cluster.jitsi et google_container_node_pool.jitsi_nodes.
-Il n’y a pas de backend distant configuré dans la base auditée. Aucun bucket
-GCS du projet n’a été retourné par la liste. Le cluster jitsi-cluster est RUNNING,
-zone europe-west1-b ; Logging et Monitoring Kubernetes sont configurés. Le label
-observé avant modification est goog-terraform-provisioned=true. Le compte OIDC
-Helm existant a container.clusterViewer au projet ; aucun compte Terraform dédié
-n’a été trouvé. Le provider WIF existant est actif et restreint au dépôt/main.
-
-Un worktree séparé prépare un label de preuve `devops-apply-proof=github-actions`
-sur le cluster, avec prevent_destroy sur cluster et pool. Un plan a été calculé
-avec les credentials opérateur existants, sur copie privée de la configuration
-et de l’état, backend local isolé ; il lit GCP sans appliquer ni écrire dans
-l’état original. Résultat : **cluster update, pool no-op**, changements limités
-à resource_labels, terraform_labels et effective_labels ; aucune valeur inconnue
-après apply, aucune création, suppression ou remplacement. Le garde strict a
-accepté ce vrai plan. La [preuve expurgée](terraform-plan-preuve.json) ne contient
-ni état, ni plan complet, ni credential. Ce plan local ne valide pas les futures
-permissions du compte runner et doit être recalculé après migration.
-
-### Backend, identité et workflow proposés
-
-Le [guide Terraform contrôlé](terraform-cd-controlee.md) détaille les commandes
-préparées, coûts, conditions d’arrêt et preuves futures. Backend GCS proposé :
-bucket dédié régional europe-west1, versioning, accès uniforme et prévention
-d’accès public, préfixe jitsi/gke, workspace default, verrouillage GCS natif.
-Le bucket doit préexister ; aucun bucket n’est géré par l’état qu’il héberge.
-Le nom global reste à vérifier. Aucun bucket n’a été créé, aucun état migré.
-La migration exigera un accord distinct, une copie privée conservant l’original,
-la comparaison lineage/serial/adresses/IDs et l’interdiction de tout état vide.
-
-Le compte proposé terraform-jitsi-deployer est séparé de Helm, sans clé statique,
-RBAC Kubernetes ou déchiffrement KMS. Deux rôles personnalisés sont proposés :
-lecture/mise à jour cluster et opérations au projet, accès objets/lock au seul
-bucket. Le droit cluster update reste plus large qu’un label ; la restriction
-par champ est assurée par le garde logiciel et la revue, pas par IAM. Un nouveau
-provider OIDC est proposé avec dépôt/main/workflow_ref Terraform et attribut
-pipeline dédié pour son binding SA. Aucun rôle, binding, provider ou SA n’a été
-créé ou modifié pendant cette préparation.
-
-Le workflow terraform-gke.yml attend une CI push main réussie, TF_CD_ENABLED=true,
-TF_APPROVED_SHA égal au SHA CI et à la tête main, et Helm désactivé. Il partage
-la sérialisation Helm/diagnostic et utilise l’environnement terraform-controlled,
-**dont les protections humaines devront être configurées et vérifiées avant
-activation**. Il prépare fmt/init/validate, vérifie bucket/lineage/serial et les
-deux ressources, calcule un plan privé, refuse tout changement hors label,
-puis prévoit apply du seul binaire contrôlé, sous verrou. Le code d’apply n’a
-pas été exécuté contre GCP. Après un futur apply autorisé, il vérifiera label,
-cluster RUNNING, serial et plan final sans changement, puis supprimera les
-fichiers privés. Aucun état/plan n’est téléversé comme artefact ou affiché.
-
-### Validations locales de cette préparation
-
-78 tests unitaires ont réussi : les 64 précédents et 14 nouveaux tests Terraform.
-Les outils externes de ces tests sont simulés, y compris le scénario d’apply ;
-il ne constitue aucune preuve d’application réelle. Helm public/localhost et
-Terraform fmt/init backend=false/validate ont réussi sur copies isolées. Les
-contrôles documentaires couvrent 12 documents, 28 liens locaux et 66 blocs shell
-sans erreur ; les URLs externes sont contrôlées syntaxiquement seulement.
-Le vrai plan privé de lecture a également été accepté par le validateur strict.
-
-### Limites et autorisations restantes
-
-Avant le premier apply : autoriser séparément bucket et coûts, identité/rôles/WIF,
-migration préservant l’état, protections GitHub, fusion, variables et fenêtre de
-l’unique essai. Le flag Terraform restera absent/false jusque-là ; Helm reste
-false. L’opérateur devra désactiver TF_CD_ENABLED après l’essai, même en échec ;
-le token workflow n’a volontairement aucun droit de modification des variables.
-Un échec n’autorise pas une relance, un destroy, un déverrouillage forcé ou une
-restauration aveugle du state. Le retrait du label demanderait une nouvelle revue
-et un plan autorisé, car le garde de premier essai refuse les changements généraux.
-
-GCS ajoute stockage/versioning et opérations facturables, sur un état actuel
-d’environ 24 Ko ; pas de nouveau calcul GKE ou LB pour le label. Aucun budget
-mensuel n’est chiffré sans tarification/consommation confirmées et aucune ressource
-payante n’est créée dans cette préparation. Les essais Malleus/Chaos et les
-preuves Cloud Monitoring corrélées restent distincts et non réalisés ici.
-
 ## Premier essai contrôlé de CD Helm réussi — 17 novembre 2026
 
 Cette section actualise les états historiques « CD non validée » plus bas.
@@ -1441,6 +1352,100 @@ commit ou push n'est effectué pour cette correction. Il reste à relire et
 intégrer le code par PR, activer explicitement la CD après accord et vérifier
 l'accès depuis le runner, l'échange OIDC/KMS puis une première mise à jour
 sécurisée. Aucune exécution distante réussie de cette CD n'est revendiquée.
+
+### Préparation Terraform initiale — état historique du 17 novembre 2026
+
+Ce journal décrit la préparation initiale. Les statuts de backend, IAM et
+déclenchement sont actualisés par la réconciliation et la revue finale ci-dessous.
+Les procédures anciennes ne doivent pas être rejouées.
+
+Les attendus pédagogiques précisent Terraform et Helm après push, secrets,
+Malleus/Selenium Grid, Chaos Mesh et Cloud Monitoring. La CD Helm a réussi comme
+détaillé plus bas ; **aucun apply Terraform automatisé n’est encore validé**.
+Cette étape prépare uniquement une PR et ses contrôles. La branche documentaire
+originale et ses modifications sont conservées dans leur worktree ; ce rapport
+reprend aussi le compte rendu du premier CD, sans l’écraser.
+
+#### Audit et plan réellement effectués
+
+L’état Terraform local est au format 4, Terraform 1.16.6, serial 9 ; deux ressources
+sont suivies : google_container_cluster.jitsi et google_container_node_pool.jitsi_nodes.
+Il n’y a pas de backend distant configuré dans la base auditée. Aucun bucket
+GCS du projet n’a été retourné par la liste. Le cluster jitsi-cluster est RUNNING,
+zone europe-west1-b ; Logging et Monitoring Kubernetes sont configurés. Le label
+observé avant modification est goog-terraform-provisioned=true. Le compte OIDC
+Helm existant a container.clusterViewer au projet ; aucun compte Terraform dédié
+n’a été trouvé. Le provider WIF existant est actif et restreint au dépôt/main.
+
+Un worktree séparé prépare un label de preuve `devops-apply-proof=github-actions`
+sur le cluster, avec prevent_destroy sur cluster et pool. Un plan a été calculé
+avec les credentials opérateur existants, sur copie privée de la configuration
+et de l’état, backend local isolé ; il lit GCP sans appliquer ni écrire dans
+l’état original. Résultat : **cluster update, pool no-op**, changements limités
+à resource_labels, terraform_labels et effective_labels ; aucune valeur inconnue
+après apply, aucune création, suppression ou remplacement. Le garde strict a
+accepté ce vrai plan. La [preuve expurgée](terraform-plan-preuve.json) ne contient
+ni état, ni plan complet, ni credential. Ce plan local ne valide pas les futures
+permissions du compte runner et doit être recalculé après migration.
+
+#### Backend, identité et workflow proposés
+
+Le [guide Terraform contrôlé](terraform-cd-controlee.md) détaille les commandes
+préparées, coûts, conditions d’arrêt et preuves futures. Backend GCS proposé :
+bucket dédié régional europe-west1, versioning, accès uniforme et prévention
+d’accès public, préfixe jitsi/gke, workspace default, verrouillage GCS natif.
+Le bucket doit préexister ; aucun bucket n’est géré par l’état qu’il héberge.
+Le nom global reste à vérifier. Aucun bucket n’a été créé, aucun état migré.
+La migration exigera un accord distinct, une copie privée conservant l’original,
+la comparaison lineage/serial/adresses/IDs et l’interdiction de tout état vide.
+
+Le compte proposé terraform-jitsi-deployer est séparé de Helm, sans clé statique,
+RBAC Kubernetes ou déchiffrement KMS. Deux rôles personnalisés sont proposés :
+lecture/mise à jour cluster et opérations au projet, accès objets/lock au seul
+bucket. Le droit cluster update reste plus large qu’un label ; la restriction
+par champ est assurée par le garde logiciel et la revue, pas par IAM. Un nouveau
+provider OIDC est proposé avec dépôt/main/workflow_ref Terraform et attribut
+pipeline dédié pour son binding SA. Aucun rôle, binding, provider ou SA n’a été
+créé ou modifié pendant cette préparation.
+
+Le workflow terraform-gke.yml attend une CI push main réussie, TF_CD_ENABLED=true,
+TF_APPROVED_SHA égal au SHA CI et à la tête main, et Helm désactivé. Il partage
+la sérialisation Helm/diagnostic et utilise l’environnement terraform-controlled,
+**dont les protections humaines devront être configurées et vérifiées avant
+activation**. Il prépare fmt/init/validate, vérifie bucket/lineage/serial et les
+deux ressources, calcule un plan privé, refuse tout changement hors label,
+puis prévoit apply du seul binaire contrôlé, sous verrou. Le code d’apply n’a
+pas été exécuté contre GCP. Après un futur apply autorisé, il vérifiera label,
+cluster RUNNING, serial et plan final sans changement, puis supprimera les
+fichiers privés. Aucun état/plan n’est téléversé comme artefact ou affiché.
+
+#### Validations locales de cette préparation
+
+78 tests unitaires ont réussi : les 64 précédents et 14 nouveaux tests Terraform.
+Les outils externes de ces tests sont simulés, y compris le scénario d’apply ;
+il ne constitue aucune preuve d’application réelle. Helm public/localhost et
+Terraform fmt/init backend=false/validate ont réussi sur copies isolées. Les
+contrôles documentaires couvrent 12 documents, 28 liens locaux et 66 blocs shell
+sans erreur ; les URLs externes sont contrôlées syntaxiquement seulement.
+Le vrai plan privé de lecture a également été accepté par le validateur strict.
+
+#### Limites et autorisations restantes
+
+Avant le premier apply : autoriser séparément bucket et coûts, identité/rôles/WIF,
+migration préservant l’état, protections GitHub, fusion, variables et fenêtre de
+l’unique essai. Le flag Terraform restera absent/false jusque-là ; Helm reste
+false. L’opérateur devra désactiver TF_CD_ENABLED après l’essai, même en échec ;
+le token workflow n’a volontairement aucun droit de modification des variables.
+Un échec n’autorise pas une relance, un destroy, un déverrouillage forcé ou une
+restauration aveugle du state. Le retrait du label demanderait une nouvelle revue
+et un plan autorisé, car le garde de premier essai refuse les changements généraux.
+
+GCS ajoute stockage/versioning et opérations facturables, sur un état actuel
+d’environ 24 Ko ; pas de nouveau calcul GKE ou LB pour le label. Aucun budget
+mensuel n’est chiffré sans tarification/consommation confirmées et aucune ressource
+payante n’est créée dans cette préparation. Les essais Malleus/Chaos et les
+preuves Cloud Monitoring corrélées restent distincts et non réalisés ici.
+
 
 ### Réconciliation de la PR Terraform nº 7 — 17 novembre 2026
 
