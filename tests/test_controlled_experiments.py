@@ -71,7 +71,7 @@ class ExperimentGuards(unittest.TestCase):
             return {'rules':[rule]}
         with patch.object(m,'read',side_effect=reader):
             m.controller_permissions('approved')
-            for field,value in [('verbs',['deletecollection']),('resourceNames',[]),('resources',['*']),('resources',['pods/exec']),('resources',['pods/eviction'])]:
+            for field,value in [('verbs',['deletecollection']),('resourceNames',[]),('resources',['*']),('resources',['pods/exec']),('resources',['pods/eviction']),('resources',['pods/*'])]:
                 old=copy.deepcopy(rule);rule[field]=value
                 with self.assertRaises(RuntimeError):m.controller_permissions('approved')
                 rule.clear();rule.update(old)
@@ -160,3 +160,13 @@ class ExperimentGuards(unittest.TestCase):
         job = next(d for d in docs if d['kind']=='Job')
         job['spec']['suspend']=False
         with self.assertRaises(RuntimeError):m.verify_load_render(docs,'m2-test')
+
+
+    def test_chaos_recovery_alone_is_not_injection_evidence(self):
+        self.assertFalse(m.injection_verified({}))
+        s={'conditions':[{'type':'AllInjected','status':'True'}], 'experiment':{'containerRecords':[{'phase':'Injected','injectedCount':1}]}}
+        self.assertTrue(m.injection_verified(s))
+        s['experiment']['containerRecords'][0]['injectedCount']=0
+        self.assertFalse(m.injection_verified(s))
+        s['experiment']['containerRecords'][0]['injectedCount']=2
+        with self.assertRaises(RuntimeError):m.injection_verified(s)

@@ -214,12 +214,20 @@ def controller_permissions(name):
                 require(not any(v in ['create', 'patch', 'update', 'delete', 'deletecollection', '*'] for v in rule.get('verbs', [])), 'CONTROLLER_PRODUCTION_MUTATION_REFUSED')
                 if 'secrets' in rule.get('resources', []) or '*' in rule.get('resources', []):
                     require(not any(v in ['get', 'list', 'watch', '*'] for v in rule.get('verbs', [])), 'CONTROLLER_SECRET_READ_REFUSED')
+            require(not any(r.startswith('pods/') and '*' in r for r in rule.get('resources', [])), 'CONTROLLER_WILDCARD_SUBRESOURCE_REFUSED')
             if any(r == '*' or r.startswith('pods') for r in rule.get('resources', [])) and (any(v in ['delete', 'deletecollection', 'create', 'patch', 'update', '*'] for v in rule.get('verbs', [])) or any(r in ['pods/exec', 'pods/attach', 'pods/eviction'] for r in rule.get('resources', []))):
                 require(binding['kind'] == 'RoleBinding' and namespace == 'jitsi' and
                         rule.get('apiGroups') == [''] and rule.get('resources') == ['pods'] and
                         rule.get('verbs') == ['delete'] and rule.get('resourceNames') == [name], 'CONTROLLER_POD_RIGHTS_TOO_BROAD')
                 found = True
     require(found, 'EXACT_CONTROLLER_DELETE_RIGHT_REQUIRED')
+
+
+def injection_verified(status):
+    records = status.get('experiment', {}).get('containerRecords', [])
+    require(len(records) <= 1 and sum(r.get('injectedCount', 0) for r in records) <= 1, 'MULTIPLE_INJECTIONS_REFUSED')
+    return (any(c.get('type') == 'AllInjected' and c.get('status') == 'True' for c in status.get('conditions', [])) and
+            len(records) == 1 and records[0].get('phase') == 'Injected' and records[0].get('injectedCount') == 1)
 
 
 def sanitize_log(log):
@@ -313,6 +321,7 @@ def execute(mode):
             (out / 'ownership.json').write_text(json.dumps({'run': run_id, 'mode': mode, 'name': name, 'namespace': 'jitsi'}))
             kubectl('create', '-f', '-', data=json.dumps(manifest))
         completed = False
+        injected_seen = False
         start = time.monotonic()
         with (out / 'metrics.jsonl').open('w') as output:
             while time.monotonic() - start < (240 if mode == 'malleus' else 180):
@@ -332,6 +341,11 @@ def execute(mode):
                     require(not failed, 'TEST_JOB_FAILED')
                     complete = any(c['type'] == 'Complete' and c['status'] == 'True' for c in job.get('status', {}).get('conditions', []))
                 else:
+                    fault = read('podchaos ' + name, 'jitsi')
+                    require(fault['metadata'].get('labels', {}).get('m2-experiment-run') == run_id, 'EXPERIMENT_OWNER_CHANGED')
+                    injected_seen = injection_verified(fault.get('status', {})) or injected_seen
+                    sample['injection_confirmed'] = injected_seen
+                    summary['injection_confirmed'] = injected_seen
                     # Web may be temporarily absent; other components must stay ready and unchanged.
                     current = read('pods', 'jitsi')['items']
                     others = [p for p in current if p['metadata'].get('labels', {}).get('app.kubernetes.io/component') != 'web']
@@ -339,7 +353,7 @@ def execute(mode):
                     snapshot = {p['metadata']['name']: {'uid': p['metadata']['uid'], 'component': p['metadata'].get('labels', {}).get('app.kubernetes.io/component'),
                                 'restarts': sum(c['restartCount'] for c in p['status'].get('containerStatuses', []))} for p in others}
                     stable(before, snapshot, chaos=True)
-                    complete = any(p['metadata'].get('labels', {}).get('app.kubernetes.io/component') == 'web' and p['metadata']['uid'] != uid and ready(p) for p in current)
+                    complete = injected_seen and any(p['metadata'].get('labels', {}).get('app.kubernetes.io/component') == 'web' and p['metadata']['uid'] != uid and ready(p) for p in current)
                     if complete:
                         sample['https_status'] = https()
                 output.write(json.dumps(sample) + '\n'); output.flush()

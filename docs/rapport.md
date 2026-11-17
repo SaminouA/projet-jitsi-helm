@@ -4822,7 +4822,8 @@ réutilisent les compteurs clients/JVB existants et ne prétendent pas valider
 
 Le pipeline Chaos réutilise l'action PodChaos Web, avec nom et UID approuvés,
 sélecteur Web exact, garde des permissions du contrôleur et vérification des
-composants protégés. Il attend un contrôleur minimal préinstallé après accord ;
+composants protégés. La preuve exige aussi AllInjected=True et un seul record
+Injected avec injectedCount=1 ; un simple remplacement Web ne suffit pas. Il attend un contrôleur minimal préinstallé après accord ;
 il ne recrée pas implicitement CRD, namespace ou droits cluster. Les relevés
 contrôlent le remplacement Web, sa readiness et la récupération HTTPS, sans
 prétendre tester une conférence pendant la panne.

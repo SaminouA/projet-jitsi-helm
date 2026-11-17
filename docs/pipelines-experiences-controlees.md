@@ -89,7 +89,10 @@ après autorisation si le pod Web a changé. L'identité GitHub ne peut pas supp
 ni modifier directement les pods de production, ni lire leurs Secrets.
 
 Les UID et redémarrages des autres composants sont comparés pendant le test.
-La récupération exige un nouveau pod Web Ready et HTTPS 200 avec validation TLS
+La preuve d’injection exige AllInjected=True et un seul record Injected avec
+injectedCount=1, selon le format des preuves historiques conservées. Le simple
+remplacement du pod ne suffit pas. La récupération exige ensuite un nouveau
+pod Web Ready et HTTPS 200 avec validation TLS
 normale. Il ne s'agit pas d'un test de continuité d'une conférence, ni de haute
 disponibilité. JVB, Jicofo, Prosody, Caddy et le contrôleur ne sont jamais des
 cibles autorisées.
@@ -134,7 +137,7 @@ perte du runner.
 - Un dispatch réel est une nouvelle opération modifiant Kubernetes et générant
   de la charge : il demande un accord explicite. Aucun dispatch n'a été lancé.
 
-Les validations locales couvrent 13 tests dédiés (fixtures, simulations et
+Les validations locales couvrent 14 tests dédiés (fixtures, simulations et
 rendus Helm), ajoutés aux tests existants. Elles ne valident pas les nouveaux
 échanges OIDC, le RBAC futur ou une exécution des workflows sur GKE.
 
