@@ -56,8 +56,11 @@ jobs:
       APPROVED_WEB_UID: ${{ inputs.approved_web_uid }}
       USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
       CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS: 'true'
-      KUBECONFIG: ${{ runner.temp }}/jitsi-experiment-kubeconfig
     steps:
+    - name: Initialize private kubeconfig path
+      shell: bash
+      run: |
+        printf 'KUBECONFIG=%s/jitsi-experiment-kubeconfig\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
     - *id001
     - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
       with:
