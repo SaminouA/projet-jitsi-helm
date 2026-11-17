@@ -4824,3 +4824,11 @@ au même SHA/run/attempt et l'apply du seul binaire approuvé sans recalcul pré
 Le secret de transport et l'environnement terraform-apply-review restent des
 prérequis soumis à accord. Le détail et les limites figurent dans l'annexe.
 Les pipelines d'expérience restent manuels, désactivés et non exécutés.
+
+
+Le [tableau de conformité de la revue finale](revue-integration-pr7-pr13.md)
+consigne les périmètres exacts des deux PR, les garanties du plan revu, les tests
+combinés et les validations d'exécution encore manquantes. La fusion virtuelle
+sans conflit et ses 138 tests ne constituent ni une fusion réelle, ni un apply,
+ni une nouvelle expérience Malleus/Chaos. Le déclenchement Terraform actuel
+reste manuel et doit être rapproché de l'attendu éventuel « après push ».
