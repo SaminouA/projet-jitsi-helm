@@ -2,6 +2,7 @@ title: Jitsi Terraform label proof
 description: Lecture du cluster/pool et mise a jour du cluster pour la preuve controlee
 stage: GA
 includedPermissions:
+  - compute.instanceGroupManagers.list
   - container.clusters.get
   - container.clusters.update
   - container.operations.get

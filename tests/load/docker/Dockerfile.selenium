@@ -1,0 +1,12 @@
+# Image synthetic media; functional validation required before publication.
+FROM selenium/standalone-chrome:4.26.0-20241101@sha256:0c2cac1e7999caf1b121b73d8c190ef136bd2bde2212d86dc310ff298735ee93
+USER root
+COPY --chown=seluser:seluser resources/ /usr/share/jitsi-meet-torture/resources/
+COPY chrome-wrapper.sh /opt/jitsi/chrome-wrapper
+RUN chmod 0755 /opt/jitsi/chrome-wrapper /usr/share/jitsi-meet-torture/resources \
+    && chmod 0644 /usr/share/jitsi-meet-torture/resources/* \
+    && printf '%s\n' '"goog:chromeOptions": {"binary": "/opt/jitsi/chrome-wrapper"}' > /opt/selenium/browser_binary_location
+ENV SE_NODE_MAX_SESSIONS=3 SE_NODE_OVERRIDE_MAX_SESSIONS=true SE_NODE_SESSION_TIMEOUT=180
+USER seluser
+# Les options client Malleus doivent pointer binary=/opt/jitsi/chrome-wrapper.
+# Publication locale uniquement : -p 127.0.0.1:4444:4444 --shm-size=1g.

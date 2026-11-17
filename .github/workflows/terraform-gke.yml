@@ -1,51 +1,44 @@
-name: Terraform GKE controlled label apply
-'on':
-  workflow_run:
-    workflows: [Validation Helm et Terraform]
-    types: [completed]
-    branches: [main]
+# Manual readonly diagnostic or explicitly approved label-only apply. No automatic apply.
+name: Terraform OIDC GCS controlled plan and apply
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [readonly, apply-label]
+        default: readonly
+        required: true
+      approved_sha:
+        type: string
+        default: ""
+        required: false
+      confirm_read_only:
+        type: boolean
+        required: true
+        default: false
 permissions: {}
 concurrency:
   group: deploy-jitsi-gke-main
   cancel-in-progress: false
 jobs:
-  terraform:
-    if: >-
-      vars.TF_CD_ENABLED == 'true' && vars.GKE_CD_ENABLED != 'true' &&
-      vars.TF_APPROVED_SHA == github.event.workflow_run.head_sha &&
-      github.repository == 'SaminouA/projet-jitsi-helm' &&
-      github.event.workflow_run.status == 'completed' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.repository.full_name == github.repository &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+  plan:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main' && inputs.operation != 'apply-label' && inputs.confirm_read_only == true
     environment: terraform-controlled
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write
     env:
-      EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
-      TF_APPROVED_SHA: ${{ vars.TF_APPROVED_SHA }}
       TF_CD_ENABLED: ${{ vars.TF_CD_ENABLED }}
-      HELM_CD_ENABLED: ${{ vars.GKE_CD_ENABLED }}
-      TF_STATE_LINEAGE: ${{ vars.TF_STATE_LINEAGE }}
-      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      GKE_CD_ENABLED: ${{ vars.GKE_CD_ENABLED }}
       GH_TOKEN: ${{ github.token }}
       TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          repository: SaminouA/projet-jitsi-helm
-          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      - name: Gardes avant OIDC
-        run: python3 scripts/terraform-controlled.py --guard-only
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: 1.16.6
@@ -55,16 +48,76 @@ jobs:
           project_id: project-fcf2ef91-c005-4910-a10
           workload_identity_provider: projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider
           service_account: terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com
-          create_credentials_file: 'true'
-          cleanup_credentials: 'true'
+          create_credentials_file: true
+          cleanup_credentials: true
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
-      - name: Plan strict, apply sauvegarde et verification
-        run: python3 scripts/terraform-controlled.py
-      - name: Nettoyer les plans et metadonnees prives
+      - name: Verify OIDC and GCS then validate and plan only
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_LINEAGE: ${{ vars.TF_STATE_LINEAGE }}
+        run: python3 -B scripts/terraform-readonly.py
+
+  apply-preflight:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main' && inputs.operation == 'apply-label' && vars.TF_CD_ENABLED == 'true' && vars.GKE_CD_ENABLED != 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: ${{ github.sha }}
+      TF_APPROVED_SHA: ${{ inputs.approved_sha }}
+      TF_CD_ENABLED: ${{ vars.TF_CD_ENABLED }}
+      HELM_CD_ENABLED: ${{ vars.GKE_CD_ENABLED }}
+      TF_OPERATION: ${{ inputs.operation }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_STATE_LINEAGE: ${{ vars.TF_STATE_LINEAGE }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: python3 scripts/terraform-controlled.py --guard-only
+  apply:
+    needs: apply-preflight
+    environment: terraform-controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: ${{ github.sha }}
+      TF_APPROVED_SHA: ${{ inputs.approved_sha }}
+      TF_CD_ENABLED: ${{ vars.TF_CD_ENABLED }}
+      HELM_CD_ENABLED: ${{ vars.GKE_CD_ENABLED }}
+      TF_OPERATION: ${{ inputs.operation }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_STATE_LINEAGE: ${{ vars.TF_STATE_LINEAGE }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: 1.16.6
+          terraform_wrapper: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: project-fcf2ef91-c005-4910-a10
+          workload_identity_provider: projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider
+          service_account: terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com
+          create_credentials_file: true
+          cleanup_credentials: true
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - run: python3 scripts/terraform-controlled.py
+      - name: Remove private temporary files
         if: ${{ always() }}
         shell: bash
         run: |
-          set -euo pipefail
           if [[ -n "${TF_CONTROLLED_TMP:-}" && "$TF_CONTROLLED_TMP" == "$RUNNER_TEMP"/jitsi-terraform.* ]]; then
             rm -rf -- "$TF_CONTROLLED_TMP"
           fi

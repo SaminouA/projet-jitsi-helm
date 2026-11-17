@@ -44,21 +44,43 @@ def run(args, accepted=(0,)):
     return result
 
 
-def verify_context(payload, env, main_sha, local_sha):
-    check_env = dict(env, CD_ENABLE=env.get('TF_CD_ENABLED', ''))
-    expected = event.verify_event(payload, check_env)
-    require(env.get('HELM_CD_ENABLED', '').lower() != 'true')
-    require(expected == main_sha == local_sha == env.get('TF_APPROVED_SHA'))
-    require(env.get('TF_STATE_BUCKET') == BUCKET)
-    require(re.fullmatch(r'[0-9a-fA-F-]{36}', env.get('TF_STATE_LINEAGE', '')) is not None)
+def verify_context(payload, env, main_sha, local_sha, check_backend=True):
+    require(env.get('GITHUB_ACTIONS') == 'true' and env.get('GITHUB_EVENT_NAME') == 'workflow_dispatch')
+    require(env.get('GITHUB_REPOSITORY') == REPO and env.get('GITHUB_REF') == 'refs/heads/main')
+    require(env.get('TF_OPERATION') == 'apply-label' and payload.get('inputs', {}).get('operation') == 'apply-label')
+    require(env.get('TF_CD_ENABLED') == 'true' and env.get('HELM_CD_ENABLED', '').lower() != 'true')
+    expected = env.get('EXPECTED_SHA', '')
+    require(re.fullmatch(r'[a-f0-9]{40}', expected) is not None)
+    require(expected == main_sha == local_sha == env.get('TF_APPROVED_SHA') == env.get('GITHUB_SHA'))
+    if check_backend:
+        require(env.get('TF_STATE_BUCKET') == BUCKET)
+        require(re.fullmatch(r'[0-9a-fA-F-]{36}', env.get('TF_STATE_LINEAGE', '')) is not None)
     return expected
 
 
-def guard():
+def verify_environment(environment, branches):
+    require(environment.get('can_admins_bypass') is False, 'ENVIRONMENT_ADMIN_BYPASS_REFUSED')
+    reviewers = [r for r in environment.get('protection_rules', []) if r.get('type') == 'required_reviewers']
+    require(len(reviewers) == 1 and bool(reviewers[0].get('reviewers')), 'HUMAN_REVIEWER_REQUIRED')
+    require(environment.get('deployment_branch_policy', {}).get('custom_branch_policies') is True)
+    require([(b.get('name'), b.get('type')) for b in branches.get('branch_policies', [])] == [('main', 'branch')])
+
+
+def guard(check_backend=True):
     payload = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+    api = ['gh', 'api', 'repos/' + REPO]
     main = run(['gh', 'api', 'repos/' + REPO + '/git/ref/heads/main', '--jq', '.object.sha']).stdout.strip()
     local = run(['git', 'rev-parse', 'HEAD']).stdout.strip()
-    return verify_context(payload, os.environ, main, local)
+    sha = verify_context(payload, os.environ, main, local, check_backend=check_backend)
+    environment = json.loads(run(['gh', 'api', 'repos/' + REPO + '/environments/terraform-controlled']).stdout)
+    branches = json.loads(run(['gh', 'api', 'repos/' + REPO + '/environments/terraform-controlled/deployment-branch-policies']).stdout)
+    verify_environment(environment, branches)
+    runs = json.loads(run(['gh', 'api', 'repos/' + REPO + '/actions/workflows/helm-ci.yml/runs?branch=main&event=push&status=success&per_page=100']).stdout)
+    eligible = [r for r in runs.get('workflow_runs', []) if r.get('head_sha') == sha]
+    require(bool(eligible), 'SUCCESSFUL_MAIN_CI_REQUIRED')
+    event.verify_event({'repository': {'full_name': REPO}, 'workflow_run': eligible[0]},
+                       dict(os.environ, GITHUB_EVENT_NAME='workflow_run', CD_ENABLE='true'))
+    return sha
 
 
 def verify_state(state):
@@ -97,6 +119,10 @@ def verify_bucket(bucket):
 
 def controlled_apply():
     guard()
+    from urllib.parse import unquote
+    credentials = json.loads(Path(os.environ['GOOGLE_APPLICATION_CREDENTIALS']).read_text())
+    require(credentials.get('type') == 'external_account' and 'private_key' not in credentials)
+    require(ACCOUNT in unquote(credentials.get('service_account_impersonation_url', '')))
     account = run(['gcloud', 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)']).stdout.strip()
     require(account == ACCOUNT, 'Identite Terraform dediee requise ; apply refuse.')
     bucket = json.loads(run(['gcloud', 'storage', 'buckets', 'describe', 'gs://' + BUCKET,
@@ -129,7 +155,7 @@ def controlled_apply():
         guard()  # Un push intervenu pendant le plan interdit l'apply.
         state_now = json.loads(run(terraform + ['state', 'pull']).stdout)
         verify_state(state_now)
-        require(state_before['serial'] == state_now['serial'])
+        require(state_before == state_now)
         require(hashlib.sha256(saved.read_bytes()).digest() == digest)
         run(terraform + ['apply', '-input=false', '-no-color', '-lock-timeout=60s', str(saved)])
         # Le plan sauvegarde est le seul applique ; aucun nouveau calcul automatique.
@@ -151,8 +177,8 @@ def main():
     old_umask = os.umask(0o077)
     try:
         if args.guard_only:
-            guard()
-            print('CI push main, SHA approuve, backend et opt-in controles ; aucun acces GCP.')
+            guard(check_backend=False)
+            print('CI main, SHA, opt-in et approbateur controles ; backend verifie dans le job protege.')
         else:
             controlled_apply()
     except (OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.TimeoutExpired):

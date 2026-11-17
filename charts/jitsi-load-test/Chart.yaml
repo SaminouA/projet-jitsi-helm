@@ -1,0 +1,6 @@
+apiVersion: v2
+name: jitsi-load-test
+description: Isolated opt-in Selenium Grid and bounded Malleus job; no production changes
+type: application
+version: 0.1.0
+appVersion: '4.26.0'

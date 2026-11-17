@@ -72,10 +72,10 @@ class TerraformRunnerTests(unittest.TestCase):
     def setUp(self):
         self.sha = 'a' * 40
         self.lineage = '11111111-1111-1111-1111-111111111111'
-        self.env = {'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'workflow_run', 'GITHUB_REPOSITORY': tf.REPO,
+        self.env = {'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_REF': 'refs/heads/main', 'GITHUB_SHA': self.sha, 'TF_OPERATION': 'apply-label', 'GITHUB_REPOSITORY': tf.REPO,
                     'EXPECTED_SHA': self.sha, 'TF_APPROVED_SHA': self.sha, 'TF_CD_ENABLED': 'true',
                     'HELM_CD_ENABLED': 'false', 'TF_STATE_BUCKET': tf.BUCKET, 'TF_STATE_LINEAGE': self.lineage}
-        self.payload = {'repository': {'full_name': tf.REPO}, 'workflow_run': {
+        self.payload = {'inputs': {'operation': 'apply-label'}, 'repository': {'full_name': tf.REPO}, 'workflow_run': {
             'repository': {'full_name': tf.REPO}, 'head_repository': {'full_name': tf.REPO},
             'name': tf.event.CI_NAME, 'event': 'push', 'status': 'completed', 'conclusion': 'success',
             'head_branch': 'main', 'head_sha': self.sha}}
@@ -101,10 +101,20 @@ class TerraformRunnerTests(unittest.TestCase):
         with self.assertRaises(SystemExit): tf.verify_context(self.payload, self.env, 'b' * 40, self.sha)
 
     def test_untrusted_event_rejected(self):
-        for key, value in [('head_branch', 'feature/other'), ('event', 'workflow_dispatch'), ('conclusion', 'failure'),
-                           ('head_repository', {'full_name': 'fork/other'})]:
-            payload = copy.deepcopy(self.payload); payload['workflow_run'][key] = value
-            with self.assertRaises(SystemExit): tf.verify_context(payload, self.env, self.sha, self.sha)
+        for key, value in [('GITHUB_EVENT_NAME', 'workflow_run'), ('GITHUB_REF', 'refs/heads/feature'),
+                           ('GITHUB_REPOSITORY', 'fork/other'), ('TF_OPERATION', 'readonly')]:
+            with self.subTest(key=key), self.assertRaises(SystemExit):
+                tf.verify_context(self.payload, dict(self.env, **{key: value}), self.sha, self.sha)
+        with self.assertRaises(SystemExit): tf.verify_context({'inputs': {'operation': 'readonly'}}, self.env, self.sha, self.sha)
+
+    def test_human_review_and_main_branch_policy_required(self):
+        environment = {'can_admins_bypass': False, 'protection_rules': [{'type': 'required_reviewers', 'reviewers': [{'type': 'User'}]}],
+                       'deployment_branch_policy': {'custom_branch_policies': True}}
+        branches = {'branch_policies': [{'name': 'main', 'type': 'branch'}]}
+        tf.verify_environment(environment, branches)
+        for field, value in [('can_admins_bypass', True), ('protection_rules', [])]:
+            with self.assertRaises(SystemExit): tf.verify_environment(dict(environment, **{field: value}), branches)
+        with self.assertRaises(SystemExit): tf.verify_environment(environment, {'branch_policies': [{'name': '*', 'type': 'branch'}]})
 
     def test_state_empty_wrong_lineage_and_other_project_rejected(self):
         with patch.dict(os.environ, self.env):
@@ -123,7 +133,9 @@ class TerraformRunnerTests(unittest.TestCase):
 
     def test_saved_plan_only_applied_then_verified_without_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
-            env = dict(self.env, RUNNER_TEMP=tmp, GITHUB_ENV=str(Path(tmp) / 'env'))
+            credential = Path(tmp) / 'credentials.json'
+            credential.write_text(json.dumps({'type': 'external_account', 'service_account_impersonation_url': 'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/' + tf.ACCOUNT + ':generateAccessToken'}))
+            env = dict(self.env, RUNNER_TEMP=tmp, GITHUB_ENV=str(Path(tmp) / 'env'), GOOGLE_APPLICATION_CREDENTIALS=str(credential))
             calls = []; pulls = 0
             def fake(args, accepted=(0,)):
                 nonlocal pulls
@@ -161,13 +173,14 @@ class TerraformRunnerTests(unittest.TestCase):
 
     def test_workflow_is_optin_pinned_serialized_and_has_no_plan_artifact(self):
         w = yaml.load((ROOT / '.github/workflows/terraform-gke.yml').read_text(), Loader=yaml.BaseLoader)
-        j = w['jobs']['terraform']
-        self.assertEqual(set(w['on']), {'workflow_run'})
+        j = w['jobs']['apply']
+        self.assertEqual(set(w['on']), {'workflow_dispatch'})
         self.assertEqual(j['environment'], 'terraform-controlled')
-        self.assertIn("vars.TF_CD_ENABLED == 'true'", j['if'])
-        self.assertIn('vars.TF_APPROVED_SHA == github.event.workflow_run.head_sha', j['if'])
+        self.assertIn("vars.TF_CD_ENABLED == 'true'", w['jobs']['apply-preflight']['if'])
+        self.assertEqual(j['needs'], 'apply-preflight')
+        self.assertEqual(j['env']['TF_APPROVED_SHA'], '${{ inputs.approved_sha }}')
         self.assertEqual(w['concurrency']['group'], 'deploy-jitsi-gke-main')
-        self.assertEqual(j['permissions'], {'contents': 'read', 'id-token': 'write'})
+        self.assertEqual(j['permissions'], {'contents': 'read', 'actions': 'read', 'id-token': 'write'})
         for step in j['steps']:
             if 'uses' in step:
                 self.assertRegex(step['uses'], r'@[0-9a-f]{40}$')

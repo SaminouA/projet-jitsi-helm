@@ -1,0 +1,10 @@
+# PREPARED ONLY. Applying this profile would create a Deployment/ClusterIP Service.
+# No Malleus run. Requires capacity checks and explicit deployment authorization.
+selenium:
+  enabled: true
+  imageValidated: true
+  image: ghcr.io/saminoua/jitsi-selenium@sha256:5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86
+  sessions: 2
+malleus:
+  enabled: false
+  suspend: true
