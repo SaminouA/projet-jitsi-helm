@@ -1,5 +1,10 @@
 # Premier apply Terraform contrôlé — préparation, pas une exécution
 
+**Actualisation :** les sections initiales ci-dessous décrivent la préparation
+historique. Le bucket, le compte et le backend existent désormais : ne pas
+rejouer leur bootstrap ou migration. La procédure courante figure à la fin
+et dans [la validation plan/apply](terraform-plan-apply-validation.md).
+
 Le 17 novembre 2026, seul un plan local en lecture a été produit sur une copie
 privée de l’état : une mise à jour du label GCP du cluster, pool inchangé,
 aucune création/suppression/remplacement. Aucun apply, bootstrap IAM/GCS ou
@@ -183,3 +188,34 @@ par revue, car il refuse délibérément le retrait. Aucun rollback Terraform g�
 destroy, force-unlock, migration inverse ou changement IAM automatique. En cas
 d’impact Jitsi inattendu, arrêter et suivre le diagnostic applicatif ; ne pas
 modifier le PVC ou les secrets pour contourner l’incident.
+
+
+## 5. Procédure courante après réconciliation — NON exécutée
+
+Le déclenchement automatique workflow_run initial n'est plus utilisé pour apply.
+Le workflow `terraform-gke.yml` conserve le mode manuel readonly et ajoute le
+choix explicite `operation=apply-label`. Une CI **push main** réussie sur le SHA
+courant reste une preuve préalable obligatoire ; elle ne lance pas l'apply.
+La variable historique TF_APPROVED_SHA est remplacée par l'entrée manuelle
+`approved_sha`, vérifiée contre main, le checkout et GITHUB_SHA.
+
+Après autorisations distinctes de fusion et d'apply seulement :
+
+1. Confirmer le backend existant et les résultats du plan strict actualisé ; ne
+   pas recréer le bucket, remigrer l'état ou changer son lineage.
+2. Laisser GKE_CD_ENABLED=false et activer TF_CD_ENABLED explicitement au niveau
+   dépôt et environnement. Les variables bucket/lineage restent privées dans
+   l'environnement ; le précontrôle sans OIDC n'en dépend pas.
+3. Déclencher le mode apply-label sur main et saisir son SHA complet approuvé.
+4. Examiner le job de précontrôle, puis approuver humainement le job apply de
+   l'environnement terraform-controlled. Aucun agent n'envoie cette approbation.
+5. Examiner les résultats et remettre les deux flags Terraform à false, même
+   en cas d'échec, sans relance automatique.
+
+L'environnement actuel interdit le bypass administrateur et impose main et un
+reviewer humain. Il permet toutefois à l'opératrice déclenchante d'approuver
+son propre run : cette configuration, héritée du diagnostic readonly, ne
+constitue pas une séparation des tâches à deux personnes. Le job recontrôle
+les protections avant application. L'approbation précède le job plan/apply,
+pas un transfert de plan binaire entre deux runners. Aucun artefact privé
+n'est exposé. Le workflow général multi-ressources reste hors périmètre.
