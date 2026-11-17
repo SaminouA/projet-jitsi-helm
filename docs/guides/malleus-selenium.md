@@ -3,9 +3,9 @@
 Cette section conserve les résultats historiques de la phase audio. La vidéo
 a ensuite été validée séparément à deux et trois participants : voir
 [les tests vidéo et images Docker](malleus-video-docker.md) et
-[leur synthèse dédiée](../tests/load/video-results-summary.json).
+[leur synthèse dédiée](../../tests/load/video-results-summary.json).
 
-Les résultats expurgés sont dans [results-summary.json](../tests/load/results-summary.json).
+Les résultats expurgés sont dans [results-summary.json](../../tests/load/results-summary.json).
 Les résultats JUnit, journaux et observations détaillées restent dans
 `tests/results/`, ignoré par Git et privé. Ne pas publier les journaux bruts des
 navigateurs : ils peuvent contenir des identifiants de session ou de participants.

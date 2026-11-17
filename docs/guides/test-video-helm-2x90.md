@@ -3,12 +3,12 @@
 **GO technique pour une installation contrôlée, en attente d’accord.**
 Aucune commande de déploiement ci-dessous n’a été exécutée. Le Job reste suspendu.
 
-Les [valeurs préparées](../tests/load/values-video-2x90.yaml) épinglent uniquement :
+Les [valeurs préparées](../../tests/load/values-video-2x90.yaml) épinglent uniquement :
 - Selenium validé caméra/micro : digest 5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86.
 - Malleus autonome : digest 01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092.
 
-Preuves : [Selenium](../tests/load/selenium-image-results.json),
-[Malleus](../tests/load/malleus-image-results.json). Malleus exécute réellement
+Preuves : [Selenium](../../tests/load/selenium-image-results.json),
+[Malleus](../../tests/load/malleus-image-results.json). Malleus exécute réellement
 son orchestration et TestNG hors réseau avec zéro participant : ce n’est pas
 une preuve de réunion vidéo conteneurisée. Les tests natifs précédents restent
 la preuve à deux et trois participants ; ils ne sont pas réattribués à ces images.
@@ -94,10 +94,10 @@ spontanément un second palier si le premier échoue.
 ## Correction locale après l’arrêt CPU du premier essai
 
 Le premier essai a réellement été exécuté puis arrêté par sécurité : voir
-[la preuve du résultat partiel](../tests/load/k8s-video-results.json). Il ne
+[la preuve du résultat partiel](../../tests/load/k8s-video-results.json). Il ne
 valide pas les 90 secondes complètes. Aucun second essai n’est autorisé à ce
 stade. Le futur profil doit ajouter
-[values-video-2x90-low-cpu.yaml](../tests/load/values-video-2x90-low-cpu.yaml).
+[values-video-2x90-low-cpu.yaml](../../tests/load/values-video-2x90-low-cpu.yaml).
 
 Selenium : request 750m CPU/1 Gio, limite 900m/2 Gio, heap Java 256 Mio.
 Malleus : request 250m/256 Mio, limite 300m/768 Mio. Total requests 1000m et
@@ -143,6 +143,6 @@ Les deux clients reçoivent et décodent réellement 694/632 images selon les
 compteurs RTP ; JVB bidirectionnel. Scénario configuré 90 s, suite 126,214 s,
 vidéo strictement observée sur 56,35 s d’échantillons : pas de revendication de
 90 s continues de vidéo mesurée. Les détails sont dans la
-[synthèse du dernier essai](../tests/load/k8s-video-low-cpu-results.json).
+[synthèse du dernier essai](../../tests/load/k8s-video-low-cpu-results.json).
 Toutes les ressources de test sont nettoyées et Jitsi est sain. Les commandes
 ci-dessus documentent la procédure, elles n’autorisent aucune nouvelle tentative.

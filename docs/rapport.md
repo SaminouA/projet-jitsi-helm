@@ -40,7 +40,7 @@ Ce document remplace la présentation cumulative du journal par une synthèse
 chronologique. Le [journal intégral antérieur](archives/rapport-avant-livraison-finale-2026-11-17.md)
 conserve les commandes, états intermédiaires, échecs et préparations dans leur
 contexte historique. Il ne constitue pas la procédure actuelle à rejouer.
-L'[index des preuves](preuves-livraison.md) relie les résultats aux fichiers,
+L'[index des preuves](preuves/preuves-livraison.md) relie les résultats aux fichiers,
 commits et exécutions GitHub. Les journaux bruts et sauvegardes sensibles restent
 locaux, hors Git.
 
@@ -221,6 +221,14 @@ contient `prevent_destroy=true` sur cluster et pool. Il conserve cependant
 `deletion_protection=false` : la garde Terraform n'est pas une protection API
 absolue contre un autre outil ou un changement du code.
 
+Le premier audit IAM avait aussi été bloqué par l'absence de
+`serviceusage.services.enable` pour l'identité de la VM lors de la vérification
+de Cloud Resource Manager. Le passage au compte personnel pour gcloud puis
+l'authentification ADC ont été deux étapes distinctes. Les outils du poste de
+travail comprenaient gcloud, le plugin GKE et kubectl, en plus de Helm/Terraform
+et Python/PyYAML. Les versions exactes de Windows et des navigateurs utilisateur
+n'ont pas été consignées ; elles ne sont pas reconstituées après les essais.
+
 ### 4.2. Migration contrôlée de l'état vers GCS
 
 Le 17 novembre, un bootstrap autorisé a créé un bucket Standard régional privé,
@@ -235,7 +243,7 @@ Le workspace est `default`, le lineage est resté identique sans être publié,
 et le serial est passé de 9 à 10. Deux ressources, attributs, identifiants et
 outputs identiques ont été contrôlés. Le plan de vérification de cette migration
 était sans changement ; l'état distant n'a pas changé pendant ce plan.
-La [preuve de migration](terraform-migration-resultats.json) distingue transfert
+La [preuve de migration](preuves/terraform-migration-resultats.json) distingue transfert
 de l'état et mutation d'infrastructure. Le fichier local ancien est une
 sauvegarde, pas une autorité concurrente à réutiliser pour apply.
 
@@ -251,7 +259,7 @@ Compute nécessaire au provider. Après corrections ciblées, le
 a réussi sur le commit `a5053689f79cb89e8706cc34b0112509b97e7fb5`, après approbation
 manuelle. Il atteste OIDC sans clé, identité Terraform, GCS, validate et un plan
 **0 create, 0 update, 0 delete, 0 replace**, avec état distant inchangé.
-La [synthèse expurgée](terraform-github-plan-final.json) est la preuve structurée.
+La [synthèse expurgée](preuves/terraform-github-plan-final.json) est la preuve structurée.
 L'ancien journal s'arrêtait à l'attente d'approbation ; ce statut n'est plus
 le résultat final du run.
 
@@ -502,6 +510,12 @@ JVB à 15,271 s d'intervalle : une conférence, trois endpoints, zéro P2P,
 `healthy=true`, ICE cinq succès/zéro échec. Les débits bruts download 829 puis
 693 et upload 892 puis 722 étaient non nuls ; les taux de paquets étaient
 269/245 et 257/232. Les compteurs cumulés octets/paquets n'ont pas augmenté.
+Les valeurs cumulées rapportées étaient :
+`total_bytes_received=143354`, `total_bytes_sent=10500`,
+`total_packets_received=1813` et `total_packets_sent=214`, identiques aux deux
+lectures. Ce sont des observations ponctuelles du 15 novembre, pas des volumes
+attribuables à ces 15,271 secondes.
+
 Ils ne prouvent donc aucun volume supplémentaire sur l'intervalle. Les logs
 montraient ICE connected/Completed. L'activité du bridge est fortement étayée,
 sans validation individuelle de chaque flux reçu. Ces lectures ponctuelles
@@ -524,7 +538,7 @@ de panne ni preuve de transport WebRTC.
 `monitor-load.sh` collecte toutes les 15 s les métriques Kubernetes, les états
 et redémarrages des pods et les statistiques JVB, avec horodatages et conservation
 à l'interruption. Il ne crée pas de charge. Les données brutes JSONL restent
-privées sous `tests/results/` ; une [synthèse recalculée pour la livraison](preuve-repos-palier-2026-11-15.json)
+privées sous `tests/results/` ; une [synthèse recalculée pour la livraison](preuves/preuve-repos-palier-2026-11-15.json)
 expose seulement les résultats agrégés.
 
 La première référence, nommée `reference-sans-participants`, a été écartée :
@@ -548,6 +562,14 @@ Les moyennes portent sur tous les relevés. Metrics Server a fourni seulement
 quatre horodatages source distincts au repos et dix au palier : les lectures
 ne sont pas indépendantes. Les durées totales incluent l'attente finale ; les
 premier/dernier relevés sont séparés de 105 et 285 s.
+
+Le détail historique du palier précise quatre relevés sans conférence,
+un relevé à deux endpoints sans endpoint local actif, puis quinze à trois
+endpoints locaux actifs. Une conférence inactive et une conférence P2P étaient
+comptées sur un relevé transitoire ; aucune ne l'était parmi les quinze relevés
+à trois endpoints actifs. Les taux moyens bruts de paquets étaient 207,9 en
+download et 321,85 en upload, sans unité ajoutée. Ces détails complètent les
+agrégats ; ils ne transforment pas toute la fenêtre en régime stabilisé.
 
 Les quatre pods Jitsi sont restés Ready/Running avec zéro redémarrage.
 JVB est sain ; ICE total passe de cinq à huit succès, sans échec observé.
@@ -773,7 +795,7 @@ configuration finale. Aucune destruction n'est faite pour cette livraison.
 
 ## 12. Conformité et travaux restant à valider
 
-Le [tableau final de conformité](conformite-finale.md) rassemble les preuves
+Le [tableau final de conformité](livraison/conformite-finale.md) rassemble les preuves
 et les limites des attendus techniques connus. Le sujet/barème original n'est
 pas présent dans les fichiers examinés ; l'exigence exacte d'un Terraform
 automatique après push et le format de remise restent à confirmer.
@@ -822,9 +844,9 @@ présentées comme des travaux déjà accomplis.
 | Profil public et réseau | [values-gke.yaml](../values-gke.yaml), [surcharge DuckDNS](../deploy/jitsi-duckdns.yaml) |
 | Caddy / stockage | [Chart.yaml edge](../charts/jitsi-edge/Chart.yaml), [profil réel](../deploy/jitsi-edge-duckdns.yaml), [PVC](../deploy/jitsi-edge-storage.yaml) |
 | Charge / budget | [Chart.yaml de test](../charts/jitsi-load-test/Chart.yaml), [profil 2×90](../tests/load/values-video-2x90.yaml), [overlay low CPU](../tests/load/values-video-2x90-low-cpu.yaml) |
-| CD Helm et identité | [procédure CD contrôlée](validation-cd-controlee.md), [diagnostic](cd-diagnostic.md) |
-| Plan / revue exacte | [procédure Terraform mise à jour](terraform-plan-apply-validation.md) |
-| Nouveaux pipelines | [guide d'expériences](pipelines-experiences-controlees.md) |
+| CD Helm et identité | [procédure CD contrôlée](livraison/validation-cd-controlee.md), [diagnostic](guides/cd-diagnostic.md) |
+| Plan / revue exacte | [procédure Terraform mise à jour](guides/terraform-plan-apply-validation.md) |
+| Nouveaux pipelines | [guide d'expériences](guides/pipelines-experiences-controlees.md) |
 | Historique complet des commandes | [journal avant consolidation](archives/rapport-avant-livraison-finale-2026-11-17.md) |
 | Présentation et démonstrations | [plan oral final](presentation-finale.md) |
 
@@ -862,9 +884,9 @@ mise à jour. Cette procédure historique se trouve dans le journal archivé.
 L'environnement final utilise HTTPS et un état distant existant : il ne faut
 ni recréer son backend ni appliquer les anciennes valeurs localhost sans revue.
 
-Les guides [HTTPS](https-duckdns.md), [bootstrap](bootstrap-https-court.md),
-[CD contrôlée](validation-cd-controlee.md), [test vidéo Kubernetes](test-video-helm-2x90.md)
-et [Chaos Web](chaos-web-controle.md) conservent les paramètres et étapes de
+Les guides [HTTPS](guides/https-duckdns.md), [bootstrap](guides/bootstrap-https-court.md),
+[CD contrôlée](livraison/validation-cd-controlee.md), [test vidéo Kubernetes](guides/test-video-helm-2x90.md)
+et [Chaos Web](guides/chaos-web-controle.md) conservent les paramètres et étapes de
 leurs phases. Avant toute réutilisation, relire leurs dates, l'état présent,
 le propriétaire des ressources et les autorisations. Leurs commandes de mutation
 n'ont pas été rejouées pour cette livraison. La consultation des révisions,

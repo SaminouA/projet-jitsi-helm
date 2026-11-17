@@ -3,7 +3,7 @@
 Deux paliers vidéo réels ont réussi sur Jitsi public : deux puis trois
 participants, une conférence, 90 secondes configurées par palier. L’audio était
 désactivé (audio_senders=0) : les tests audio précédents ne sont pas rejoués.
-La [synthèse vidéo](../tests/load/video-results-summary.json) conserve aussi
+La [synthèse vidéo](../../tests/load/video-results-summary.json) conserve aussi
 le premier palier interrompu par le garde disque ; les preuves audio/Chaos restent
 séparées et inchangées. Les vidéos sont synthétiques, pas des captures utilisateur.
 
@@ -87,17 +87,17 @@ redémarrage, sans écraser des médias existants.
 
 ## Dockerfiles préparés et image réellement construite
 
-- [Dockerfile Selenium](../tests/load/docker/Dockerfile.selenium) : base officielle
+- [Dockerfile Selenium](../../tests/load/docker/Dockerfile.selenium) : base officielle
   Selenium 4.26.0 épinglée par digest amd64, fixtures Y4M/WAV, wrapper Chrome avec
   caméra/microphone factices, sessions limitées à trois. **Image non construite** :
   sa base non présente nécessite environ 600 MiB compressés avant même extraction,
   incompatible avec la marge disque restante. Les tests vidéo réalisés ci-dessus
   utilisent le Grid natif, pas cette image.
-- [Dockerfile Malleus](../tests/load/docker/Dockerfile.malleus) : base Java Jicofo
+- [Dockerfile Malleus](../../tests/load/docker/Dockerfile.malleus) : base Java Jicofo
   déjà en cache, épinglée par digest ; entrypoint Jicofo remplacé, aucun serveur
   Jicofo lancé. Java 21, Maven 3.8.7, source Torture épinglée, utilisateur 10001.
   Aucun kubeconfig, état Terraform, secret applicatif ou clé SA copié.
-- [Job suspendu](../tests/load/docker/job-malleus.yaml), sans token SA, borné en
+- [Job suspendu](../../tests/load/docker/job-malleus.yaml), sans token SA, borné en
   temps/CPU/mémoire/stockage éphémère. **Non déployé** ; namespace/Service Grid et
   distribution de l’image aux nœuds sont des prérequis futurs, non créés.
 
@@ -114,7 +114,7 @@ sécurité : 416,45 MiB libres, aucun tag final construit. Le builder classique
 consommait plus que l’estimation initiale. Seules les couches produites par cette
 tentative ont été retirées ; les quatre images/conteneurs préexistants ont été
 préservés. Le contexte final sans cache ne fait que 10,31 MiB en RAM.
-La [preuve de construction](../tests/load/docker/build-results.json) conserve
+La [preuve de construction](../../tests/load/docker/build-results.json) conserve
 les deux tentatives, sans effacer l’échec initial.
 
 La variante finale ne contient pas les dépendances/cache Maven. Maven/Java ont
@@ -157,7 +157,7 @@ Le Job reste suspendu pour éviter toute exécution accidentelle avant ces contr
 
 ## État final et preuves
 
-Les [contrôles finaux](../tests/load/video-final-checks.json) confirment les cinq
+Les [contrôles finaux](../../tests/load/video-final-checks.json) confirment les cinq
 pods et UID inchangés depuis Chaos, zéro redémarrage, Jitsi 4/Caddy 3, PVC/IP et
 Secrets applicatifs inchangés, HTTPS /, /config.js et /http-bind en 200 avec
 confiance normale, zéro conférence. Aucun Terraform apply, IAM, nouvelle branche

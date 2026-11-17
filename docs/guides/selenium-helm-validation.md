@@ -49,7 +49,7 @@ Aucun workflow n’a été lancé pendant cette reprise.
 
 ## Chart séparé, désactivé par défaut
 
-[charts/jitsi-load-test](../charts/jitsi-load-test/Chart.yaml) ne modifie ni les
+[charts/jitsi-load-test](../../charts/jitsi-load-test/Chart.yaml) ne modifie ni les
 charts ni les releases Jitsi/Caddy. Sans valeurs supplémentaires, aucun objet
 n’est rendu. Le chart ne fait pas partie des workflows de déploiement existants.
 
@@ -125,11 +125,11 @@ et accord ; NO-GO pour annoncer l’image fonctionnelle ou lancer le Job GKE.
 
 La préparation décrite plus haut a désormais été suivie d’un unique essai
 [44094388902](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44094388902)
-réussi. Les [mesures expurgées](../tests/load/selenium-image-results.json)
+réussi. Les [mesures expurgées](../../tests/load/selenium-image-results.json)
 confirment une piste audio/vidéo, 61 images 1280×720 décodées, RMS 0,0648 et
 options synthétiques actives. L’ancienne image reste non validée ; seule la
 nouvelle image/digest possède cette preuve de capture locale au conteneur.
-Le [profil préparé Grid seul](../tests/load/values-grid-validated.yaml) référence
+Le [profil préparé Grid seul](../../tests/load/values-grid-validated.yaml) référence
 ce digest, sans lancer Malleus. Aucune réunion ni charge GKE avec cette image.
 
 Le workflow build-malleus.yml reste uniquement préparé localement. Il utilise

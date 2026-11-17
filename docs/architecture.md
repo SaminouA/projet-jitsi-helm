@@ -1,66 +1,70 @@
-> Document historique conservé. Pour l’état consolidé du 17 novembre 2026,
-> consulter le [rapport final](rapport.md), les [preuves](preuves-livraison.md)
-> et le [plan oral final](presentation-finale.md). Les statuts antérieurs ci-dessous
-> ne décrivent pas nécessairement la version livrée.
+# Architecture de Jitsi Meet sur GKE
 
-# Architecture et périmètre réellement étudiés
-
-État consolidé à partir des observations du 16 novembre 2026. Aucun nouveau
-contrôle du cluster n'est effectué pendant cette finalisation locale.
+Architecture de référence de la livraison, consolidée à partir du rapport et
+des configurations versionnées. Les observations citées datent du 17 novembre
+2026 ; aucune nouvelle interrogation du cluster n'a été faite pour cette réorganisation.
+L'[ancienne description du 16 novembre](archives/architecture-2026-11-16.md)
+est conservée pour la traçabilité.
 
 ```mermaid
 flowchart LR
-    B[Navigateur ordinateur ou téléphone] -->|HTTPS 443| L[LB Web 34.78.71.58]
-    L -->|TCP 443 vers 8443| C[Caddy TLS production]
+    B[Navigateur] -->|HTTPS TCP 443| L[LB Web 34.78.71.58]
+    L -->|TCP 443 vers 8443| C[Caddy TLS]
     C -->|HTTP interne 8000| W[Web ClusterIP]
     W -->|BOSH /http-bind vers 5280| P[Prosody XMPP]
-    J[Jicofo] -->|XMPP| P
-    V[Jitsi Videobridge] -->|XMPP| P
-    B -.->|Média si JVB sélectionné UDP 10000| M[LB JVB 34.62.165.81]
-    M -.-> V
-    C -->|Données ACME /data| D[PVC RWO 10Gi pd-balanced zonal]
+    J[Jicofo coordination] -->|XMPP| P
+    V[JVB relais media] -->|XMPP| P
+    B <-->|Media UDP 10000 si JVB utilise| M[LB JVB 34.62.165.81]
+    M <--> V
+    C -->|Etat ACME /data| D[PVC RWO 10Gi pd-balanced]
 ```
 
-Le LB Web publie TCP 80/443 ; 80 sert à la redirection et aux challenges ACME.
-La sonde Caddy reste interne sur 8082. Web, Prosody et les contrôles JVB ne sont
-pas exposés par le proxy. BOSH suit l'origine HTTPS du navigateur. Les domaines
-XMPP internes ne sont pas des noms DNS publics à publier.
+Le LB Web expose TCP 80/443 ; HTTP redirige vers HTTPS et sert aux challenges
+ACME. Caddy termine TLS puis transmet à Web. BOSH suit l'origine HTTPS du
+navigateur ; l'HTTP interne vers Prosody n'est pas une URL publique.
+Aucun Ingress GKE n'est utilisé. La sonde Caddy 8082, son administration et les
+routes de contrôle JVB restent privées. XMPP/Colibri WebSocket et TURN ne sont
+pas activés. Un réseau bloquant UDP peut empêcher le transport média.
 
-Le schéma média représente une route configurée, pas la preuve que le test à
-deux l'a utilisée. Le test manuel ordinateur/téléphone confirme audio et vidéo
-bidirectionnels ; il ne distingue pas P2P et JVB. TURN et WebSocket XMPP/Colibri
-ne sont pas activés dans ce profil. Un réseau bloquant UDP peut rester limitant.
+Ce schéma représente les chemins configurés, pas une capture de trafic.
+À deux participants, P2P est possible. Les preuves média JVB historiques sont
+analysées dans le [rapport](rapport.md), sans extrapolation de capacité.
+
+| Couche | Source | Périmètre et limite |
+|---|---|---|
+| Cluster/pool | [main.tf](../terraform/main.tf) | Deux ressources Terraform ; deux e2-standard-2 en europe-west1-b |
+| État distant | [backend.tf](../terraform/backend.tf) | GCS privé/versionné ; pas de state dans Git |
+| Application | [chart Jitsi](../charts-officiels/jitsi-meet/Chart.yaml) | Communautaire, version 3.10.0 ; dernière release attestée : révision 4 |
+| HTTPS | [chart edge](../charts/jitsi-edge/Chart.yaml) | Caddy ; dernière release attestée : révision 3 |
+| Configuration réseau | [profil Jitsi](../deploy/jitsi-duckdns.yaml), [profil edge](../deploy/jitsi-edge-duckdns.yaml) | DNS DuckDNS vers le LB Web, IP JVB annoncée séparément ; adresses à relire après recréation |
+| Stockage TLS | [PVC indépendant](../deploy/jitsi-edge-storage.yaml) | 10Gi, RWO, Recreate ; supprimer le PVC peut supprimer le disque ; rollback sans restauration des données |
+| Secrets | [fichier chiffré](../values-secrets.sops.yaml) | SOPS/KMS ; base64 Kubernetes seul ne chiffre pas les secrets |
+| Tests | [chart de charge](../charts/jitsi-load-test/Chart.yaml) | Selenium ClusterIP + Job Malleus isolés ; aucune exposition publique supplémentaire |
 
 ```mermaid
 flowchart TD
-    G[Commit et PR relus] --> CI[CI Helm Terraform tests]
-    CI --> MAIN[main validée]
-    MAIN --> MAN[Diagnostic workflow_dispatch confirmé]
-    MAN --> O[OIDC GitHub vers WIF limité dépôt et main]
-    O --> SA[Compte Google CD sans clé statique]
-    SA --> K[Kubernetes RBAC namespace jitsi]
-    SA --> KM[KMS déchiffre la clé de données SOPS]
-    MAIN --> FLAG{GKE_CD_ENABLED true ?}
-    FLAG -->|Non état actuel| SKIP[Job CD skipped]
-    FLAG -->|Oui seulement après accord futur| CD[Préflights puis mises à jour Helm]
+    PR[PR et code de confiance] --> CI[CI Helm Terraform Python]
+    CI --> MAIN[main validee]
+    MAIN --> FLAG{Flag CD autorise ?}
+    FLAG -->|Non actuellement| SKIP[CD ignoree]
+    FLAG -->|Oui apres autorisation| O[GitHub OIDC vers WIF]
+    O --> SA[Compte de service sans cle JSON]
+    SA --> RB[Kubernetes RBAC]
+    SA --> K[KMS et SOPS temporaire]
+    RB --> H[Precontroles puis Helm]
+    K --> H
 ```
 
-Le diagnostic vérifie sans mettre à jour les applications. La correction locale
-vise un kubeconfig exec ADC : elle n'est pas encore validée sur GitHub. Les deux
-diagnostics réels ont échoué sur whoami ; aucun déchiffrement SOPS runner ou CD
-de bout en bout n'est déclaré réussi.
+Le diagnostic runner puis la CD Helm OIDC/SOPS ont réellement réussi le
+17 novembre ; la dernière CD après fusion est skipped, avec flag désactivé.
+Le Terraform readonly a réussi ; l'apply GitHub reste non exécuté et limité
+par son garde à un label. Les nouveaux workflows Malleus/Chaos sont manuels,
+validés statiquement et non exécutés. Ils exigent des prérequis dédiés encore absents.
 
-| Couche | Source du projet | Périmètre / limite |
-|---|---|---|
-| Projet/région | terraform/provider.tf | Identifiants codés en dur, pas des secrets |
-| Cluster et pool | terraform/main.tf | Deux ressources Terraform, deux nœuds e2-standard-2, zone europe-west1-b |
-| Réseau GCP | Valeurs GKE et ressources contrôlées par GKE | Pas de VPC ou firewall Terraform explicite dans ce dépôt ; réseau par défaut utilisé historiquement |
-| Releases | Charts Jitsi et jitsi-edge | Jitsi révision 3, Caddy révision 2 lors des derniers contrôles |
-| IP Web et PVC | Bootstrap opérateur autorisé | IP réservée indépendante et PVC non possédé par Helm |
-| Secrets | values-secrets.sops.yaml | Chiffrement SOPS/KMS ; Secret Kubernetes n'est pas chiffré par le seul base64 |
-| WIF/IAM/RBAC | Configuration cloud auditée et manifeste PVC reader | Tout n'est pas géré par Terraform ; ne pas présenter un provisionnement intégral automatisé |
+Terraform ne gère pas tout IAM/WIF/RBAC, le PVC ni l'IP Web réservée. Un bootstrap
+opérateur distinct reste nécessaire ; le CD Helm ne reconstruit pas seul un
+cluster absent. Deux nœuds zonaux et une seule réplique Caddy/JVB ne constituent
+pas une haute disponibilité démontrée.
 
-Deux nœuds zonaux et une réplique Caddy/JVB ne constituent pas une haute
-disponibilité validée. Recreate et disque RWO peuvent interrompre Caddy pendant
-une mise à jour. Le PVC à politique Delete nécessite une décision séparée avant
-suppression ; un rollback Helm conserve le PVC mais ne restaure pas son contenu.
+Voir l'[index des preuves](preuves/preuves-livraison.md), les
+[guides](README.md) et le [tableau de conformité](livraison/conformite-finale.md).

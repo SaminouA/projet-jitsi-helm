@@ -6,7 +6,7 @@ import subprocess
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = [ROOT / 'README.md', *sorted((ROOT / 'docs').glob('*.md'))]
+FILES = [ROOT / 'README.md', *sorted((ROOT / 'docs').rglob('*.md'))]
 
 
 def main():

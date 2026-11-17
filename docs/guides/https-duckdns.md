@@ -197,7 +197,7 @@ kubectl -n jitsi get pods,svc,endpointslices
 ```
 
 Ensuite contrôler Web/config/BOSH, absence de contenu mixte et réaliser la réunion
-à trois participants du protocole `docs/validation-remise.md`. Aucune réunion
+à trois participants du protocole `docs/archives/validation-remise-2026-11-16.md`. Aucune réunion
 n'est validée par cette préparation. Ne pas activer les WebSockets Colibri sans
 routage complet ; l'IP JVB et son LB UDP existants doivent rester identiques.
 

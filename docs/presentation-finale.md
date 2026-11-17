@@ -159,6 +159,27 @@ pas automatiquement aux 12 minutes.
 - L'apply est-il validé ? Non ; plan readonly exécuté, apply contrôlé seulement préparé.
 - Le chaos démontre-t-il la HA ? Non ; récupération mesurée avec une interruption temporaire.
 
-Sources : [rapport](rapport.md), [preuves](preuves-livraison.md),
-[conformité](conformite-finale.md). Compléter le nom de famille et l'enseignant ; vérifier les captures,
+Sources : [rapport](rapport.md), [preuves](preuves/preuves-livraison.md),
+[conformité](livraison/conformite-finale.md). Compléter le nom de famille et l'enseignant ; vérifier les captures,
 la durée imposée et l'export PDF avant remise.
+
+
+## Compléments de préparation conservés de l’ancien support
+
+Le [support du 16 novembre](archives/soutenance-2026-11-16.md) reste historique :
+ses statuts CD, révisions et diagnostics ne doivent pas remplacer le présent plan.
+Ses précautions pratiques restent utiles : batteries/casques, consentement des
+participants, fenêtres sensibles fermées et vérification préalable du réseau.
+
+Si le réseau de l'école bloque DuckDNS ou UDP, utiliser uniquement une solution
+autorisée par l'établissement. Un partage mobile éventuel ne prouve pas le
+fonctionnement sur le réseau filtré. Un tunnel vers Caddy avec le nom TLS conservé
+peut illustrer HTTP/TLS, mais ne garantit aucun média et ne change pas le profil
+public Jitsi. Ne pas désactiver TLS ou modifier le déploiement pour improviser
+une démonstration. Le plan hors ligne reste la solution de repli principale.
+
+Questions complémentaires : BOSH même origine évite une URL HTTP publique depuis
+une page HTTPS ; le PVC conserve les données ACME mais pas une sauvegarde ;
+un rollback Helm ne restaure pas le contenu du volume ; l'absence de TURN et
+la réplique unique restent des limites. Les exemples de tunnel du support
+historique sont des procédures proposées, pas de nouvelles manipulations réalisées.

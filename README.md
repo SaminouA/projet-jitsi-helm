@@ -6,9 +6,13 @@ historiques des procédures et des pipelines non exécutés.
 
 ## Livraison du 18 novembre 2026
 
+La navigation complète est dans le [sommaire documentaire](docs/README.md).
+Le rapport, la présentation et l’architecture restent à la racine de `docs/` ;
+les procédures, preuves, contrôles de livraison et historiques sont séparés.
+
 - [Rapport académique](docs/rapport.md)
-- [Conformité, preuves et limites](docs/conformite-finale.md)
-- [Index des preuves vérifiables](docs/preuves-livraison.md)
+- [Conformité, preuves et limites](docs/livraison/conformite-finale.md)
+- [Index des preuves vérifiables](docs/preuves/preuves-livraison.md)
 - [Plan de présentation orale](docs/presentation-finale.md)
 - [Journal technique conservé](docs/archives/rapport-avant-livraison-finale-2026-11-17.md)
 
@@ -76,13 +80,13 @@ publier de déchiffrement, de state, de sauvegarde Helm ou de clé JSON.
 Le profil localhost nécessite une surcharge explicite : un port-forward seul
 ne transforme pas la configuration publique en profil localhost.
 
-Procédures : [HTTPS](docs/https-duckdns.md),
-[bootstrap](docs/bootstrap-https-court.md),
-[CD Helm contrôlée](docs/validation-cd-controlee.md),
-[Terraform plan/revue/apply](docs/terraform-plan-apply-validation.md),
-[expérimentations manuelles](docs/pipelines-experiences-controlees.md),
-[vidéo Kubernetes](docs/test-video-helm-2x90.md),
-[Chaos Web](docs/chaos-web-controle.md).
+Procédures : [HTTPS](docs/guides/https-duckdns.md),
+[bootstrap](docs/guides/bootstrap-https-court.md),
+[CD Helm contrôlée](docs/livraison/validation-cd-controlee.md),
+[Terraform plan/revue/apply](docs/guides/terraform-plan-apply-validation.md),
+[expérimentations manuelles](docs/guides/pipelines-experiences-controlees.md),
+[vidéo Kubernetes](docs/guides/test-video-helm-2x90.md),
+[Chaos Web](docs/guides/chaos-web-controle.md).
 Ces guides contiennent des commandes potentiellement mutantes : ils ne constituent
 pas une autorisation de les exécuter.
 

@@ -5,7 +5,7 @@ Ready en environ 2 s ; disponibilité HTTPS confirmée environ 15,3 s après la
 requête, avec 3 HTTP502 et 3 erreurs de transport échantillonnées. Les autres
 pods, Secrets applicatifs, PVC/IP et révisions Jitsi 4/Caddy 3 sont inchangés.
 Nettoyage confirmé : PodChaos, release, namespace, 23 CRD, RBAC et webhooks du test
-retirés. [Preuve expurgée](../tests/chaos/results-summary.json).
+retirés. [Preuve expurgée](../../tests/chaos/results-summary.json).
 
 **Ne pas rejouer les commandes ci-dessous : elles décrivent la préparation
 historique d’un essai déjà exécuté. Le pod cible initial n’existe plus. Toute
@@ -38,7 +38,7 @@ La compatibilité des fautes container-kill, réseau, kernel ou pod-failure n’
 pas déduite de ce constat et ces actions sont exclues de cette expérience.
 
 Le chart officiel 2.8.8 a été téléchargé et son SHA256 comparé à l’index officiel.
-Le plan [plan.json](../tests/chaos/plan.json) conserve le digest, l’inventaire CRD
+Le plan [plan.json](../../tests/chaos/plan.json) conserve le digest, l’inventaire CRD
 et le nom/UID préparés. Le chart n’offre pas chaosDaemon.create ; le post-renderer
 obligatoire retire le DaemonSet et son ServiceAccount, ainsi que le RBAC dashboard
 qui est encore rendu même avec dashboard.create=false. Il réduit le rôle cible
@@ -114,7 +114,7 @@ kubectl auth can-i patch pods -n jitsi --as="$CHAOS_AS"
 kubectl auth can-i get secrets -n jitsi --as="$CHAOS_AS"
 ```
 
-5. Lancer l’[observateur en lecture](../scripts/observe-chaos-web.py) dans un
+5. Lancer l’[observateur en lecture](../../scripts/observe-chaos-web.py) dans un
    terminal séparé, attendre baseline/HTTPS200, vérifier encore zéro conférence.
    Valider le manifest contre l’API et afficher le diff sans mutation. Puis,
    seulement si l’injection unique est autorisée et tous les contrôles réussis :

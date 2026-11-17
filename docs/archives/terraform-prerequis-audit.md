@@ -11,7 +11,7 @@ APIs activées : storage, iam, iamcredentials, sts, cloudresourcemanager, contai
 État local original 23629 octets, serial 9, deux ressources attendues ; empreinte
 inchangée. Plan frais sur une copie privée, provider 7.46.1 déjà en cache,
 Terraform init/validate/plan réussis, garde exact accepté :
-[preuve expurgée](terraform-plan-actualise.json). Un update du label
+[preuve expurgée](../preuves/terraform-plan-actualise.json). Un update du label
 `devops-apply-proof=github-actions` seulement ; autres labels conservés, pool
 no-op, zéro create/delete/replace. Aucun apply ou transfert d’état.
 
@@ -99,14 +99,14 @@ SA, rôles et provider WIF, ainsi que les bindings IAM. Un binding Owner direct
 sans condition est constaté. Le HTTP 429 précédent reste un échec de quota,
 pas un refus IAM. Les droits sur le bucket inexistant ne sont pas testés :
 contrôler sa politique immédiatement après création autorisée, avant migration.
-Voir [les droits vérifiés](terraform-droits-verifies.json). GO conditionnel
+Voir [les droits vérifiés](../preuves/terraform-droits-verifies.json). GO conditionnel
 bootstrap progressif, NO-GO apply tant que les autres prérequis restent absents.
 
 ## Mise à jour : bootstrap réellement terminé
 
 Après accord distinct, bucket privé/versionné, identité sans clé, deux rôles
 minimaux et provider WIF dédié ont été créés et vérifiés. Voir
-[les résultats réels](terraform-bootstrap-resultats.json). Les droits opérateur
+[les résultats réels](../preuves/terraform-bootstrap-resultats.json). Les droits opérateur
 sur le bucket existent désormais et ont été testés, avec un marqueur non secret
 écrit/relu/supprimé. Le state reste local et le pipeline désactivé. Les blocages
 encore ouverts sont migration autorisée, protections GitHub et validation
@@ -118,7 +118,7 @@ La migration a été explicitement autorisée puis effectuée par init -migrate-
 interactif sur copie privée. Backend GCS/workspace default vérifiés, mêmes deux
 ressources et mêmes IDs/attributs, serial 10 et lineage conservé. Validate et
 plan de contrôle exit 0, sans changement. Voir
-[les résultats](terraform-migration-resultats.json). Les fichiers locaux serial 9
+[les résultats](../preuves/terraform-migration-resultats.json). Les fichiers locaux serial 9
 sont conservés comme sauvegardes non autoritaires ; ne plus appliquer en local.
 Il reste les protections GitHub, la validation runner et l’accord distinct
 pour apply. Aucun pipeline activé et aucun apply réalisé.
