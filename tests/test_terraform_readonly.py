@@ -32,3 +32,15 @@ class ReadonlyTerraform(unittest.TestCase):
             if isinstance(node,ast.List):
                 strings=[e.value for e in node.elts if isinstance(e,ast.Constant) and isinstance(e.value,str)]
                 self.assertFalse(any(s in ['apply','destroy','import','-migrate-state','-force-copy','-lock=false'] for s in strings))
+
+    def test_error_reports_plan_permission_without_secret_payload(self):
+        text="Error 403: Required 'compute.instanceGroupManagers.list' permission. private_key=SECRET_SENTINEL token=TOKEN_SENTINEL"
+        error=m.safe_command_error(['terraform','-chdir=/private/path','plan'],text)
+        self.assertEqual(error,'READONLY_plan_IAM_DENIED:compute.instanceGroupManagers.list')
+        for private in ['SECRET_SENTINEL','TOKEN_SENTINEL','/private/path','private_key']:
+            self.assertNotIn(private,error)
+
+    def test_safe_error_distinguishes_subcommands_and_quota(self):
+        self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','init'],'Error 429 quota exceeded'), 'READONLY_init_QUOTA_EXCEEDED')
+        self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','state','pull'],'Error acquiring the state lock'), 'READONLY_state_STATE_LOCK')
+        self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','validate'],'opaque content SECRET_SENTINEL'), 'READONLY_validate_UNCLASSIFIED')
