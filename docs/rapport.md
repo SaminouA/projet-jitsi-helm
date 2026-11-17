@@ -1,14 +1,15 @@
-# Déploiement et validation d'une plateforme de visioconférence Jitsi Meet sur Google Kubernetes Engine (GKE)
+# Déploiement et automatisation d'une plateforme de visioconférence Jitsi Meet sur Google Cloud Platform (GCP)
 
-**Rapport de projet — Master 2 DevOps**
+**Rapport de projet — Master 2 — DevOps & Cloud Computing**
 **Remise prévue : 18 novembre 2026 — consolidation documentaire : 17 novembre 2026**
 
 | Information académique | Valeur |
 |---|---|
-| Auteur | À compléter avec le nom officiel |
-| Établissement et parcours | À compléter |
+| Auteur | Amandine — nom de famille : À compléter |
+| Établissement | Sup de Vinci Bordeaux |
+| Formation | Master 2 — DevOps & Cloud Computing |
 | Enseignant ou encadrant | À compléter |
-| Année universitaire | À confirmer |
+| Année universitaire | 2026-2027 |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 | Référence technique relue | `main` au commit `23cb73d656015bbc71f16bb58abf308cb78d0fca` |
 

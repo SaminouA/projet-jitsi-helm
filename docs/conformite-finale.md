@@ -21,7 +21,7 @@ conservées ; il ne remplace pas une grille officielle signée.
 | Résilience Chaos Mesh Web | Validé historiquement | `tests/chaos/results-summary.json` | Une injection ; HTTPS indisponible temporairement ; aucune réunion active |
 | Pipeline Chaos dédié | Préparé, non exécuté | PR 13/14, `chaos-controlled.yml` | Même réserve d'identité/environnement ; aucune nouvelle expérience |
 | Observabilité | Partielle | Collecteur, métriques, JVB, logs, JSON expurgés | Pas de tableaux de bord corrélés ni de seuil de capacité démontré |
-| Documentation et reproductibilité | Préparé pour revue | Rapport, guides, sources, index et plan oral | Identité académique, captures réelles, export et relecture finale |
+| Documentation et reproductibilité | Préparé pour revue | Rapport, guides, sources, index et plan oral | Nom de famille et enseignant à compléter ; captures réelles, export et relecture finale |
 
 Les liens exécutables, SHA et statuts sont regroupés dans l'[index des preuves](preuves-livraison.md).
 Le [rapport](rapport.md) explique les résultats et les limites de chaque essai.

@@ -3,8 +3,21 @@
 Plan de soutenance de 12 minutes, à adapter à la durée imposée. Il s'agit du
 contenu proposé des diapositives, pas d'un diaporama déjà exporté ou présenté.
 
-À compléter avant rendu : nom de l'étudiante, établissement, intitulé exact du
-Master, enseignant, année universitaire et grille officielle. Remise : 18 novembre 2026.
+## Page de titre
+
+**Déploiement et automatisation d'une plateforme de visioconférence Jitsi Meet sur Google Cloud Platform (GCP)**
+
+| Information académique | Valeur |
+|---|---|
+| Auteur | Amandine — nom de famille : À compléter |
+| Établissement | Sup de Vinci Bordeaux |
+| Formation | Master 2 — DevOps & Cloud Computing |
+| Année universitaire | 2026-2027 |
+| Enseignant / encadrant | À compléter |
+| Remise prévue | 18 novembre 2026 |
+
+Le nom de famille et l'enseignant restent à compléter ; la grille officielle
+et la durée imposée de soutenance restent à confirmer.
 
 ## 1. Besoin et problématique — 45 s
 
@@ -12,7 +25,7 @@ Master, enseignant, année universitaire et grille officielle. Remise : 18 novem
 déployer, sécuriser et valider une plateforme reproductible sur un budget limité ?
 **À dire :** le travail couvre infrastructure, application, automatisation et preuves.
 L'objectif n'est pas de démontrer une capacité de production illimitée.
-**Visuel :** page de titre, identité académique réelle à compléter.
+**Visuel :** page de titre ci-dessus, avec les deux champs inconnus « À compléter ».
 
 ## 2. Objectifs et méthode — 45 s
 
@@ -147,5 +160,5 @@ pas automatiquement aux 12 minutes.
 - Le chaos démontre-t-il la HA ? Non ; récupération mesurée avec une interruption temporaire.
 
 Sources : [rapport](rapport.md), [preuves](preuves-livraison.md),
-[conformité](conformite-finale.md). Vérifier l'identité académique, les captures,
+[conformité](conformite-finale.md). Compléter le nom de famille et l'enseignant ; vérifier les captures,
 la durée imposée et l'export PDF avant remise.

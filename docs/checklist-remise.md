@@ -5,7 +5,8 @@
 - [x] Résultats historiques distingués des validations statiques et pipelines non exécutés.
 - [x] Tableau de conformité avec réserves explicites.
 - [x] Plan oral détaillé préparé ; aucune expérience relancée.
-- [ ] Renseigner identité académique et confirmer le barème officiel.
+- [x] Renseigner le prénom, l’établissement, la formation, l’année et le titre communiqués.
+- [ ] Compléter le nom de famille et l’enseignant ; confirmer le barème et la durée de soutenance.
 - [ ] Insérer les captures réellement disponibles et vérifier leur confidentialité.
 - [ ] Exporter et relire le rapport et les diapositives ; vérifier pagination et durée.
 - [ ] Faire relire puis fusionner la PR documentaire selon les protections de main.
