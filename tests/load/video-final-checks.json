@@ -1,0 +1,39 @@
+{
+  "all_five_pods_ready": true,
+  "pod_uids_restarts_unchanged": true,
+  "application_secrets_unchanged": true,
+  "pvc_services_ips_unchanged": true,
+  "helm_revisions": {
+    "jitsi": 4,
+    "jitsi-edge": 3
+  },
+  "https_system_trust": {
+    "/": 200,
+    "/config.js": 200,
+    "/http-bind": 200
+  },
+  "meetings": {
+    "jicofo": {
+      "conferences": 0,
+      "participants": 0
+    },
+    "jvb-0": {
+      "conferences": 0,
+      "participants": 0
+    }
+  },
+  "grid_stopped": true,
+  "kubernetes_job_deployed": false,
+  "registry_push": false,
+  "final_pod_metrics": [
+    "jitsi-edge-6b74c6cf6-t4t4k                 1m    13Mi    ",
+    "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps   2m    213Mi   ",
+    "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6     4m    290Mi   ",
+    "jitsi-jitsi-meet-prosody-0                 1m    47Mi    ",
+    "jitsi-jitsi-meet-web-8454659c99-xkswg      1m    15Mi"
+  ],
+  "final_node_metrics": [
+    "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2   121m   6%    2358Mi   39%   ",
+    "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0   137m   7%    2185Mi   36%"
+  ]
+}

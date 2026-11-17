@@ -1,0 +1,14 @@
+# Prepared, NOT DEPLOYED. Job stays suspended until explicit authorization.
+selenium:
+  enabled: true
+  imageValidated: true
+  image: ghcr.io/saminoua/jitsi-selenium@sha256:5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86
+  sessions: 2
+malleus:
+  enabled: true
+  # Validated scope: Java/TestNG offline execution, not a real meeting yet.
+  imageValidated: true
+  image: ghcr.io/saminoua/jitsi-malleus@sha256:01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092
+  suspend: true
+  participants: 2
+  duration: 90

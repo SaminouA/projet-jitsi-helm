@@ -1,0 +1,154 @@
+{
+  "result": "SUCCESS_CONFIGURED_90S_SCENARIO",
+  "overall_attempt": 2,
+  "third_attempt": false,
+  "requested_participants": 2,
+  "requested_duration_s": 90,
+  "job_elapsed_s": 204.0,
+  "maven_suite_elapsed_s": 126.214,
+  "maven_build_success": true,
+  "selected_tests_executed": 1,
+  "test_failures": 0,
+  "test_errors": 0,
+  "malleus_exit_codes": [
+    0
+  ],
+  "elapsed_including_install_cleanup_s": 288.33,
+  "strict_video_samples": 12,
+  "strict_video_sample_span_s": 56.35,
+  "two_participants_observation_span_s": 81.37,
+  "continuous_90s_video_not_claimed": true,
+  "clients": [
+    {
+      "received_bytes_max": 388877,
+      "received_frames_decoded_max": 694,
+      "sent_bytes_max": 427264,
+      "encoded_frames_max": 1138,
+      "last_video_bitrate": {
+        "download": 37,
+        "upload": 73
+      }
+    },
+    {
+      "received_bytes_max": 260389,
+      "received_frames_decoded_max": 632,
+      "sent_bytes_max": 536757,
+      "encoded_frames_max": 1203,
+      "last_video_bitrate": {
+        "download": 56,
+        "upload": 51
+      }
+    }
+  ],
+  "jvb_last_strict": {
+    "conferences": 1,
+    "participants": 2,
+    "local_active_endpoints": 2,
+    "stress_level": 0.2676303502131209,
+    "bit_rate_download": 197,
+    "bit_rate_upload": 129,
+    "packet_rate_download": 78,
+    "packet_rate_upload": 57
+  },
+  "placement": {
+    "selenium_node": "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0",
+    "jvb_node": "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2",
+    "separate": true,
+    "selenium_resources": {
+      "limits": {
+        "cpu": "900m",
+        "ephemeral-storage": "512Mi",
+        "memory": "2Gi"
+      },
+      "requests": {
+        "cpu": "750m",
+        "ephemeral-storage": "128Mi",
+        "memory": "1Gi"
+      }
+    },
+    "malleus_resources": {
+      "limits": {
+        "cpu": "300m",
+        "ephemeral-storage": "1Gi",
+        "memory": "768Mi"
+      },
+      "requests": {
+        "cpu": "250m",
+        "ephemeral-storage": "256Mi",
+        "memory": "256Mi"
+      }
+    }
+  },
+  "sampled_pod_maxima": {
+    "jitsi-edge-6b74c6cf6-t4t4k": {
+      "cpu_m": 8.0,
+      "memory_mib": 16.0
+    },
+    "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+      "cpu_m": 27.0,
+      "memory_mib": 215.0
+    },
+    "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+      "cpu_m": 74.0,
+      "memory_mib": 293.0
+    },
+    "jitsi-jitsi-meet-prosody-0": {
+      "cpu_m": 4.0,
+      "memory_mib": 45.0
+    },
+    "jitsi-jitsi-meet-web-8454659c99-xkswg": {
+      "cpu_m": 4.0,
+      "memory_mib": 16.0
+    },
+    "load-selenium-7854fff9bc-spgmd": {
+      "cpu_m": 901.0,
+      "memory_mib": 1159.0
+    },
+    "load-malleus-kql7x": {
+      "cpu_m": 301.0,
+      "memory_mib": 220.0
+    }
+  },
+  "node_cpu_max_percent": 61,
+  "node_memory_max_percent": 57,
+  "safety_abort": false,
+  "secrets_pvc_ips_helm_preserved": true,
+  "production_pods_uids_restarts_unchanged": true,
+  "test_release_removed": true,
+  "test_namespace_removed": true,
+  "final": {
+    "utc": "2026-11-17T14:22:26Z",
+    "jicofo": {
+      "conferences": 0,
+      "participants": 0
+    },
+    "jvb-0": {
+      "conferences": 0,
+      "participants": 0,
+      "local_active_endpoints": 0,
+      "stress_level": 0.051884638804024164
+    },
+    "nodes": [
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2   124m   6%    2838Mi   47%   ",
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0   131m   6%    2484Mi   41%"
+    ],
+    "https": {
+      "/": 200,
+      "/config.js": 200,
+      "/http-bind": 200
+    },
+    "test_namespace_absent": true,
+    "helm": [
+      {
+        "name": "jitsi",
+        "revision": "4",
+        "status": "deployed"
+      },
+      {
+        "name": "jitsi-edge",
+        "revision": "3",
+        "status": "deployed"
+      }
+    ]
+  }
+}

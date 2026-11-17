@@ -1,0 +1,383 @@
+{
+  "date": "2026-11-17",
+  "torture_commit": "4c00915e97006ff2224bb509eb3582bf3a10ca85",
+  "selenium_version": "4.26.0",
+  "chrome_version": "130.0.6723.116",
+  "generator": "Local Selenium Grid standalone, outside GKE",
+  "results": [
+    {
+      "evidence_dir": "tests/results/20261117T101551Z-malleus-2",
+      "participants_requested": 2,
+      "duration_requested_s": 60,
+      "elapsed_s": 37.1,
+      "maven_exit_code": 1,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "1",
+        "errors": "0",
+        "skipped": "0",
+        "time": "6.392"
+      },
+      "participants_max_observed": 0,
+      "full_count_observation_span_s": 0,
+      "node_cpu_max_percent": 6,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 1.0,
+          "memory_max_mib": 12.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 209.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 4.0,
+          "memory_max_mib": 275.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 1.0,
+          "memory_max_mib": 42.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 1.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 0,
+      "jvb_upload_raw_max": 0,
+      "jvb_download_raw_max": 0,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": false,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T101714Z-malleus-2",
+      "participants_requested": 2,
+      "duration_requested_s": 60,
+      "elapsed_s": 78.59,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "62.531"
+      },
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 32.89,
+      "node_cpu_max_percent": 12,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 8.0,
+          "memory_max_mib": 14.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 15.0,
+          "memory_max_mib": 210.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 110.0,
+          "memory_max_mib": 278.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 4.0,
+          "memory_max_mib": 42.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 0,
+      "jvb_upload_raw_max": 0,
+      "jvb_download_raw_max": 22,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": false,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T101929Z-malleus-3",
+      "participants_requested": 3,
+      "duration_requested_s": 90,
+      "elapsed_s": 116.18,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "93.658"
+      },
+      "participants_max_observed": 3,
+      "full_count_observation_span_s": 55.06,
+      "node_cpu_max_percent": 13,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 12.0,
+          "memory_max_mib": 15.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 19.0,
+          "memory_max_mib": 211.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 61.0,
+          "memory_max_mib": 279.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 5.0,
+          "memory_max_mib": 42.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 0,
+      "jvb_upload_raw_max": 0,
+      "jvb_download_raw_max": 2,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": false,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T102332Z-malleus-2",
+      "participants_requested": 2,
+      "duration_requested_s": 60,
+      "elapsed_s": 89.66,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "62.457"
+      },
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 44.14,
+      "node_cpu_max_percent": 10,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 6.0,
+          "memory_max_mib": 16.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 14.0,
+          "memory_max_mib": 211.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 59.0,
+          "memory_max_mib": 281.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 46.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 0,
+      "jvb_upload_raw_max": 0,
+      "jvb_download_raw_max": 6,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": false,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T103119Z-malleus-2",
+      "participants_requested": 2,
+      "duration_requested_s": 60,
+      "elapsed_s": 80.09,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "62.595"
+      },
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 33.09,
+      "node_cpu_max_percent": 10,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 6.0,
+          "memory_max_mib": 15.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 13.0,
+          "memory_max_mib": 216.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 34.0,
+          "memory_max_mib": 283.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 46.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 0,
+      "jvb_upload_raw_max": 0,
+      "jvb_download_raw_max": 1,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": false,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T103328Z-malleus-2",
+      "participants_requested": 2,
+      "duration_requested_s": 90,
+      "elapsed_s": 118.74,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "92.561"
+      },
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 71.38,
+      "node_cpu_max_percent": 14,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 5.0,
+          "memory_max_mib": 15.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 14.0,
+          "memory_max_mib": 212.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 121.0,
+          "memory_max_mib": 285.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 46.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 2,
+      "jvb_upload_raw_max": 104,
+      "jvb_download_raw_max": 99,
+      "unmuted_audio_tracks_max": 2,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": true,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 5,
+      "audio_full_count_observation_span_s": 46.4,
+      "explicit_media_activation": true,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    },
+    {
+      "evidence_dir": "tests/results/20261117T103610Z-malleus-3",
+      "participants_requested": 3,
+      "duration_requested_s": 90,
+      "elapsed_s": 127.53,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "93.781"
+      },
+      "participants_max_observed": 3,
+      "full_count_observation_span_s": 48.65,
+      "node_cpu_max_percent": 13,
+      "node_memory_max_percent": 38,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 9.0,
+          "memory_max_mib": 16.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 9.0,
+          "memory_max_mib": 213.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 122.0,
+          "memory_max_mib": 285.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 6.0,
+          "memory_max_mib": 46.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-gpjzl": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 17.0
+        }
+      },
+      "jvb_active_endpoints_max": 3,
+      "jvb_upload_raw_max": 300,
+      "jvb_download_raw_max": 150,
+      "unmuted_audio_tracks_max": 3,
+      "unmuted_video_tracks_max": 0,
+      "audio_media_forwarding_observed": true,
+      "video_media_forwarding_observed": false,
+      "audio_verified_samples": 3,
+      "audio_full_count_observation_span_s": 34.4,
+      "explicit_media_activation": true,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true
+    }
+  ],
+  "audio_load_validated": true,
+  "video_load_validated": false,
+  "metrics": "Instantaneous Metrics Server samples, not a capacity limit or continuous trace"
+}

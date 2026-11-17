@@ -1,0 +1,95 @@
+# PREPARED ONLY. Dedicated identity/environment/bootstrap require explicit authorization.
+name: Malleus bounded video experiment
+'on':
+  workflow_dispatch:
+    inputs:
+      confirm_execution:
+        type: boolean
+        required: true
+        default: false
+permissions: {}
+concurrency:
+  group: deploy-jitsi-gke-main
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main' && vars.EXPERIMENTS_ENABLED
+      == 'true' && inputs.confirm_execution == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPERIMENTS_ENABLED: ${{ vars.EXPERIMENTS_ENABLED }}
+      EXPERIMENT_CONFIRM: ${{ inputs.confirm_execution }}
+      APPROVED_WEB_NAME: ''
+      APPROVED_WEB_UID: ''
+    steps:
+    - &id001
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        ref: ${{ github.sha }}
+        persist-credentials: false
+    - run: python3 scripts/controlled-experiment.py malleus --preflight
+  experiment:
+    needs: preflight
+    environment: experiments-controlled
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPERIMENTS_ENABLED: ${{ vars.EXPERIMENTS_ENABLED }}
+      EXPERIMENT_CONFIRM: ${{ inputs.confirm_execution }}
+      APPROVED_WEB_NAME: ''
+      APPROVED_WEB_UID: ''
+      USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
+      CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS: 'true'
+      KUBECONFIG: ${{ runner.temp }}/jitsi-experiment-kubeconfig
+    steps:
+    - *id001
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - run: python3 -m pip install -r scripts/requirements.txt
+    - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+      with:
+        version: v3.22.1
+    - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+      with:
+        project_id: project-fcf2ef91-c005-4910-a10
+        workload_identity_provider: projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-experiments-provider
+        service_account: github-jitsi-experiments@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com
+        create_credentials_file: true
+        cleanup_credentials: true
+    - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      with:
+        install_components: kubectl,gke-gcloud-auth-plugin
+    - name: Private exec ADC kubeconfig
+      run: python3 scripts/controlled-experiment.py malleus --configure
+    - name: Run bounded experiment
+      run: python3 scripts/controlled-experiment.py malleus
+    - name: Cleanup only owned temporary resources
+      if: ${{ always() }}
+      run: python3 scripts/controlled-experiment.py malleus --cleanup
+    - name: Upload only sanitized observations
+      if: ${{ always() }}
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: malleus-${{ github.run_id }}-${{ github.run_attempt }}
+        retention-days: 3
+        if-no-files-found: ignore
+        path: '${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/summary.json
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/metrics.jsonl
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/logs-sanitized.txt'
+    - name: Delete private kubeconfig
+      if: ${{ always() }}
+      shell: bash
+      run: rm -f -- "$RUNNER_TEMP/jitsi-experiment-kubeconfig"

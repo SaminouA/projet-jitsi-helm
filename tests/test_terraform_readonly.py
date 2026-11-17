@@ -44,3 +44,10 @@ class ReadonlyTerraform(unittest.TestCase):
         self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','init'],'Error 429 quota exceeded'), 'READONLY_init_QUOTA_EXCEEDED')
         self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','state','pull'],'Error acquiring the state lock'), 'READONLY_state_STATE_LOCK')
         self.assertEqual(m.safe_command_error(['terraform','-chdir=/private','validate'],'opaque content SECRET_SENTINEL'), 'READONLY_validate_UNCLASSIFIED')
+
+    def test_iam_patch_adds_only_required_compute_read(self):
+        patch=yaml.safe_load(Path('deploy/terraform/gke-label-role-read-fix.yaml').read_text())
+        original={'container.clusters.get','container.clusters.update','container.operations.get',
+                  'resourcemanager.projects.get','serviceusage.services.use'}
+        self.assertEqual(set(patch['includedPermissions'])-original,{'compute.instanceGroupManagers.list'})
+        self.assertTrue(original.issubset(patch['includedPermissions']))

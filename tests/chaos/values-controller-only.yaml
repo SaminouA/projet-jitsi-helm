@@ -1,0 +1,39 @@
+# Chart officiel Chaos Mesh 2.8.8 + post-renderer obligatoire.
+clusterScoped: false
+controllerManager:
+  replicaCount: 1
+  targetNamespace: jitsi
+  enableFilterNamespace: false
+  allowHostNetworkTesting: false
+  enabledControllers: [podchaos]
+  enabledWebhooks: [podchaos]
+  leaderElection:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+  env:
+    WEBHOOK_PORT: 10250
+    METRICS_PORT: 10080
+# Le chart n'a pas de chaosDaemon.create : suppression par post-renderer.
+chaosDaemon:
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock
+  podSecurityPolicy: false
+dashboard:
+  create: false
+dnsServer:
+  create: false
+prometheus:
+  create: false
+bpfki:
+  create: false
+enableProfiling: false
+webhook:
+  timeoutSeconds: 3
+  FailurePolicy: Fail
+  CRDS: [podchaos]

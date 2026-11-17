@@ -1,0 +1,85 @@
+{
+  "result": "BOOTSTRAP_VERIFIED",
+  "project": "project-fcf2ef91-c005-4910-a10",
+  "bucket": "project-fcf2ef91-c005-4910-a10-tfstate",
+  "service_account": "terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com",
+  "bucket_protections": {
+    "location": "EUROPE-WEST1",
+    "versioning": true,
+    "uniform_bucket_access": true,
+    "public_access_prevention": "enforced",
+    "retention_lock": false,
+    "soft_delete_policy": {
+      "effectiveTime": "2026-11-17T14:38:39.973000+00:00",
+      "retentionDurationSeconds": "604800"
+    },
+    "default_encryption": "Google-managed (no CMEK configured)"
+  },
+  "operator_bucket_permissions": {
+    "storage.buckets.get": true,
+    "storage.buckets.update": true,
+    "storage.buckets.getIamPolicy": true,
+    "storage.buckets.setIamPolicy": true,
+    "storage.objects.create": true,
+    "storage.objects.get": true,
+    "storage.objects.list": true,
+    "storage.objects.delete": true
+  },
+  "bucket_io_probe": {
+    "written_read_equal_deleted": true,
+    "outside_state_prefix": true,
+    "soft_deleted_probe_may_remain_7_days": true
+  },
+  "user_managed_keys_count": 0,
+  "terraform_project_bindings": [
+    {
+      "role": "projects/project-fcf2ef91-c005-4910-a10/roles/jitsiTerraformLabelUpdater",
+      "condition": null
+    }
+  ],
+  "terraform_bucket_bindings": [
+    "projects/project-fcf2ef91-c005-4910-a10/roles/jitsiTerraformStateAccess"
+  ],
+  "role_permissions": {
+    "jitsiTerraformLabelUpdater": [
+      "container.clusters.get",
+      "container.clusters.update",
+      "container.operations.get",
+      "resourcemanager.projects.get",
+      "serviceusage.services.use"
+    ],
+    "jitsiTerraformStateAccess": [
+      "storage.buckets.get",
+      "storage.objects.create",
+      "storage.objects.delete",
+      "storage.objects.get",
+      "storage.objects.list"
+    ]
+  },
+  "no_public_bucket_binding": true,
+  "state_prefix_empty": true,
+  "original_state_unchanged": true,
+  "existing_cd_and_helm_unchanged": true,
+  "state_migrated": false,
+  "apply_executed": false,
+  "pipeline_enabled": false,
+  "provider": "projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider",
+  "provider_state": "ACTIVE",
+  "attribute_mapping": {
+    "attribute.pipeline": "'terraform-gke'",
+    "attribute.ref": "assertion.ref",
+    "attribute.repository": "assertion.repository",
+    "attribute.repository_id": "assertion.repository_id",
+    "attribute.repository_owner_id": "assertion.repository_owner_id",
+    "google.subject": "assertion.sub"
+  },
+  "attribute_condition": "assertion.repository=='SaminouA/projet-jitsi-helm' && assertion.repository_id=='1427106572' && assertion.repository_owner_id=='194725286' && assertion.ref=='refs/heads/main' && assertion.workflow_ref=='SaminouA/projet-jitsi-helm/.github/workflows/terraform-gke.yml@refs/heads/main' && assertion.sub=='repo:SaminouA/projet-jitsi-helm:environment:terraform-controlled'",
+  "service_account_iam_binding": {
+    "members": [
+      "principalSet://iam.googleapis.com/projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/attribute.pipeline/terraform-gke"
+    ],
+    "role": "roles/iam.workloadIdentityUser"
+  },
+  "github_oidc_runtime_tested": false,
+  "bucket_empty_json_listing_verified": true
+}

@@ -1,0 +1,21 @@
+{
+  "run": "https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44097184022",
+  "result": "success",
+  "attempts": 1,
+  "image": "ghcr.io/saminoua/jitsi-malleus:executable-2c95003867da3bb9da4b6cc82bec226cc5772b21",
+  "digest": "sha256:01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092",
+  "platform": "linux/amd64",
+  "java": "21.0.12.1",
+  "maven": "3.8.7",
+  "chrome_driver_cached": "130.0.6723.91",
+  "dependencies_embedded": true,
+  "offline_compilation_verified": true,
+  "actual_malleus_entrypoint_verified": true,
+  "maven_testng_tests": 1,
+  "maven_testng_failures": 0,
+  "test_peers": 0,
+  "real_meeting_validated": false,
+  "anonymous_manifest_http": 200,
+  "compressed_layers_bytes": 404784181,
+  "gke_deployed": false
+}

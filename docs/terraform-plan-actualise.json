@@ -1,0 +1,29 @@
+{
+  "kind": "fresh-readonly-local-plan-not-apply",
+  "date": "2026-11-17",
+  "source_state_serial": 9,
+  "source_state_unchanged": true,
+  "strict_plan_guard_passed": true,
+  "backend_migrated": false,
+  "applied": false,
+  "resources": [
+    {
+      "address": "google_container_cluster.jitsi",
+      "actions": [
+        "update"
+      ],
+      "changed_fields": [
+        "effective_labels",
+        "resource_labels",
+        "terraform_labels"
+      ]
+    },
+    {
+      "address": "google_container_node_pool.jitsi_nodes",
+      "actions": [
+        "no-op"
+      ],
+      "changed_fields": []
+    }
+  ]
+}

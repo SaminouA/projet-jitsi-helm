@@ -24,6 +24,17 @@ spec:
     spec:
       automountServiceAccountToken: false
       nodeSelector: {kubernetes.io/arch: amd64}
+{{- if .Values.selenium.avoidJvb }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: jvb
+                  app.kubernetes.io/instance: {{ .Values.selenium.jvbRelease | quote }}
+              namespaces: [{{ .Values.selenium.jvbNamespace | quote }}]
+              topologyKey: kubernetes.io/hostname
+{{- end }}
       securityContext: {runAsNonRoot: true, runAsUser: 1200, runAsGroup: 1201, fsGroup: 1201}
       containers:
         - name: selenium
@@ -31,6 +42,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports: [{name: webdriver, containerPort: 4444}]
           env:
+            - {name: SE_JAVA_OPTS, value: {{ .Values.selenium.javaOpts | quote }}}
             - {name: SE_NODE_MAX_SESSIONS, value: {{ .Values.selenium.sessions | quote }}}
             - {name: SE_NODE_OVERRIDE_MAX_SESSIONS, value: 'true'}
             - {name: SE_NODE_SESSION_TIMEOUT, value: '180'}

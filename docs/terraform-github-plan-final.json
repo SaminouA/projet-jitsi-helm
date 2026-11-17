@@ -1,0 +1,24 @@
+{
+  "apply_executed": false,
+  "backend": "gcs",
+  "bucket": "project-fcf2ef91-c005-4910-a10-tfstate",
+  "identity": "terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com",
+  "lineage_verified_not_logged": true,
+  "oidc_keyless": true,
+  "plan": {
+    "create": 0,
+    "delete": 0,
+    "replace": 0,
+    "update": 0
+  },
+  "prefix": "jitsi/gke",
+  "remote_state_unchanged": true,
+  "resources": 2,
+  "state_serial": 10,
+  "workspace": "default",
+  "run": "https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44116737677",
+  "status": "success",
+  "main_sha": "a5053689f79cb89e8706cc34b0112509b97e7fb5",
+  "attempts_this_iteration": 1,
+  "environment_manually_approved_by_user": true
+}

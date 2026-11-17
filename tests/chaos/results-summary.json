@@ -1,0 +1,265 @@
+{
+  "date": "2026-11-17",
+  "status": "success",
+  "chaos_mesh_version": "2.8.8",
+  "action": "pod-kill",
+  "experiment_requests": 1,
+  "injected_count": 1,
+  "experiment_created_at": "2026-11-17T11:02:50Z",
+  "old_web_name": "jitsi-jitsi-meet-web-8454659c99-gpjzl",
+  "new_web_name": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+  "old_uid": "2a77025e-3511-4fb7-8df0-e4a0b9e799b6",
+  "new_uid": "1c80b550-f8e7-4d76-b751-e243672aa4f9",
+  "new_pod_created_at": "2026-11-17T11:02:50Z",
+  "new_pod_ready_at": "2026-11-17T11:02:52Z",
+  "new_pod_creation_to_ready_s": 2.0,
+  "request_to_recovery_confirmed_s": 15.331,
+  "first_observed_web_change_to_https_recovery_s": 12.558,
+  "https_status_counts": {
+    "200": 17,
+    "502": 3,
+    "TRANSPORT_ERROR": 3
+  },
+  "https_observations": [
+    {
+      "elapsed_s": 0.456,
+      "timestamp": "2026-11-17T11:02:49.447721+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.31
+    },
+    {
+      "elapsed_s": 1.829,
+      "timestamp": "2026-11-17T11:02:50.820850+00:00",
+      "status": 502,
+      "response_elapsed_ms": 16.97
+    },
+    {
+      "elapsed_s": 2.847,
+      "timestamp": "2026-11-17T11:02:51.838264+00:00",
+      "status": 502,
+      "response_elapsed_ms": 18.46
+    },
+    {
+      "elapsed_s": 4.043,
+      "timestamp": "2026-11-17T11:02:53.034507+00:00",
+      "status": 502,
+      "response_elapsed_ms": 16.86
+    },
+    {
+      "elapsed_s": 5.06,
+      "timestamp": "2026-11-17T11:02:54.051836+00:00",
+      "status": "TRANSPORT_ERROR",
+      "response_elapsed_ms": 2014.13
+    },
+    {
+      "elapsed_s": 8.211,
+      "timestamp": "2026-11-17T11:02:57.202272+00:00",
+      "status": "TRANSPORT_ERROR",
+      "response_elapsed_ms": 2013.71
+    },
+    {
+      "elapsed_s": 11.225,
+      "timestamp": "2026-11-17T11:03:00.216429+00:00",
+      "status": "TRANSPORT_ERROR",
+      "response_elapsed_ms": 2014.48
+    },
+    {
+      "elapsed_s": 14.385,
+      "timestamp": "2026-11-17T11:03:03.376835+00:00",
+      "status": 200,
+      "response_elapsed_ms": 19.75
+    },
+    {
+      "elapsed_s": 15.405,
+      "timestamp": "2026-11-17T11:03:04.396962+00:00",
+      "status": 200,
+      "response_elapsed_ms": 13.58
+    },
+    {
+      "elapsed_s": 16.553,
+      "timestamp": "2026-11-17T11:03:05.545044+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.96
+    },
+    {
+      "elapsed_s": 17.569,
+      "timestamp": "2026-11-17T11:03:06.560389+00:00",
+      "status": 200,
+      "response_elapsed_ms": 13.63
+    },
+    {
+      "elapsed_s": 18.959,
+      "timestamp": "2026-11-17T11:03:07.950574+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.12
+    },
+    {
+      "elapsed_s": 19.973,
+      "timestamp": "2026-11-17T11:03:08.965072+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.2
+    },
+    {
+      "elapsed_s": 21.124,
+      "timestamp": "2026-11-17T11:03:10.115494+00:00",
+      "status": 200,
+      "response_elapsed_ms": 13.77
+    },
+    {
+      "elapsed_s": 22.138,
+      "timestamp": "2026-11-17T11:03:11.129623+00:00",
+      "status": 200,
+      "response_elapsed_ms": 13.48
+    },
+    {
+      "elapsed_s": 23.285,
+      "timestamp": "2026-11-17T11:03:12.276524+00:00",
+      "status": 200,
+      "response_elapsed_ms": 12.86
+    },
+    {
+      "elapsed_s": 24.298,
+      "timestamp": "2026-11-17T11:03:13.289850+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.35
+    },
+    {
+      "elapsed_s": 25.451,
+      "timestamp": "2026-11-17T11:03:14.443072+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.2
+    },
+    {
+      "elapsed_s": 26.466,
+      "timestamp": "2026-11-17T11:03:15.457843+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.44
+    },
+    {
+      "elapsed_s": 27.63,
+      "timestamp": "2026-11-17T11:03:16.621906+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.32
+    },
+    {
+      "elapsed_s": 28.645,
+      "timestamp": "2026-11-17T11:03:17.636573+00:00",
+      "status": 200,
+      "response_elapsed_ms": 13.19
+    },
+    {
+      "elapsed_s": 30.077,
+      "timestamp": "2026-11-17T11:03:19.069130+00:00",
+      "status": 200,
+      "response_elapsed_ms": 101.18
+    },
+    {
+      "elapsed_s": 31.179,
+      "timestamp": "2026-11-17T11:03:20.170795+00:00",
+      "status": 200,
+      "response_elapsed_ms": 14.57
+    }
+  ],
+  "node_cpu_max_percent_during_observation": 6,
+  "node_memory_max_percent_during_observation": 38,
+  "baseline_metrics": {
+    "pods": [
+      "jitsi-edge-6b74c6cf6-t4t4k                 1m    12Mi    ",
+      "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps   2m    212Mi   ",
+      "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6     3m    282Mi   ",
+      "jitsi-jitsi-meet-prosody-0                 2m    47Mi    ",
+      "jitsi-jitsi-meet-web-8454659c99-gpjzl      1m    17Mi"
+    ],
+    "nodes": [
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2   117m   6%    2342Mi   38%   ",
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0   134m   6%    2208Mi   36%"
+    ]
+  },
+  "final_metrics": {
+    "pods": [
+      "jitsi-edge-6b74c6cf6-t4t4k                 1m    13Mi    ",
+      "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps   2m    212Mi   ",
+      "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6     4m    282Mi   ",
+      "jitsi-jitsi-meet-prosody-0                 1m    47Mi    ",
+      "jitsi-jitsi-meet-web-8454659c99-xkswg      1m    15Mi"
+    ],
+    "nodes": [
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2   100m   5%    2354Mi   39%   ",
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0   113m   5%    2191Mi   36%"
+    ]
+  },
+  "all_final_pods_ready": true,
+  "non_web_uids_unchanged": true,
+  "application_secrets_unchanged": true,
+  "pvc_uid_volume_unchanged": true,
+  "service_uids_ips_unchanged": true,
+  "helm_revisions": {
+    "jitsi": "4",
+    "jitsi-edge": "3"
+  },
+  "https_after_cleanup": {
+    "/": 200,
+    "/config.js": 200,
+    "/http-bind": 200,
+    "/metrics": 404,
+    "/colibri/stats": 404,
+    "/debug": 404,
+    "/healthz": 404
+  },
+  "cleanup": {
+    "release_absent": true,
+    "namespace_absent": true,
+    "crds_absent": 23,
+    "cluster_rbac_webhooks_absent": true,
+    "target_rolebinding_absent": true
+  },
+  "web_events": [
+    {
+      "reason": "Killing",
+      "object": "jitsi-jitsi-meet-web-8454659c99-gpjzl",
+      "lastTimestamp": "2026-11-17T11:02:50Z",
+      "type": "Normal"
+    },
+    {
+      "reason": "Scheduled",
+      "object": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+      "lastTimestamp": "2026-11-17T11:02:50Z",
+      "type": "Normal"
+    },
+    {
+      "reason": "Pulled",
+      "object": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+      "lastTimestamp": "2026-11-17T11:02:51Z",
+      "type": "Normal"
+    },
+    {
+      "reason": "Created",
+      "object": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+      "lastTimestamp": "2026-11-17T11:02:51Z",
+      "type": "Normal"
+    },
+    {
+      "reason": "Started",
+      "object": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+      "lastTimestamp": "2026-11-17T11:02:51Z",
+      "type": "Normal"
+    },
+    {
+      "reason": "Unhealthy",
+      "object": "jitsi-jitsi-meet-web-8454659c99-xkswg",
+      "lastTimestamp": "2026-11-17T11:02:51Z",
+      "type": "Warning"
+    },
+    {
+      "reason": "SuccessfulCreate",
+      "object": "jitsi-jitsi-meet-web-8454659c99",
+      "lastTimestamp": "2026-11-17T11:02:50Z",
+      "type": "Normal"
+    }
+  ],
+  "private_evidence_dirs": [
+    "tests/results/20261117-chaos-web-controlled",
+    "tests/results/20261117T110248Z-chaos-web"
+  ],
+  "limits": "Sampled HTTP/metrics; no post-chaos audio/video meeting, HA or broader fault tolerance claimed."
+}

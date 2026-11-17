@@ -3505,3 +3505,1493 @@ erreur ; les 35 URLs externes sont vérifiées syntaxiquement, pas par HTTP.
 Le brouillon de message/PR et la liste exacte du lot sont préparés dans
 `/tmp/jitsi-remise-pr.md` et `/tmp/jitsi-remise-files.txt`, hors index Git ;
 ils ne représentent ni commit ni PR publiés.
+
+
+## Tests réels Malleus / Selenium Grid — 17 novembre 2026
+
+Les essais ci-dessous ont réellement été exécutés sur le Jitsi public
+https://jitsi-meet-m2.duckdns.org, entre environ 11:15 et 11:38, heure de Paris.
+Ils ne modifient pas la PR Terraform nº 7, dont l’apply reste reporté.
+La [configuration et la reproduction](malleus-selenium.md) et la
+[synthèse expurgée](../tests/load/results-summary.json) sont préparées localement,
+sans nouvelle branche, commit, push ou PR. Cette section est ajoutée au rapport
+existant, dont toutes les modifications précédentes sont préservées.
+
+### Précontrôles, ressources et génération
+
+Aucune réunion n’était active avant les paliers : Jicofo et JVB ont été vérifiés
+à zéro conférence/participant par leurs statistiques internes, avec refus du
+lancement si ces compteurs sont indisponibles ou non nuls. Le cluster dispose
+de deux nœuds e2-standard-2, 1930m CPU et environ 5,9 GiB mémoire allouables par
+nœud. Au premier relevé : 97m/112m CPU (5 % chacun), 2314/2173 Mi mémoire
+(38/36 %). Les pods étaient prêts, sans redémarrage ; JVB était à 3m CPU/275 Mi.
+
+Les quotas régionaux lus avant test indiquaient notamment CPU 6/200, instances
+3/24, SSD 90/500 Go et IP statiques 1/8. Aucun nouveau nœud, disque, IP ou LB
+n’était nécessaire. Les générateurs ont été placés sur la machine de travail,
+hors GKE, pour ne pas concurrencer les pods Jitsi. Le disque local n’avait
+qu’environ 2 Go libres ; les dépendances natives ont donc été préférées à une
+nouvelle grosse image Docker. Aucun conteneur Jitsi local existant n’a été modifié.
+Le trafic public généré peut être facturable ; aucun coût de nouvelle ressource
+cloud n’est engagé par ce montage.
+
+Outils installés/utilisés localement : OpenJDK 17.0.21, Maven 3.8.7, Selenium
+Grid standalone 4.26.0, Chrome/ChromeDriver assortis 130.0.6723.116. Le code
+Jitsi Meet Torture est épinglé au commit 4c00915e97006ff2224bb509eb3582bf3a10ca85.
+Le Grid écoute sur 127.0.0.1:4444 seulement, maximum trois sessions. Une seule
+conférence est générée à la fois, avec sources synthétiques et P2P désactivé
+uniquement dans les navigateurs de test. Les paramètres Helm de production,
+secrets, IAM, Terraform et IP ne sont pas modifiés.
+
+Le wrapper relève les statistiques Jicofo/JVB, les métriques nœuds/pods et les
+états/pistes/bitrates des navigateurs. Il arrête le test si un nœud atteint
+80 % CPU/mémoire, si un pod devient indisponible/redémarre/change, si le disque
+local passe sous 300 MiB, si une activité concurrente inattendue apparaît ou
+si le délai maximal est dépassé. Les intervalles observés sont d’environ 11–15 s
+selon le coût de collecte ; kubectl top représente la fenêtre Metrics Server,
+pas une mesure continue permettant de dimensionner une capacité maximale.
+
+### Difficultés et qualification des premiers résultats
+
+Le premier essai a échoué avant toute connexion : Chrome ne démarrait pas
+(DevToolsActivePort absent), en raison du sandbox indisponible sur l’hôte Ubuntu.
+Le paramètre legacy chrome.disable.nosanbox a un sens inversé : false ajoute
+--no-sandbox aux seuls navigateurs de test. Aucun paramètre AppArmor, droit IAM
+ou configuration du cluster n’a été changé.
+
+Les premiers paliers à 2 puis 3 participants ont ensuite passé le test Malleus,
+mais les compteurs révélaient zéro endpoint JVB actif et aucun trafic sortant.
+Des lectures côté navigateur ont confirmé joined=true/connected mais aucune
+piste locale : **ces succès prouvent des connexions, pas une charge audio/vidéo**.
+Quatre exécutions préliminaires réussies sont conservées avec cette qualification,
+ainsi que le premier échec local ; elles ne sont pas effacées du bilan.
+
+Une autre difficulté a été identifiée dans le clone officiel : Malleus attend
+resources/FourPeople_1280x720_30.y4m, absent des fichiers récupérés. Un alias local
+vers fakeVideoStream.y4m a été créé, sans modifier le code upstream. Son contenu
+réel est 320×180 à 5 images/s, pas du 720p30 ; les contraintes clients ont été
+adaptées à 180p. Cette correction n’a pas suffi à activer la caméra. Les contrôles
+client affichaient encore « Unmute microphone » et « Start camera ». Le wrapper
+les active explicitement via WebDriver, uniquement dans ses sessions synthétiques.
+L’audio a alors été effectivement acquis et transmis ; **la vidéo reste non validée**.
+La cause finale de l’absence de piste vidéo n’est pas isolée. Ne pas déclarer
+la version Torture incompatible dans son ensemble : compilation, connexions et
+charge audio ont fonctionné. Une reprise vidéo pourra utiliser une fixture
+compatible ou un scénario Selenium ciblé, sans modifier la production.
+
+### Paliers finaux avec transmission audio réellement observée
+
+```bash
+python3 scripts/run-malleus-light.py --participants 2 --duration 90
+python3 scripts/run-malleus-light.py --participants 3 --duration 90
+python3 scripts/summarize-malleus-light.py
+```
+
+Le second palier n’a été lancé qu’après résultat et santé vérifiés du premier.
+Les commandes Maven complètes, SHA et métriques sont dans les preuves privées.
+Les durées configurées incluent l’arrivée/départ des participants ; elles ne
+sont pas présentées comme des plateaux audio continus de 90 secondes.
+
+| Mesure réellement observée | 2 participants | 3 participants |
+|---|---|---|
+| Conférences simultanées | 1 | 1 |
+| Cas JUnit Malleus | 1 réussi, 0 erreur/échec | 1 réussi, 0 erreur/échec |
+| Durée configurée / cas JUnit | 90 s / 92,561 s | 90 s / 93,781 s |
+| Durée totale du wrapper | 118,74 s | 127,53 s |
+| Intervalle avec tous les participants observés | 71,38 s | 48,65 s |
+| Échantillons prouvant audio bidirectionnel pour tous | 5, couvrant 46,40 s | 3, couvrant 34,40 s |
+| Endpoints JVB actifs au pic | 2 | 3 |
+| Pistes audio non muettes au pic | 2 | 3 |
+| Pistes vidéo / bitrate vidéo | 0 / 0 | 0 / 0 |
+| CPU JVB au pic échantillonné | 121m, soit 0,121 vCPU | 122m, soit 0,122 vCPU |
+| Mémoire JVB au pic échantillonné | 285 Mi | 285 Mi |
+| CPU maximal d’un nœud | 14 % | 13 % |
+| Mémoire maximale d’un nœud | 38 % | 38 % |
+| Pods après test | 5 prêts, 0 redémarrage | 5 prêts, 0 redémarrage |
+
+La preuve audio combine simultanément : pistes audio non muettes, clients
+joined/connected avec bitrate audio montant et descendant positif, endpoints
+JVB actifs et trafic JVB sortant positif. Les compteurs JVB bruts sont conservés
+sans conversion d’unité non vérifiée. Il s’agit de transmission synthétique
+observée, pas d’une appréciation humaine de qualité sonore ou vidéo.
+
+Chaque exécution sélectionne seulement MalleusJitsificus. Les rapports de suite
+peuvent afficher 455 tests dont 454 skipped : **cela ne représente pas 455 tests
+réussis**. Au total, sept lancements Malleus sont conservés : un échec local
+avant connexion, quatre succès préliminaires de connexion, puis deux succès
+avec charge audio réellement prouvée. Aucun seuil de saturation ni nombre
+maximal de participants n’a été recherché.
+
+### Preuves, nettoyage, validations et suite Chaos Mesh
+
+Les dossiers finaux sont :
+
+- tests/results/20261117T103328Z-malleus-2
+- tests/results/20261117T103610Z-malleus-3
+
+Ils contiennent maven.log, summary.json, observations.jsonl et les XML JUnit,
+en permissions privées et exclus de Git. Seul results-summary.json, expurgé de
+logs et d’identifiants de session, est préparé pour versionnement. Les autres
+lancements restent référencés dans cette synthèse pour rendre les difficultés
+et limites vérifiables. Ne pas publier les journaux bruts ou les profils Chrome.
+
+Après le dernier test : zéro conférence/participant observé, sessions Grid
+fermées et processus Grid arrêté. Les cinq pods sont restés prêts sans
+redémarrage, aucun événement Warning présent ; Jitsi révision 4 et Caddy révision
+3, PVC 10 Gi Bound et IP Web/JVB inchangés. HTTPS /, /config.js et /http-bind
+répondent 200 avec confiance système normale. Aucun déploiement, changement de
+secret ou ressource Terraform/IAM n’a été effectué.
+
+67 tests unitaires locaux ont réussi (64 existants et 3 tests des seuils de
+sécurité), ainsi que la syntaxe Python, le TOML Grid borné et les contrôles
+documentaires/diff. Les tests unitaires sont distincts des vrais essais Malleus.
+
+Aucune CRD Chaos Mesh n’a été retrouvée. Restent : autorisation et installation
+compatible GKE/containerd, contrôle des droits privilégiés, expérience PodChaos
+courte sur un seul pod Web sans réunion, critères HTTP et temps de récupération,
+arrêt/nettoyage et corrélation Cloud Monitoring. Aucun scénario Chaos n’a été
+exécuté et aucune preuve de résilience n’est revendiquée ici. Une faute sur
+l’unique réplique Web peut interrompre temporairement le service ; la fenêtre
+et ce comportement doivent être explicitement acceptés avant exécution.
+
+
+## Chaos Mesh : précontrôles et préparation uniquement — 17 novembre 2026
+
+Après les essais Malleus, les résultats et journaux privés sont conservés.
+Aucune nouvelle branche/PR n’est créée. Le [guide de test Web](chaos-web-controle.md)
+prépare l’installation, l’expérience, les mesures et le nettoyage ; **aucune
+installation Chaos Mesh ni expérience de résilience n’a été exécutée**.
+L’autorisation de l’utilisatrice est attendue avant toute modification du cluster.
+
+Précontrôles réels en lecture : contexte jitsi-cluster/europe-west1-b, deux
+nœuds Container-Optimized OS, kernel 6.12.110+, containerd 2.2.7, API Kubernetes
+v1 requises disponibles. Nœuds à 4–5 % CPU et 36–38 % mémoire ; cinq pods prêts,
+sans redémarrage ; Jicofo et JVB à zéro conférence/participant. Aucun namespace
+chaos-testing ou release Chaos Mesh observé. L’identité opérateur peut créer
+namespace, CRD, ClusterRole/Binding, Role/Binding, Deployments, Services, Secrets
+et webhooks ; bind/escalate des ClusterRoles sont autorisés. Aucun droit IAM
+Google ou RBAC existant n’a été modifié pour ces vérifications.
+
+Choix préparé : PodChaos pod-kill ponctuel, mode one, gracePeriod 10, ciblant
+explicitement le seul pod Web jitsi-jitsi-meet-web-8454659c99-gpjzl, UID
+2a77025e-3511-4fb7-8df0-e4a0b9e799b6, labels composant=web/instance=jitsi et
+namespace jitsi. Nom/UID/propriétaire doivent être revalidés juste avant injection.
+Le rôle préparé limite delete pods à ce nom exact, sans patch/update/create de
+pods ni accès aux secrets applicatifs. Le nouveau pod Web aura un autre nom :
+il ne sera pas supprimable par ce droit nominatif. JVB, Jicofo, Prosody, Caddy
+et les nœuds ne sont jamais cibles de cette expérience.
+
+La source Chaos Mesh 2.8.8 montre que pod-kill utilise seulement Get/Delete de
+l’API Kubernetes. Aucun daemon containerd/noyau n’est nécessaire à cette action.
+Un chart officiel 2.8.8 a été téléchargé localement et vérifié contre le SHA256
+de l’index. Le profil et le post-renderer préparés suppriment les DaemonSets,
+SA daemon et objets dashboard, et réduisent le rôle cible. Le mode controller-only
+ainsi ajusté n’est pas encore validé au démarrage sur GKE ; le contrôleur et les
+webhooks devront être Ready avant toute faute, sinon arrêt/nettoyage.
+
+Rendu réellement contrôlé : un contrôleur (request 50m/256 Mi, limites 300m/512 Mi),
+un Service ClusterIP, un SA, quatre Secrets TLS temporaires propres à Chaos,
+deux ClusterRoles, un ClusterRoleBinding, un Role, deux RoleBindings, un webhook
+mutant, deux webhooks validants et 23 CRD. Aucun DaemonSet, hostPath, hostNetwork,
+conteneur privilégié, dashboard, DNS serveur, Prometheus, BPF, PVC ou LoadBalancer.
+Aucun contenu de certificat/clé du rendu n’est affiché. Le rôle applicatif est
+limité au namespace jitsi ; le contrôleur conserve des lectures cluster et ses
+droits propres dans chaos-testing. L’installation nécessitera l’accord explicite
+pour ces nouveaux objets Kubernetes et leurs permissions temporaires.
+
+Risque principal à accepter : une seule réplique Web, donc une interruption
+HTTPS momentanée est possible pendant le remplacement, avec limite de récupération
+à convenir de 120 s. Le Deployment existant devra recréer le pod ; Chaos ne
+restaure pas l’ancien UID. L’observateur préparé est strictement en lecture et
+mesurera UID/Ready, première dégradation et retour HTTP200, événements sans
+messages sensibles, redémarrages, CPU/mémoire, identité inchangée des autres pods.
+Il n’a pas été lancé comme preuve de résilience. Un compteur restartCount=0 ne
+prouve pas l’absence de remplacement : les UID seront comparés.
+
+Nettoyage prévu : supprimer le seul PodChaos après conservation des preuves,
+attendre ses finalizers normalement et le retour du Web, désinstaller uniquement
+la release Chaos, puis supprimer les CRD nouvellement créées seulement après
+comparaison à l’inventaire initial et absence d’autres instances ; supprimer
+ensuite le namespace créé pour ce test s’il ne contient rien d’étranger. Helm
+conserve les CRD à l’uninstall : leur retrait doit être explicite et contrôlé.
+Ne jamais forcer un finalizer ou supprimer jitsi, les PVC/PV ou les releases
+Jitsi/Caddy. Les révisions/IP/PVC/HTTPS seront revérifiés après nettoyage.
+
+72 tests unitaires locaux réussissent, dont cinq nouveaux tests du garde de
+rendu ; Helm lint et rendu post-traité réussissent. Le manifest PodChaos,
+les syntaxes et les liens/blocs documentaires sont vérifiés localement. Aucun
+server-side dry-run de PodChaos n’est revendiqué : sa CRD n’est pas installée.
+
+Verdict préparatoire : **GO conditionnel**, installation et injection soumises
+à accord distinct, contrôles runtime Ready/RBAC négatif et absence de réunion
+à revalider. Aucun nouveau calcul/disque/IP/LB prévu ; usage temporaire des
+nœuds existants, téléchargement d’image et logs éventuellement facturables.
+Pas de coût chiffré ni de nouvelle ressource payante créée pendant la préparation.
+
+
+## Résilience Chaos Mesh réellement exécutée et nettoyée — 17 novembre 2026
+
+Cette section actualise la préparation précédente : l’utilisatrice a autorisé
+l’installation minimale et **une seule** expérience pod-kill Web. Le test a
+réussi et les ressources temporaires ont été retirées. La
+[preuve expurgée](../tests/chaos/results-summary.json) et le
+[guide avec bilan](chaos-web-controle.md) sont préparés localement, sans commit,
+push, nouvelle branche ou PR. Les résultats Malleus et sections antérieures sont
+conservés intégralement.
+
+### Installation et contrôles effectivement réalisés
+
+Juste avant installation : contexte attendu, zéro conférence et zéro participant
+sur Jicofo/JVB, cinq pods prêts sans redémarrage, nœuds autour de 5 % CPU,
+38/36 % mémoire. Le nom et l’UID Web préparés étaient toujours exacts. HTTPS
+répondait 200. Le namespace chaos-testing, la release chaos-mesh et les 23 CRD du
+plan étaient absents. Un inventaire privé a enregistré pods/UID, Services/IP,
+PVC/volume, révisions Helm et empreintes des seuls Secrets applicatifs ; aucune
+valeur sensible n’a été exportée en clair dans les preuves versionnables.
+
+Le chart officiel 2.8.8 a été revérifié par SHA256. Installation réellement lancée :
+
+```bash
+CHAOS_WEB_POD=jitsi-jitsi-meet-web-8454659c99-gpjzl helm install chaos-mesh   /tmp/jitsi-chaos-chart/chaos-mesh --namespace chaos-testing --create-namespace   -f tests/chaos/values-controller-only.yaml   --post-renderer ./scripts/chaos-web-postrender.py --atomic --wait --timeout 180s
+```
+
+Résultat : release chaos-mesh révision 1 deployed, contrôleur unique Ready,
+zéro DaemonSet, aucun dashboard ou service public. Les 23 CRD sont Established.
+Le dry-run serveur du PodChaos a réussi via les webhooks. Le profil controller-only
+post-traité, jusqu’alors seulement préparé, a donc démarré réellement pour cette
+expérience pod-kill ; cela ne valide pas les autres types de faute Chaos Mesh.
+
+Les vérifications par impersonation du ServiceAccount confirment : delete yes
+pour le seul nom Web exact ; delete no pour chacun des pods Caddy, Jicofo, JVB
+et Prosody ; delete/deletecollection/create/update/patch pods sans nom refusés,
+get secrets dans jitsi refusé. Aucun droit IAM Google ou droit des identités CD
+n’a été élargi. Les quatre Secrets TLS de contrôle créés pour Chaos Mesh dans
+son namespace sont temporaires et ont été retirés au nettoyage ; les Secrets
+applicatifs existants n’ont pas été modifiés.
+
+### Injection unique, remplacement et récupération mesurés
+
+L’observateur en lecture seule a démarré avant l’injection, avec baseline HTTPS200.
+Une nouvelle vérification a confirmé l’absence de conférence. Le pilote local
+emploie un marqueur de création exclusive pour ne pas demander une seconde
+injection. Une seule commande de création réelle a été émise :
+
+```bash
+kubectl create -f tests/chaos/podchaos-web-once.yaml -o json
+```
+
+PodChaos jitsi-web-kill-once, UID 460768fa-de27-4894-8bf5-00beb13bae91, créé à
+**12:02:50 heure de Paris** (11:02:50 UTC). Les conditions Selected=True et
+AllInjected=True et un seul containerRecord confirment la cible
+jitsi/jitsi-jitsi-meet-web-8454659c99-gpjzl, injectedCount=1, événement Apply
+Succeeded. Aucun autre composant n’a été ciblé et aucune deuxième expérience
+n’a été lancée. AllRecovered=False avant suppression de l’objet ne signifie
+pas que Web est resté en panne : pod-kill est une suppression, la récupération
+applicative est assurée séparément par le Deployment et mesurée indépendamment.
+
+| Mesure | Résultat observé |
+|---|---|
+| Ancien Web | jitsi-jitsi-meet-web-8454659c99-gpjzl ; UID 2a77025e-3511-4fb7-8df0-e4a0b9e799b6 |
+| Nouveau Web | jitsi-jitsi-meet-web-8454659c99-xkswg, nouvel UID |
+| Création du remplaçant | 11:02:50 UTC |
+| Condition Ready du remplaçant | 11:02:52 UTC, soit environ 2 s après création |
+| Nouveau Web Ready + HTTPS200 confirmés depuis la requête | **15,331 s** |
+| Depuis première transition Web observée jusqu’au retour HTTPS | **12,558 s** |
+| HTTP échantillonné pendant l’observation | 17 réponses 200, 3 réponses 502, 3 erreurs de transport |
+| Autres composants | UID Caddy/Jicofo/JVB/Prosody inchangés ; prêts, 0 redémarrage |
+| Seuil maximal de 120 s | Non atteint ; aucune récupération supplémentaire nécessaire |
+
+Ces durées sont des mesures échantillonnées, pas une précision garantie à la
+milliseconde. La cadence dépend des lectures API et des timeouts HTTP de 2 s.
+Le pod peut être Ready avant que le chemin HTTPS soit rétabli : ne pas réduire
+le temps de récupération du service aux seules deux secondes Kubernetes.
+Les six requêtes dégradées sont une interruption transitoire réellement
+observée, pas une disponibilité continue. Une seule réplique Web ne démontre
+pas de haute disponibilité. Aucun nouveau test audio/vidéo utilisateur n’est
+déduit du rétablissement HTTP.
+
+Événements relevés : Killing sur l’ancien pod, SuccessfulCreate du ReplicaSet,
+Scheduled/Pulled/Created/Started sur le nouveau. Un Warning Unhealthy correspond
+à une sonde **readiness** au démarrage à 11:02:51 UTC ; Ready est ensuite True
+à 11:02:52 UTC. Aucun redémarrage n’est observé. Ce remplacement doit être
+prouvé par le changement d’UID, même si restartCount du nouveau pod vaut zéro.
+
+### Ressources et disponibilité après récupération
+
+Pendant l’observation, le maximum échantillonné d’un nœud est de 6 % CPU et
+38 % mémoire. Après nettoyage : 100m/113m CPU (5 % chacun), 2354/2191 Mi mémoire
+(39/36 %). Ces relevés Metrics Server ne sont pas une trace continue ni une
+preuve d’absence de pic non échantillonné.
+
+| Composant | CPU/mémoire avant | CPU/mémoire après nettoyage |
+|---|---|---|
+| Web | 1m / 17 Mi | 1m / 15 Mi, nouveau pod |
+| Jicofo | 2m / 212 Mi | 2m / 212 Mi |
+| JVB | 3m / 282 Mi | 4m / 282 Mi |
+| Prosody | 1m / 46 Mi | 1m / 47 Mi |
+| Caddy | 1m / 12 Mi | 1m / 13 Mi |
+
+État final : cinq pods Ready, aucun redémarrage ; releases Jitsi **4** et Caddy
+**3** inchangées ; PVC Caddy 10 Gi Bound, UID et volume inchangés ; Services/UID et
+IP Web 34.78.71.58/JVB 34.62.165.81 inchangés. Les empreintes/UID des Secrets
+applicatifs correspondent à l’inventaire initial. HTTPS avec confiance système
+normale : /, /config.js, /http-bind en 200 ; /metrics, /colibri/stats, /debug et
+/healthz en 404. Jicofo et JVB indiquent zéro conférence/participant à la fin.
+
+### Nettoyage effectivement terminé
+
+L’état et les conditions du PodChaos ont été conservés en privé puis l’objet
+supprimé normalement, sans forcer ses finalizers. Le contrôleur temporaire a
+ensuite été désinstallé avec sa release. Après comparaison à l’inventaire initial
+et vérification qu’aucune instance des CRD ne restait dans aucun namespace, les
+23 CRD créées pour ce test ont été supprimées explicitement. Le namespace ne
+contenait plus que son ServiceAccount default et kube-root-ca.crt ; il a alors
+été supprimé. Aucun objet étranger n’a été retiré.
+
+Vérifications finales : release/namespace/23 CRD absents ; aucun ClusterRole,
+ClusterRoleBinding ou webhook marqué pour cette release ; RoleBinding temporaire
+de jitsi absent. Les ressources temporaires et les Secrets TLS propres à Chaos
+sont retirés. Aucun PVC/PV, IP, secret applicatif ou release Jitsi/Caddy n’a été
+supprimé ou modifié. Aucun Terraform apply ou changement IAM n’a été exécuté.
+
+Preuves privées, exclues de Git : tests/results/20261117-chaos-web-controlled
+(inventaire, précontrôles, état PodChaos, nettoyage et contrôles finaux) et
+tests/results/20261117T110248Z-chaos-web (baseline, observations HTTP/pods/métriques,
+summary/events). Seule la synthèse expurgée est préparée pour versionnement.
+La récupération Web unique est validée ; la corrélation Cloud Monitoring,
+les autres fautes et la résilience des conférences restent non validées.
+
+
+## Vidéo Malleus réelle et images Docker — 17 novembre 2026
+
+Cette validation complète, sans remplacer, les preuves audio et Chaos Mesh
+précédentes. Les conférences étaient absentes avant chaque palier. Les tests
+vidéo utilisent Selenium natif sur la machine de travail, hors GKE, et le même
+Jitsi public HTTPS. Aucun test audio n’a été recommencé : audio_senders=0.
+
+Le générateur produit une vidéo synthétique Y4M I420 1280×720 à 30 images/s
+(deux images bouclées, 2 764 856 octets) et un WAV synthétique. Chrome capture
+ici en 640×360, au maximum 15 images/s. Les options fake-device, fake-ui et
+fake-video-capture, l’activation explicite de la caméra et les observations
+média sont documentées dans [la procédure vidéo/Docker](malleus-video-docker.md).
+La réussite ne démontre ni une qualité HD, ni une capacité maximale du cluster.
+La combinaison corrigée est validée ; une cause unique des anciennes tentatives
+sans vidéo n’a pas été isolée expérimentalement.
+
+| Palier vidéo | Résultat réel | Durée demandée / enveloppe | JVB CPU / mémoire maximum | Nœuds CPU / mémoire maximum |
+| --- | --- | --- | --- | --- |
+| 2 participants | 1 cas Malleus réussi, zéro échec | 90 s / 110,03 s | 119 m / 290 MiB | 15 % / 39 % |
+| 3 participants | 1 cas Malleus réussi, zéro échec | 90 s / 115,48 s | 175 m / 292 MiB | 17 % / 39 % |
+
+Chaque client possède une piste vidéo active et des débits vidéo montant et
+descendant positifs ; le JVB confirme les participants et le trafic dans les
+deux sens. Les éléments vidéo décodent des images (maxima 1048/1025 à deux,
+943/929/908 à trois). Le critère simultané strict est observé sur quatre
+échantillons couvrant 41,40 s à deux et trois échantillons couvrant 31,23 s à
+trois : il ne s’agit pas d’une observation continue de toutes les 90 secondes.
+Le rapport générique JUnit contient des cas ignorés ; un seul cas Malleus est
+sélectionné et réussi par palier, pas 455 tests de charge réussis.
+
+Une première tentative vidéo à deux a été arrêtée par sécurité à 81,06 s : les
+fichiers temporaires des navigateurs avaient réduit le disque libre à 264 MiB.
+Elle n’est pas comptée comme réussite, malgré du trafic vidéo observé. Grid a
+ensuite été redémarré avec TMPDIR et java.io.tmpdir dans /dev/shm, sans changer
+les montages système. Les deux paliers réussis conservent respectivement au
+moins 795 et 794 MiB libres sur le disque racine ; au moins 3996 et 4331 MiB de
+mémoire disponible ont été observés. Les protections arrêtent les tests en cas
+de ressources faibles, conférence supplémentaire ou dégradation des pods.
+Aucun palier à dix : générateur limité à deux CPU et marge disque insuffisante.
+
+Les commandes réelles sont détaillées dans le guide : génération des médias,
+Grid avec temporaire en RAM, puis scripts/run-malleus-light.py --video avec
+2 et 3 participants et une durée de 90 s, et scripts/summarize-malleus-video.py.
+Les [résultats expurgés](../tests/load/video-results-summary.json) restent
+séparés du fichier historique audio ; les journaux détaillés tests/results/
+restent privés et exclus de Git.
+
+### Conteneurs préparés et construction réellement effectuée
+
+Le [Dockerfile Selenium](../tests/load/docker/Dockerfile.selenium) ajoute le
+Y4M et le wrapper Chrome avec caméra/microphone synthétiques. Il n’a pas été
+construit : sa base absente représente environ 600 MiB compressés, auxquels
+s’ajoutent extraction et couches, incompatibles avec la marge disque présente.
+
+L’image locale jitsi-malleus:m2-video-20261117 a réellement été construite :
+SHA256 29dc9daac1308ecd0b30804b172a43d9991e22ca65ce3be0056b4f2cb8d8ec3d.
+Le [Dockerfile Malleus](../tests/load/docker/Dockerfile.malleus) réutilise une
+base Jicofo publique déjà en cache, sans démarrer Jicofo : son point d’entrée
+est remplacé. Java 21, Maven 3.8.7 et les sources Torture épinglées sont présents,
+sans clé ni cache de credentials. L’exécution est non root (10001:10001).
+La construction finale prend 23,28 s, sans réseau, avec limites 1 CPU/768 MiB.
+Ces limites ne sont pas une mesure de consommation effective. Docker affiche
+1,13 Go incluant la base partagée ; l’augmentation physique constatée sur le
+disque est d’environ 19,5 MiB, avec un minimum de 752 MiB libres pendant ce build.
+
+La première construction avec cache Maven intégré a été arrêtée par la garde
+disque (416 MiB libres), puis seules ses couches temporaires ont été retirées.
+La variante finale allégée utilise un contexte de 10,31 MiB et n’embarque pas les
+dépendances Maven. Java/Maven et une compilation test-compile hors réseau ont
+réussi dans l’image avec cache Maven externe monté en lecture seule et target
+en tmpfs. Cela ne valide pas un test média conteneurisé complet.
+Les [preuves de construction](../tests/load/docker/build-results.json)
+distinguent ces deux tentatives.
+
+Le [Job Malleus](../tests/load/docker/job-malleus.yaml) est un modèle suspendu,
+sans jeton de ServiceAccount, limité en CPU, mémoire, stockage éphémère et durée.
+Il n’a pas été déployé ; aucun namespace, Grid Kubernetes ni registre n’a été
+créé, aucune image poussée. Le transfert des images, les dépendances Maven et
+l’observation vidéo dans cette chaîne conteneurisée restent à valider.
+
+### État final vérifié
+
+Les [contrôles finaux](../tests/load/video-final-checks.json) confirment cinq
+pods prêts, UID et compteurs de redémarrage inchangés, Jitsi révision 4 et Caddy
+révision 3, PVC, IP et secrets applicatifs inchangés. HTTPS /, /config.js et
+/http-bind répondent 200 avec confiance système normale. Zéro conférence et
+participant après les tests ; Grid local arrêté. Le disque final dispose
+d’environ 773 MiB libres. Aucun changement Terraform, IAM, release Helm ou IP,
+aucune nouvelle branche ni PR ; le travail Terraform nº 7 est préservé.
+
+### Étude uniquement : construction Selenium sur GitHub Actions
+
+Le dépôt SaminouA/projet-jitsi-helm est confirmé PUBLIC via GitHub CLI. Le
+Dockerfile Selenium et le générateur Python ont été relus : les médias Y4M/WAV
+peuvent être recréés dans un contexte temporaire du runner, sans transférer
+les preuves privées ni utiliser la VM comme moteur de construction.
+
+Faisabilité documentaire : runner standard ubuntu-24.04 x64 (4 CPU, 16 Go RAM,
+14 Go SSD annoncés ; espace réellement libre à contrôler au démarrage).
+Proposition non exécutée : workflow_dispatch seulement, contrôle de branche,
+génération des médias, contexte limité aux deux médias/Dockerfile/wrapper,
+build linux/amd64, contrôle des fichiers et du wrapper dans l’image, puis
+publication optionnelle explicitement autorisée vers
+`ghcr.io/saminoua/jitsi-selenium:<sha>`. Base déjà épinglée par digest ; actions
+à épingler par SHA, tag immuable/digest à relever. Aucun accès GCP nécessaire.
+
+Permissions proposées : contents:read pour construire ; packages:write seulement
+pour publier avec GITHUB_TOKEN éphémère, sans PAT ni id-token:write. Les règles
+Actions/Packages du compte et les droits sur un package éventuellement existant
+restent à vérifier lors de la préparation réelle. Pour GKE, une image publique
+permet le pull anonyme ; sinon un mécanisme de credentials serait nécessaire,
+non préparé ni autorisé ici. La visibilité du package ne doit pas être supposée
+publique simplement parce que le dépôt l’est.
+
+Selon la documentation consultée, les runners standards sont gratuits pour les
+dépôts publics, et stockage/bande passante GHCR actuellement gratuits. Éviter
+runner élargi, export Docker en artifact et cache volumineux ; leurs coûts ou
+quotas peuvent différer. Risques restants : téléchargement de la base Selenium,
+place réellement libre, sécurité de Chrome 130 ancien et mode no-sandbox,
+compatibilité du wrapper et ressources éphémères/shm lors d’un futur test GKE.
+Aucune construction, publication, exécution Actions ou ressource GKE réalisée
+pour cette étude. Les tests vidéo natifs antérieurs restent la preuve validée ;
+la chaîne conteneurisée n’est pas encore validée.
+
+Sources consultées :
+[capacités des runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners),
+[tarification Packages](https://docs.github.com/en/billing/concepts/product-billing/github-packages),
+[authentification GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry),
+[visibilité des packages](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+
+### Construction Selenium GitHub réellement exécutée — résultat fonctionnel négatif
+
+La publication du workflow a nécessité la PR nº 8, car les règles effectives de
+main imposent une PR et Validation Helm. La branche existante
+`docs/first-controlled-helm-cd` a été réutilisée ; seuls cinq fichiers ont été
+committés : workflow build-selenium.yml, générateur de médias, test Selenium,
+Dockerfile Selenium et wrapper Chrome. Les autres travaux, le rapport et les
+preuves privées sont restés locaux. Les deux CI de la PR et la CI main ont
+réussi ; GKE_CD_ENABLED=false et le job CD main a été ignoré (44085029678).
+PR fusionnée : https://github.com/SaminouA/projet-jitsi-helm/pull/8 ; main
+511ed089c516ab8a9ad1b301261fc6d0c471a3d6. Aucun nouveau nom de branche créé.
+
+Une seule exécution manuelle :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44084988109
+Runner ubuntu-24.04 : 86 Go disponibles observés au démarrage, au-delà du seuil
+6 Gio. Génération des Y4M/WAV et build linux/amd64 réussis ; conteneur démarré,
+Grid prêt et session Chrome créée. Durée du job : 1 min 10 s.
+
+IMPORTANT : le statut GitHub success ne constitue PAS une validation média.
+Le test getUserMedia({video:true,audio:true}) a renvoyé NotFoundError, puis
+AssertionError. Aucune piste vidéo/audio ni mesure de frames/RMS n’est validée
+dans cette image. La cause précise reste indéterminée : le périphérique média
+manquant n’est pas identifié par cette erreur globale. Les options Chrome et
+l’accès effectif aux fichiers synthétiques devront être inspectés sur le runner
+lors d’une investigation ultérieure ; aucune incompatibilité spécifique n’est
+prouvée ici. Les tests natifs Malleus vidéo précédents restent valides.
+
+Erreur de garde-fou identifiée : le shell implicite bash -e n’activait pas
+pipefail ; `python3 ... | tee ...` a masqué le code d’échec Python. L’étape de
+publication s’est donc exécutée à tort malgré l’échec fonctionnel. Cette erreur
+est reconnue ; l’image publiée doit être considérée NON VALIDÉE et ne doit pas
+être utilisée pour un test Kubernetes présenté comme validé.
+
+Image effectivement publiée :
+`ghcr.io/saminoua/jitsi-selenium:synthetic-511ed089c516ab8a9ad1b301261fc6d0c471a3d6`
+Digest : `sha256:38841edb401e7b919e3e3baf584ba373960ad19650fc1f2b55f19efb1f2ecb59`.
+Accès anonyme au manifeste GHCR : HTTP 200, digest identique, sans téléchargement
+des couches. L’image est donc accessible sans credentials pour un futur pull.
+Le champ visibility de l’API Packages n’a pas pu être lu avec le CLI local
+(HTTP 403, scope read:packages absent) ; aucune permission ni visibilité n’a été
+modifiée pour contourner ce contrôle. Authentification de publication par
+GITHUB_TOKEN, permissions contents:read/packages:write, sans PAT ni OIDC GCP.
+
+Après constat de l’échec, aucune relance ni seconde construction/publication.
+Une correction LOCALE NON PUBLIÉE rend shell:bash et set -euo pipefail explicites
+et remplace le pipeline par une redirection, puis affichage seulement si Python
+réussit. Un test automatisé exécute cette étape avec une commande média simulée
+échouant (code 17) et vérifie la propagation de ce code : publication bloquée.
+L’ancien workflow présent sur main n’intègre pas encore cette correction ; ne
+pas le relancer avant intégration. Le nettoyage du conteneur runner et du login
+Docker a réussi. Aucun téléchargement d’image sur la VM, Job GKE, Terraform
+apply, changement IAM, secret, IP ou release Jitsi/Caddy. PR Terraform nº 7 et
+modifications préexistantes préservées. Journaux privés conservés dans
+`tests/results/20261117-selenium-ghcr/workflow.log` (exclus de Git).
+Validation locale après correction du garde-fou : 79 tests réussis ; vérification
+documentaire (14 documents, 50 liens locaux, 77 blocs shell) sans erreur et
+git diff --check réussi. La correction n’est ni committée ni poussée.
+
+### Reprise locale : correction Selenium et préparation Helm isolée
+
+L’index Git contenait 29 fichiers préparés au début de la reprise. Il est
+préservé sans git add/reset/stash ni commit/push. Le disque racine reste à 96 %,
+environ 774 MiB libres ; aucune construction ni couche Docker téléchargée.
+
+La cause probable du NotFoundError a été étayée par les sources officielles
+Selenium 4.26 : le binary du stereotype du nœud prend priorité sur celui de la
+requête cliente. L’image officielle enregistre /usr/bin/google-chrome ; notre
+wrapper et ses paramètres fake-device/fake-ui/Y4M/WAV pouvaient être contournés.
+Le correctif Dockerfile enregistre le wrapper dans browser_binary_location.
+La causalité effective reste à confirmer par les paramètres Chrome du futur
+runner ; aucun enregistrement des arguments de l’ancien run n’est disponible.
+
+Le workflow local corrigé active bash/set -euo pipefail et propage explicitement
+le code Python tout en affichant les catégories d’erreurs et mesures. La
+publication exige le succès du test. Précontrôle des fichiers et SHA256 sous
+l’utilisateur de l’image, versions Chrome/ChromeDriver, vérification CDP des
+quatre options synthétiques actives, tests caméra et microphone séparés,
+images décodées et signal RMS non nul : ces contrôles sont préparés mais NON
+exécutés sur GitHub. L’image publiée lors du run 44084988109 reste NON VALIDÉE
+média ; elle ne constitue pas la preuve du correctif.
+
+Le nouveau chart charts/jitsi-load-test prépare séparément Deployment Selenium,
+Service ClusterIP 4444 et Job Malleus. Aucun objet par défaut ; images validées
+et digests explicitement requis ; Job suspendu, sans retry, 2/3 participants et
+60/90 s uniquement. Limites CPU/mémoire/stockage, temporaires en RAM pour Grid,
+caches Maven/target inscriptibles et éphémères pour Malleus ; aucun PVC, RBAC,
+LoadBalancer ou secret créé. Rien n’est ajouté aux pipelines de production.
+Les limites ne prouvent pas que la capacité actuelle de GKE est suffisante.
+
+La [procédure Selenium/Helm](selenium-helm-validation.md) détaille les sources,
+la validation future, les commandes non exécutées et les blocages : image
+Selenium non validée, image Malleus non publiée et exécution Kubernetes non
+testée, dépendances Maven à froid, capacité cluster à recontrôler, profil vidéo
+seul et observation des médias à préparer avant une vraie charge. Ni le Job ni
+une session Chrome seule ne prouve un trafic vidéo.
+
+Aucune nouvelle branche/PR, publication, exécution Actions ou mutation GKE,
+Terraform, IAM, release, secret ou IP pendant cette reprise. Le travail de la
+PR Terraform nº 7 est intact. Les preuves audio/vidéo natives et Chaos précédentes
+sont conservées ; l’intégration Helm reste une préparation locale.
+Validations réellement exécutées lors de cette reprise : 87 tests locaux
+réussis, helm lint --strict du chart de test réussi, rendus par défaut et activés
+vérifiés sans cluster ; 15 documents, 52 liens locaux et 79 blocs shell contrôlés
+sans erreur (URLs externes : syntaxe seulement). git diff --check réussi et
+comparaison byte à byte du diff indexé avant/après identique : les 29 fichiers
+préparés dans l’index n’ont pas été remplacés. Les nouveaux fichiers et les
+compléments de travail restent hors index pour revue ; rien n’a été publié.
+
+### Exécution rapide Selenium — correctif intégré, essai unique lancé
+
+Pour préserver l’index existant, le commit a été créé dans un worktree détaché
+/tmp/jitsi-selenium-publish basé sur main 511ed089. Le répertoire de travail
+principal et ses entrées indexées n’ont pas été réinitialisés ni réindexés.
+Quatre fichiers seulement : workflow Selenium, test média, Dockerfile Selenium
+et tests du garde-fou. Vérification ciblée : aucun motif courant de secret,
+chacun inférieur à 100 Ko ; aucune preuve privée ni rapport dans ce commit.
+Commit : ffcbe7d5818bb7ddf5450792f7b68197daca770c, poussé vers la branche existante.
+PR https://github.com/SaminouA/projet-jitsi-helm/pull/9 fusionnée après deux CI
+réussies, sans contourner les protections. Main :
+0886d5882c6a41589698d306156d3357b1f5af07 ; GKE_CD_ENABLED=false vérifié.
+
+Une seule exécution manuelle demandée :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44094388902
+Son résultat média reste à relever ; le lancement ne prouve pas la réussite.
+
+En parallèle, préparation LOCALE NON PUBLIÉE de build-malleus.yml : runner
+ubuntu-24.04, sources Torture publiques épinglées, génération du contexte sans
+cache privé, Java/Maven puis compilation en ligne suivie d’une compilation
+hors réseau avec cache externe en lecture seule, publication conditionnelle.
+Le tag compile-checked indique une compilation vérifiée, pas une réunion média.
+Aucun build/push Malleus exécuté. Le générateur de contexte accepte --source
+pour fonctionner sur un runner sans dépendre de /tmp de la VM. Les dépendances
+ne sont pas embarquées dans cette image légère : cache à froid et délais de
+compilation restent des limites du futur Job.
+
+Chart jitsi-load-test : helm lint --strict réussi et rendu complet local
+Service/Deployment/Job vérifié (images de substitution, jamais déployées).
+Service ClusterIP 4444, Job suspendu, bornes 2/3 participants et 60/90 s,
+requests cumulées 350m/1280 MiB et limites 2500m/3840 MiB. Aucune preuve de
+capacité GKE nouvelle n’est revendiquée ; aucun déploiement prévu sans accord.
+87 tests locaux réussis après préparation du workflow Malleus.
+
+### Résultat final Selenium corrigé : médias synthétiques réellement validés
+
+Le run unique 44094388902 est réussi. Les logs ont été relus, pas seulement le
+statut GitHub : les SHA256 des fichiers présents dans l’image correspondent aux
+fixtures générées, et les quatre options synthétiques ont été vérifiées via
+CDP dans Chrome. Versions réelles Chrome et ChromeDriver : 130.0.6723.91 ;
+elles diffèrent des binaires 130.0.6723.116 utilisés lors des tests natifs.
+Une piste vidéo active et une piste audio active, 61 images décodées,
+1280×720 et RMS audio 0,06480044907001042 : caméra et microphone synthétiques
+réellement fonctionnels. Cette mesure est un test court getUserMedia dans le
+conteneur, pas une réunion Jitsi ni une preuve RTP ou de charge Kubernetes.
+La correction du binaire de nœud a permis ce résultat avec la base épinglée.
+
+Image publiée APRÈS réussite du test :
+`ghcr.io/saminoua/jitsi-selenium:synthetic-0886d5882c6a41589698d306156d3357b1f5af07`
+Digest : `sha256:5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86`.
+Le manifeste est accessible anonymement HTTP 200 et porte le même digest ;
+aucune couche n’a été téléchargée sur la VM. Les 86 Go libres observés sur le
+runner ont permis de construire hors VM. L’ancienne image du run 44084988109
+reste non validée et ne doit pas être utilisée comme preuve.
+
+La [synthèse expurgée](../tests/load/selenium-image-results.json) conserve ces
+mesures. Les logs détaillés sont privés sous
+tests/results/20261117-selenium-corrected/workflow.log. CI main réussie
+44094358450, CD GKE ignorée 44094424655 ; aucun déploiement.
+
+Le [profil Grid validé](../tests/load/values-grid-validated.yaml) prépare le
+digest réellement publié, uniquement Deployment et Service : Job désactivé.
+Lint strict et rendu Helm de ce profil réussis ; rien n’a été appliqué.
+Le chart par défaut reste entièrement inerte et le Job reste suspendu lorsqu’il
+est activé. GO pour l’image Selenium au niveau capture synthétique ; les
+images Malleus, ressources GKE, profil vidéo et mesures RTP restent à valider
+avant un Job de charge. Aucun build Malleus ni publication de son workflow.
+
+### Publication Malleus autonome et préparation du Job vidéo
+
+L’index existant reste inchangé. Un worktree détaché séparé a servi au commit
+b8f4000 et à sa publication ciblée (13 fichiers, aucun rapport ni preuve privée).
+La PR nº 10, https://github.com/SaminouA/projet-jitsi-helm/pull/10, a été fusionnée
+après deux CI vertes. Main 2c95003867da3bb9da4b6cc82bec226cc5772b21 ; CD inactive.
+Workflow lancé une seule fois :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44097184022
+Résultat encore en attente au moment de cette entrée.
+
+Le Dockerfile compile les sources Torture publiques épinglées, embarque les
+dépendances Maven et précharge ChromeDriver 130.0.6723.91, correspondant à la
+nouvelle image Selenium validée. L’auto-test appelle réellement testMain de
+Malleus avec zéro participant, sous Java puis TestNG/Maven hors réseau.
+Aucune réunion ni charge applicative n’est créée par cette vérification.
+La publication exige la réussite de ces contrôles. Aucun build sur la VM.
+
+Le chart conserve les dépendances/target/driver-cache de l’image, au lieu de
+les masquer par des emptyDir vides. Ils sont inscriptibles par UID 10001 ;
+seul /tmp reste monté en emptyDir. Le profil de réunion utilise vidéo seule,
+audio_senders=0, P2P désactivé, capture demandée 640×360/15 fps au maximum.
+89 tests locaux réussis, lint Helm et rendus sans cluster validés.
+
+Précontrôles GKE en lecture seule : contexte attendu, cinq pods Jitsi/Caddy
+Ready avec zéro redémarrage, zéro conférence/participant selon Jicofo et JVB.
+Nœuds : CPU 6 % et 5 %, mémoire 39 % et 36 %. Requests existantes : 827m CPU
+et 2008642816 octets RAM sur le premier, 727m et 1334699904 octets sur le second.
+Nœuds Ready, DiskPressure=False ; 14,0 et 14,4 Gio libres pour les images.
+Aucun ResourceQuota/LimitRange dans jitsi et namespace jitsi-load-test absent.
+Ces observations ne garantissent pas l’absence d’une réunion au futur lancement.
+
+Un observateur local scripts/observe-malleus-video.py est préparé pour le Grid
+dédié via port-forward loopback : activation explicite de la caméra de nos
+sessions uniquement, pistes, débits vidéo client et frames décodées, sans IDs
+de session dans les preuves. Il ne remplace pas les mesures JVB ni le résultat
+JUnit. Le script est vérifié syntaxiquement, pas exécuté contre un nouveau Grid.
+Aucun déploiement Kubernetes ni nouvelle réunion pendant cette préparation.
+
+### Résultat vérifié : image Malleus publiée, profil Helm 2 × 90 s prêt
+
+Le workflow unique 44097184022 a réussi en 2 min 20 s. Logs relus : Java
+21.0.12.1, Maven 3.8.7, dépendances et ChromeDriver public 130.0.6723.91 embarqués,
+compilation hors réseau réussie. MalleusSmoke appelle réellement testMain de
+Malleus avec zéro participant ; exécution Java et TestNG/Maven hors réseau
+réussies. TestNG : 1 test, 0 échec, 0 erreur, 0 ignoré. Ce test n’ouvre aucune
+réunion et ne prouve pas encore une charge vidéo de cette image sur GKE.
+
+Image effectivement publiée :
+`ghcr.io/saminoua/jitsi-malleus:executable-2c95003867da3bb9da4b6cc82bec226cc5772b21`
+Digest : `sha256:01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092`.
+Manifeste anonyme HTTP 200, digest identique ; couches compressées environ
+386 MiB. Aucune couche n’a été téléchargée sur la VM. Les preuves privées sont
+sous tests/results/20261117-malleus-ghcr/workflow.log, la
+[synthèse publiable](../tests/load/malleus-image-results.json) distingue
+l’exécution du code et le test de réunion restant à faire.
+
+Le chart local référence les deux digests validés ; les ressources restent
+désactivées par défaut. Le [profil 2 × 90 s](../tests/load/values-video-2x90.yaml)
+active Deployment Selenium, Service interne 4444 et Job Malleus SUSPENDU,
+vidéo seule et P2P désactivé. Helm lint strict et template avec les vrais digests
+réussis. Les dépendances de l’image ne sont plus masquées par des volumes vides.
+Préparation locale du profil final après publication ; pas de nouveau push du
+rapport ni du profil, index principal inchangé. Les droits create namespace,
+Deployment, Service et Job sont autorisés pour l’identité courante ; aucune
+permission modifiée. Aucune NetworkPolicy dans le cluster. Les deux manifestes
+GHCR sont accessibles sans secret de registre.
+
+Verdict GO technique pour déploiement contrôlé des ressources de test avec Job
+suspendu, sous réserve d’accord utilisateur et d’un nouveau contrôle zéro
+conférence au lancement. Aucun déploiement n’est effectué ici. La
+[procédure exacte](test-video-helm-2x90.md) prévoit l’observation des pistes et
+débits clients et JVB, les seuils d’arrêt, preuves JUnit, disponibilité HTTPS et
+nettoyage limité au test. Risques : pull initial, contention des ressources,
+compatibilité runtime Kubernetes et activation caméra encore à vérifier.
+La réunion vidéo conteneurisée n’est pas déclarée réussie.
+
+CI main 44097157784 réussie ; CD 44097210602 ignorée. Pas de changement de
+GKE_CD_ENABLED, Terraform, IAM, secrets, PVC, IP ou releases Jitsi/Caddy.
+
+### Test réel Kubernetes Malleus + Selenium : arrêt de sécurité, palier incomplet
+
+Après autorisation utilisateur, une seule installation Helm load dans le
+namespace temporaire jitsi-load-test et une seule levée de suspension du Job
+ont été exécutées le 17 novembre 2026, entre 14:01:45 et 14:05:09 UTC environ.
+Avant installation : contexte attendu, zéro conférence Jicofo/JVB, cinq pods
+Ready sans redémarrage, CPU nœuds 7 % et mémoire 39/36 %. Releases Jitsi 4 et
+Caddy 3, empreintes des secrets et identités PVC/Services relevées sans afficher
+les valeurs. Aucun composant de production ni état Terraform modifié.
+
+Commande d’installation réelle : helm upgrade --install load
+charts/jitsi-load-test -n jitsi-load-test --create-namespace
+-f tests/load/values-video-2x90.yaml --wait --timeout 180s.
+Le profil utilise exclusivement les digests GHCR validés Selenium
+5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86 et Malleus
+01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092.
+Service ClusterIP 4444 sans IP externe. Le Job est resté suspendu jusqu’au Grid
+prêt et zéro session ; puis patch suspend=false une seule fois. Image Malleus
+récupérée par le nœud en 25,3 s environ. Aucune image téléchargée sur la VM.
+
+Le Job a réellement lancé Malleus : logs conférences=1, participants=2,
+duration=90000ms. Deux sessions Selenium ont rejoint Jitsi ; caméra activée et
+piste vidéo non muette chez chaque client. Deux échantillons stricts espacés
+de 5,26 s montrent simultanément connexion établie, vidéo montante et descendante
+positive sur les deux clients et deux endpoints JVB actifs. Derniers débits
+vidéo clients : upload 83/85, download 38/34 (champs bitrate.video). Les éléments
+vidéo 640×360 affichent des compteurs d’images décodées atteignant 390 et 362.
+Ces compteurs DOM ne sont pas attribués individuellement aux flux RTP distants.
+JVB, dernier échantillon strict : bit_rate_download=510, bit_rate_upload=59,
+packet_rate_download=233 et packet_rate_upload=58 ; stress_level environ 1,11.
+Aucun nouvel audio : paramètres audio_senders=0 et compteurs audio à zéro.
+
+**Résultat global : ÉCHEC DU PALIER COMPLET / ARRÊT DE SÉCURITÉ.** Le garde-fou
+NODE_SATURATION (CPU ou mémoire nœud >=80 %) a arrêté le générateur avant la
+fin du palier de 90 s ; aucun résultat JUnit final ni exit Maven réussi n’est
+revendiqué. L’échantillon déclencheur n’a pas été écrit par le pilote avant son
+exception : limite de collecte documentée. Les échantillons persistés avant
+l’arrêt atteignent 65 % CPU/56 % RAM ; une mesure immédiatement après nettoyage
+atteint encore 1998m CPU, soit 103 % de l’allocatable, et 63 % RAM sur le nœud
+Selenium/JVB. Les métriques serveur peuvent refléter la fenêtre précédente,
+même après la suppression. Il s’agit d’une limite de ressources du générateur
+colocalisé, pas d’une incompatibilité image démontrée.
+
+Maxima pods observés avant arrêt (métriques échantillonnées, non pics absolus) :
+Selenium 543m CPU/610 MiB, Malleus 494m/231 MiB, JVB 31m/295 MiB. La mesure
+standard RTC getStats envisagée après les premiers compteurs clients n’a pas
+abouti : le nettoyage avait déjà fermé le port-forward. Aucune seconde session,
+réunion ou tentative de charge n’a été créée pour compléter les preuves.
+Durée totale installation/surveillance/nettoyage : 206,22 s, distincte de la
+durée média effective ; ne pas annoncer 90 s de vidéo réussies.
+
+Nettoyage réel : suppression du seul Job load-malleus, fermeture des sessions
+Grid et du port-forward, helm uninstall load, suppression du seul namespace
+jitsi-load-test créé pour ce test. Un événement startup probe connection refused
+pendant le démarrage Grid est conservé ; le Grid est ensuite devenu Ready.
+Aucun PVC, IP, secret applicatif ni release Jitsi/Caddy touché. Les identités et
+empreintes avant/après sont identiques ; cinq pods de production inchangés,
+zéro redémarrage et HTTPS toujours 200 dans les observations.
+
+Contrôle après stabilisation à 14:07:25 UTC : Jicofo/JVB zéro conférence et
+participant, stress JVB 0,050 ; nœuds 6 % CPU chacun, RAM 46/37 %. HTTPS /,
+/config.js et /http-bind en 200 avec confiance système normale. Namespace et
+release de test absents. Releases Jitsi 4/Caddy 3 inchangées. La
+[synthèse expurgée](../tests/load/k8s-video-results.json) distingue la preuve
+vidéo partielle et l’échec du palier. Preuves privées exclues de Git sous
+tests/results/20261117-k8s-video-controlled : pilote exact exécuté, snapshots,
+logs Malleus, événements, inventaire, nettoyage et contrôle après stabilisation.
+
+Prochaine correction proposée, NON exécutée : limiter davantage le CPU du
+générateur et le placer hors du nœud JVB avec les contraintes de placement
+adaptées, conserver une marge de CPU pour Jitsi, enregistrer le snapshot de
+sécurité avant arrêt et collecter les stats RTP dès le démarrage. Tout nouveau
+test requiert un nouvel accord ; aucune relance automatique. La PR Terraform
+nº 7, l’index Git et tous les travaux préexistants sont préservés.
+
+### Correction locale du budget CPU — aucun deuxième essai
+
+Analyse du premier essai : Selenium et le JVB étaient sur le nœud ddx2.
+La limite Selenium de 2000m dépassait à elle seule les 1930m allocatables de ce
+nœud, alors que sa request de 250m sous-représentait le générateur. Le maximum
+Selenium échantillonné est 543m/610 MiB ; le pic au déclenchement n’a pas été
+capturé. La mesure nœud immédiatement après nettoyage était 1998m/103 % avec
+possible retard de fenêtre métrique. La colocalisation et les rafales CPU de
+Chrome sont une cause probable, sans attribution exacte de tout le pic au
+seul conteneur Selenium. La vidéo était observée, pas le palier complet 90 s.
+
+Précontrôle actuel en lecture seule : deux nœuds Ready, aucune pression,
+1930m CPU et 6025,6 MiB RAM allocatables chacun. Requests existantes : ddx2
+827m/1915,6 MiB, jjk0 727m/1272,9 MiB. Disponibilités selon requests :
+ddx2 1103m/4110 MiB ; jjk0 1203m/4752,7 MiB. CPU réel 5/6 %, mémoire 45/37 %.
+JVB confirmé sur ddx2, avec labels component=jvb et instance=jitsi. Le pool
+GCP décrit comporte deux e2-standard-2 et ne renvoie pas d’autoscaling activé.
+Aucune configuration GCP n’a été modifiée.
+
+Corrections préparées localement :
+- Selenium request 750m/1 GiB et limite 900m/2 GiB ; heap Grid Java 128–256 MiB.
+- Malleus request 250m/256 MiB et limite 300m/768 MiB ; aucun changement de son
+  heap ni de l’image, pour éviter une régression mémoire arbitraire.
+- Anti-affinité obligatoire au scheduling, hors du nœud portant un JVB de la
+  release jitsi dans le namespace jitsi, topologyKey kubernetes.io/hostname.
+  Pas de modification des labels ou du placement de Jitsi. Si aucun nœud ne
+  convient, arrêter le test Pending plutôt que créer un nœud.
+- Profil [low CPU](../tests/load/values-video-2x90-low-cpu.yaml) : mêmes deux
+  digests validés, deux participants, 90 secondes, Job suspendu et aucun retry.
+
+Même en plaçant les deux pods de test sur jjk0, leurs requests cumulées
+1000m/1280 MiB tiennent dans la capacité restante, avec 203m et 3472,7 MiB
+encore non réservés. Limites cumulées 1200m/2816 MiB au lieu de 2500m/3840 MiB.
+Elles ne plafonnent pas les autres pods : maintenir le garde-fou nœud à 80 %.
+Le plafonnement peut ralentir les navigateurs ; aucune réussite 90 s déduite
+sans nouveau test. La [synthèse du plan](../tests/load/cpu-reduction-plan.json)
+conserve les calculs et distingue consommation échantillonnée et pic manquant.
+
+GO technique CONDITIONNEL pour un éventuel deuxième essai contrôlé après
+accord explicite, recontrôle zéro conférence et vérification du placement.
+Aucun déploiement, build, test de charge, commit/push, modification Jitsi/Caddy,
+Terraform, IAM ou ressource GCP pendant cette correction. L’index existant et
+les preuves du premier test sont conservés. La procédure 2x90 est complétée,
+sans remplacer les résultats négatifs précédents.
+Validations effectuées : 90 tests locaux réussis, dont le contrôle du rendu
+anti-affinité et des budgets CPU/RAM ; helm lint strict et template du profil
+corrigé réussis. Vérification documentaire : 16 documents, 67 liens locaux,
+84 blocs shell, zéro erreur. git diff --check réussi, index comparé avant/après
+identique ; worktree Terraform nº 7 intact.
+
+### Deuxième et dernier essai Kubernetes : scénario Malleus réussi
+
+Le deuxième essai a été explicitement autorisé, avec interdiction de troisième
+tentative. Aucun build ni autre déploiement lancé. Précontrôles réels : zéro
+conférence Jicofo/JVB, cinq pods de production prêts sans redémarrage, nœuds
+à 6 % CPU, mémoire 45/37 %, capacité selon requests suffisante sur le nœud hors
+JVB. Le namespace de test était absent. Index Git sauvegardé pour comparaison.
+
+Installation unique : helm upgrade --install load charts/jitsi-load-test
+-n jitsi-load-test --create-namespace -f tests/load/values-video-2x90.yaml
+-f tests/load/values-video-2x90-low-cpu.yaml --wait --timeout 180s.
+Images strictement inchangées et épinglées : Selenium digest 5b898424...445dcd86,
+Malleus 01de65fb...ce87092 (digests complets dans les valeurs et la synthèse).
+Le Job est resté suspendu pendant la vérification réelle des pods : Selenium
+sur jjk0, JVB sur ddx2, nœuds distincts. Ressources effectives vérifiées avant
+lancement : Selenium request 750m/1 GiB, limite 900m/2 GiB ; Malleus request
+250m/256 MiB, limite 300m/768 MiB. Une seule levée de suspension, Grid prêt et
+sans session préexistante. Aucun changement des labels ou pods de production.
+
+**Résultat : SUCCÈS du scénario Malleus configuré pour deux participants et
+90 secondes.** Job Complete, pod Malleus exit 0, BUILD SUCCESS, zéro échec et
+zéro erreur. La suite rapporte 455 cas dont 454 ignorés ; son récapitulatif
+Maven affiche 451 dont 450 ignorés. Ces deux décomptes donnent un seul cas
+réellement exécuté ; ne pas annoncer 455 tests de charge réussis.
+
+Durées à distinguer : paramètre Malleus duration=90000ms ; suite TestNG
+126,214 s ; Job entre startTime et completionTime 204 s ; installation et
+nettoyage compris 288,33 s. Deux participants observés simultanément sur une
+fenêtre de 81,37 s. Critère strict vidéo clients + JVB vrai sur 12 échantillons
+couvrant 56,35 s. Le minuteur interne de Malleus inclut une partie de la mise
+en place des participants ; les observations discrètes ne prouvent pas 90 s
+continues de vidéo active. Aucune durée de média non mesurée n’est inventée.
+
+Preuves vidéo réelles : deux sessions, pistes vidéo actives/non muettes,
+connexion établie et débits vidéo clients bidirectionnels. Les compteurs
+standards RTCPeerConnection.getStats ont été collectés dès le démarrage :
+client 1 reçoit 388877 octets et décode 694 images ; client 2 reçoit 260389 octets
+et décode 632 images (maxima observés des compteurs RTP entrants). Octets vidéo
+émis : 427264 et 536757. Ces framesDecoded sont des images reçues, distinctes
+des compteurs DOM de la première tentative. Derniers débits vidéo clients :
+upload 73/51, download 37/56, champs bitrate.video ; audio à zéro. La résolution
+reçue s’est adaptée, jusqu’à 480×270 et 320×180 dans le dernier échantillon,
+pour une capture locale demandée 640×360/15 fps max. Pas de revendication HD.
+
+JVB : deux endpoints actifs et trafic dans les deux directions ; dernier
+échantillon strict bit_rate_download=197, bit_rate_upload=129,
+packet_rate_download=78, packet_rate_upload=57, stress_level=0,268 environ.
+Le résultat ne repose donc ni sur le seul Job Complete ni sur un succès de build.
+
+Aucun seuil de sécurité franchi : maximum CPU nœud observé 61 %, mémoire 57 %,
+contre 103 % CPU lors du premier essai. Maxima pods échantillonnés : Selenium
+901m/1159 MiB et Malleus 301m/220 MiB. Les valeurs 901m/301m à la granularité des
+métriques ne changent pas les limites cgroup appliquées de 900m/300m ; les
+mesures ne sont pas des pics absolus. Production stable, HTTPS / en 200 dans
+les observations, identités et compteurs de redémarrage inchangés.
+
+Nettoyage effectué : suppression uniquement du Job terminé, fermeture du Grid
+et du port-forward, helm uninstall load, suppression du seul namespace créé
+pour ce test ; commandes de nettoyage sorties 0. Aucun PVC, secret, IP ou
+release de production touché. Les empreintes et identités avant/après des
+secrets/PVC/Services et les révisions Helm sont identiques. Jitsi reste en
+révision 4 et Caddy en révision 3.
+
+Contrôle final à 14:22:26 UTC : zéro conférence et participant Jicofo/JVB,
+stress JVB 0,052 environ, deux nœuds à 6 % CPU et mémoire 47/41 %. HTTPS /,
+/config.js et /http-bind en 200 avec confiance système normale. Cinq pods
+Ready, zéro redémarrage, namespace et release de test absents.
+
+La [synthèse expurgée](../tests/load/k8s-video-low-cpu-results.json) contient
+placement, budgets, durées, compteurs RTP, résultat Malleus et état final.
+Preuves privées exclues de Git sous tests/results/20261117-k8s-video-low-cpu-final :
+pilote réellement exécuté, baseline, observations, logs Malleus, événements,
+inventaires, nettoyage, contrôle après stabilisation. Le premier essai négatif
+et ses preuves ne sont pas remplacés. Aucun troisième essai ; PR Terraform
+nº 7 et modifications locales préservées.
+
+### Reprise Terraform CD après les tests Kubernetes — plan sûr, bootstrap bloquant
+
+PR nº 7 réauditée : tête fe9edd1e3ab0ba81803b00c91f55bea27ce776da, ouverte,
+MERGEABLE/CLEAN et deux CI vertes. Aucune modification ni publication de la PR
+pendant cet audit. Projet actif confirmé, cluster RUNNING. Les six APIs utiles
+storage/iam/iamcredentials/sts/cloudresourcemanager/container sont actives.
+
+Plan frais réellement exécuté sur copie privée du state serial 9 (23629 octets,
+deux ressources), avec provider existant en cache et backend local isolé.
+Init, validate et garde strict réussis : un seul update du label de preuve,
+aucune création, destruction ou remplacement ; pool no-op, autres labels
+conservés. L’empreinte du state original est inchangée. Aucun terraform apply,
+backend distant ou migration. La [preuve expurgée](terraform-plan-actualise.json)
+ne contient ni état complet ni plan brut. Plans/logs restent privés sous /tmp.
+
+Blocages réels : bucket dédié absent (HTTP 404 et liste projet vide), compte
+Terraform absent, rôles personnalisés et provider WIF Terraform absents ;
+aucun environnement GitHub ni variable TF_* configuré. Le provider CD existant
+est limité repo/main mais n’est pas le provider pipeline Terraform attendu.
+Ne pas réutiliser le compte CD en élargissant ses droits. Les protections du
+bucket, l’autorité du state distant et les droits effectifs Terraform ne sont
+pas validables tant que ces ressources n’existent pas. Test non mutant des
+permissions opérateur : HTTP 429 Too Many Requests, non concluant, sans relance.
+
+Workflow relu : CI push main réussie, opt-in TF, SHA approuvé, Helm désactivé,
+OIDC sans clé, environnement protégé à créer, concurrence partagée, état attendu,
+plan binaire label-only strict, serial/lineage, vérifications post-apply et
+nettoyage privé. Les cinq commits d’actions épinglés existent. Quatorze tests
+ciblés et terraform fmt -check réussis. GKE_CD_ENABLED reste false, TF absent.
+
+Verdict NO-GO apply : l’[audit/actionnaire précis](terraform-prerequis-audit.md)
+détaille les prérequis et les commandes. Actions nécessitant accord : bootstrap
+GCS/IAM/WIF à faible volume mais facturable côté stockage, puis migration
+contrôlée, protections GitHub et intégration de la PR, puis validation distincte
+d’un apply automatisé sur SHA exact. Aucune création coûteuse ou mutation GCP,
+IAM, GitHub, Kubernetes, release Jitsi/Caddy, secret, PVC ou IP effectuée. Aucun
+nouveau test de charge ; preuves du dernier essai conservées. Index principal
+et state local original préservés.
+
+### Diagnostic ciblé des droits Terraform : quota levé, droits projet confirmés
+
+Un seul nouveau projects.testIamPermissions a réussi avec l’identité GCP active,
+sur project-fcf2ef91-c005-4910-a10. Confirmés au niveau projet :
+storage.buckets.create, iam.serviceAccounts.create/get/getIamPolicy/setIamPolicy,
+iam.roles.create/get, iam.workloadIdentityPools.get,
+iam.workloadIdentityPoolProviders.create/get et
+resourcemanager.projects.getIamPolicy/setIamPolicy. Le précédent HTTP 429
+était un contrôle non concluant lié au quota, jamais un refus IAM.
+
+Lecture ciblée de la politique : binding direct roles/owner sans condition pour
+l’identité active. Les droits storage.buckets.get/update/getIamPolicy/setIamPolicy
+ne sont ni retournés par le test projet ni contenus dans la liste intrinsèque
+du rôle Owner. Ils ne sont pas déclarés refusés sur un bucket : le bucket
+n’existe pas, donc aucun test IAM au niveau de cette ressource n’est possible.
+La documentation Cloud Storage indique que la création d’un bucket uniforme
+accorde aux convenience values des Owners les rôles legacyBucketOwner et
+legacyObjectOwner. C’est un comportement attendu à vérifier sur la politique
+effective du nouveau bucket, pas une opération déjà validée. Aucune élévation
+IAM supplémentaire proposée par défaut.
+
+Sources : [portée des tests IAM](https://docs.cloud.google.com/iam/docs/testing-permissions),
+[droits des rôles Cloud Storage et création uniforme](https://docs.cloud.google.com/storage/docs/access-control/iam-roles).
+La [synthèse expurgée](terraform-droits-verifies.json) distingue droits projet
+confirmés et droits bucket futurs non testés, sans identité personnelle ni jeton.
+
+Verdict GO pour bootstrap progressif uniquement après accord : créer le bucket
+privé/versionné puis vérifier immédiatement sa politique et les permissions
+bucket ; arrêter si gestion impossible, sans ajouter automatiquement de rôle.
+Créer ensuite SA sans clé, rôles minimaux, provider WIF restreint et bindings
+préparés. Risques : exposition du state par mauvaise politique, permissions
+cluster update plus larges qu’un label, migration incorrecte. Coût GCS lié au
+petit state (environ 24 Ko), versions, requêtes et éventuel soft-delete ; aucune
+nouvelle VM/disque/LB GKE. Aucun coût engagé ni devis ferme annoncé.
+
+Toujours NO-GO apply tant que backend, migration contrôlée et protections GitHub
+ne sont pas validés. Si le bootstrap est reporté : livrer plan label-only sûr,
+14 tests de gardes, CI et workflow Terraform préparé mais désactivé, avec limites
+explicites ; ne pas revendiquer un apply automatisé réussi. Aucune ressource,
+permission, variable, migration ou apply effectuée pendant ce diagnostic.
+
+### Bootstrap Terraform explicitement autorisé et réellement réalisé
+
+Le 17 novembre 2026, le bootstrap seul a été exécuté sur
+project-fcf2ef91-c005-4910-a10 (numéro 198310729956). Aucune migration du state,
+terraform apply, activation du pipeline, fusion ou publication Git n’a été
+réalisée. Les prérequis manquants des audits précédents sont désormais créés.
+
+Ressources créées :
+- Bucket gs://project-fcf2ef91-c005-4910-a10-tfstate, Standard, europe-west1.
+- Compte terraform-jitsi-deployer@project-fcf2ef91-c005-4910-a10.iam.gserviceaccount.com,
+  sans clé JSON ; zéro clé utilisateur vérifié via liste des clés.
+- Rôles personnalisés projet jitsiTerraformLabelUpdater et jitsiTerraformStateAccess.
+- Provider projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider,
+  dans le pool existant ; état ACTIVE vérifié.
+
+Bucket : accès uniforme activé, publicAccessPrevention=enforced, versioning
+activé, aucune policy de rétention verrouillée qui bloquerait la suppression du
+lock Terraform, soft-delete 604800 s (7 jours). Pas de CMEK configuré, chiffrement
+par défaut du service. Aucun membre allUsers/allAuthenticatedUsers dans la
+politique du bucket. Les huit permissions opérateur get/update/getIamPolicy/
+setIamPolicy du bucket et create/get/list/delete des objets sont réellement
+confirmées par test IAM sur ce bucket, levant l’incertitude de l’audit précédent.
+
+Un marqueur non secret temporaire hors du préfixe jitsi/gke a été écrit, relu
+et comparé octet par octet, puis supprimé par sa génération exacte. Pas de
+state écrit. L’API JSON liste zéro objet actif/non courant ; le marqueur supprimé
+peut rester en soft-delete sept jours. Le contrôle CLI initial avait confondu
+l’en-tête gs://bucket/: avec un objet ; l’assertion a été corrigée par une lecture
+API JSON, sans recréation de ressource ni suppression supplémentaire.
+
+Moindre privilège réel du compte Terraform : un seul rôle direct au projet,
+jitsiTerraformLabelUpdater, avec container.clusters.get/update,
+container.operations.get, resourcemanager.projects.get et serviceusage.services.use.
+Le rôle stockage est accordé uniquement sur le bucket dédié : storage.buckets.get
+et storage.objects.get/list/create/delete (state et lock). Aucun rôle Owner,
+Editor, Storage Admin global, accès KMS, RBAC Kubernetes ou extension des droits
+du compte CD existant. container.clusters.update reste une permission plus
+large qu’un label ; la limitation au label repose sur le garde de plan strict
+et le SHA approuvé, pas sur une restriction IAM par champ.
+
+WIF : issuer GitHub officiel, condition obligatoire sur dépôt
+SaminouA/projet-jitsi-helm, repository_id 1427106572, repository_owner_id 194725286,
+ref refs/heads/main, workflow_ref
+SaminouA/projet-jitsi-helm/.github/workflows/terraform-gke.yml@refs/heads/main,
+et subject repo:SaminouA/projet-jitsi-helm:environment:terraform-controlled.
+Mapping pipeline dédié terraform-gke. Seul binding sur le compte de service :
+roles/iam.workloadIdentityUser pour le principalSet de ce pipeline dans le pool.
+Le provider CD préexistant n’a pas été modifié. La configuration WIF est
+vérifiée ; aucune authentification GitHub Terraform de bout en bout n’a été
+exécutée et l’environnement protégé GitHub reste à configurer séparément.
+
+Coûts potentiels désormais engagés : stockage Standard, versions et soft-delete,
+requêtes de vérification puis futurs state/locks. Le state de 24 Ko n’a pas été
+transféré ; seul le petit marqueur non secret a servi au test d’accès. Pas de
+nouveau nœud, VM, disque, KMS ni LoadBalancer. Aucun montant de facture mesuré
+ni gratuité garantie ; voir la [tarification GCS](https://cloud.google.com/storage/pricing).
+
+La [preuve expurgée](terraform-bootstrap-resultats.json) contient les identifiants,
+protections, permissions et conditions exactes, sans token ni state. Preuves
+privées sous tests/results/20261117-terraform-bootstrap : étapes, contrôles,
+inventaire comparatif et pilote exécuté, exclus de Git.
+
+Contrôles de non-régression : empreinte du state original identique, serial 9
+conservé, préfixe de backend vide ; provider CD et politique de son compte
+inchangés ; releases Jitsi révision 4/Caddy révision 3 inchangées. Cinq pods
+Ready, zéro redémarrage. Variables GitHub inchangées : GKE_CD_ENABLED=false,
+aucune variable TF_* créée. Index Git conservé et PR Terraform nº 7 inchangée.
+
+STOP respecté après bootstrap. Prochaines actions nécessitant des accords
+séparés : configurer les protections GitHub, migration contrôlée de l’état
+existant après sauvegarde et vérification lineage/serial/IDs, nouveau plan,
+puis seulement autorisation d’un premier apply automatisé sur SHA précis.
+
+### Migration contrôlée du state vers GCS : réalisée et validée, sans apply
+
+Après accord explicite, backend source local, workspace default, projet actif
+project-fcf2ef91-c005-4910-a10 et deux ressources suivies ont été vérifiés.
+Les identifiants correspondent exactement au cluster jitsi-cluster et au pool
+jitsi-node-pool dans europe-west1-b ; les deux objets GCP sont RUNNING et le
+pool utilise toujours e2-standard-2. Le préfixe GCS jitsi/gke était vide, même
+en incluant les versions. Les protections du bucket ont été recontrôlées.
+
+Avant toute migration, copie privée lisible du state serial 9 (23629 octets)
+sous tests/results/20261117-terraform-state-migration/backup/terraform.tfstate,
+répertoire 0700 et fichier 0600, exclus de Git. Empreinte SHA256 conservée dans
+un fichier privé adjacent et dans les preuves ; lecture JSON et empreinte
+revérifiées. L’original terraform/terraform.tfstate n’est ni effacé ni modifié.
+
+Une copie isolée working a été initialisée en backend local puis vérifiée
+(workspace default, exactement les deux adresses attendues). Le backend GCS
+de la PR nº 7 a été ajouté à cette seule copie. Commande réellement exécutée :
+terraform init -migrate-state -input=true -lockfile=readonly
+-plugin-dir=/home/nadirasaminou/projet-jitsi-helm/terraform/.terraform/providers
+-backend-config=bucket=project-fcf2ef91-c005-4910-a10-tfstate
+-backend-config=prefix=jitsi/gke, depuis le répertoire privé working.
+Terraform a confirmé l’ancien backend local et la destination sans state ;
+réponse interactive yes seulement après lecture de ce récapitulatif. Aucun
+force-copy, state push, import, migration inverse ou terraform apply.
+
+**MIGRATION RÉUSSIE.** Le backend GCS actif de la copie vérifiée pointe vers
+`gs://project-fcf2ef91-c005-4910-a10-tfstate/jitsi/gke/default.tfstate`.
+Workspace default, même lineage, deux ressources/identifiants/attributs/outputs
+identiques à la sauvegarde. Serial distant 10 contre serial source 9 : incrément
+observé lors de la migration, aucune modification des objets GCP. Un seul objet
+state actif, 23630 octets, génération 1794926860462381 ; aucun lock actif laissé.
+Les versions historiques éventuelles ne sont pas des ressources dupliquées.
+
+terraform validate réussi. Plan de contrôle sur la configuration actuellement
+déployée : exit code 0, cluster no-op, pool no-op, zéro création, mise à jour,
+destruction ou remplacement. Le state distant relu après plan est inchangé.
+Le label de preuve prévu par la PR nº 7 n’a PAS été appliqué ; son ancien plan
+label-only est distinct de ce contrôle de migration sans dérive.
+
+La [preuve expurgée](terraform-migration-resultats.json) ne contient pas le state
+brut, le lineage ou les credentials. Les state pull, plans, logs, sauvegarde et
+pilotes exacts restent privés sous tests/results/20261117-terraform-state-migration.
+Les empreintes de l’original et de la sauvegarde sont identiques à celles avant
+migration ; la sauvegarde doit être conservée. GCS est désormais l’autorité :
+le fichier local serial 9 est une sauvegarde, pas une source d’apply.
+
+Un fichier terraform/backend.tf, identique à celui prévu dans la PR nº 7, est
+ajouté localement sans git add. Il empêche la réutilisation silencieuse du backend
+local d’origine : le répertoire principal requerra une initialisation explicite
+vers GCS avant réutilisation. La copie working privée est déjà initialisée en
+GCS et a servi à toutes les validations. Aucun metadata backend n’a été copié
+manuellement pour contourner Terraform et aucune seconde migration effectuée.
+
+Contrôles finaux : cinq pods Jitsi/Caddy Ready sans redémarrage, releases Jitsi 4
+et Caddy 3, aucune mutation de cluster/pool/secrets/PVC/IP. Index principal
+identique et worktree PR nº 7 inchangé. Aucune variable GitHub ni activation,
+aucun nouveau test de charge ou build. STOP respecté après migration et plan.
+Prochaine action : préparer les protections GitHub et valider l’identité/plan
+Terraform sur runner avant un accord distinct d’apply automatisé.
+
+### Préparation du diagnostic Terraform GitHub strictement sans apply
+
+Après autorisation, l’environnement terraform-controlled a été créé avec une
+protection réellement vérifiée : règle de branche main uniquement (type branch,
+aucun tag), reviewer obligatoire SaminouA et can_admins_bypass=false. Le dépôt
+ne possède qu’un collaborateur. L’utilisatrice a choisi explicitement son
+approbation manuelle pour ce diagnostic : prevent_self_review=false, sans
+approbation automatique par l’agent. Cette configuration ne remplace pas la
+politique d’approbation à revoir avant un futur apply. Aucun environnement
+préexistant ni protection de main n’a été affaibli.
+
+Variables non sensibles créées dans cet environnement : TF_STATE_BUCKET,
+TF_STATE_LINEAGE lu de la migration validée (valeur non publiée ici),
+TF_CD_ENABLED=false. Le flag TF_CD_ENABLED=false a aussi été créé au niveau
+dépôt pour rendre la désactivation explicite. TF_APPROVED_SHA reste absent.
+GKE_CD_ENABLED reste false. Aucune clé ni nouveau secret GitHub ajouté.
+La [configuration expurgée](terraform-github-environnement.json) conserve les
+protections vérifiées, sans afficher le contenu du state ou le lineage.
+
+Provider WIF actif et binding iam.workloadIdentityUser du compte Terraform
+revérifiés en lecture seule. La condition impose le fichier terraform-gke.yml
+sur main et l’environnement exact. Pour ne pas modifier le provider ou la PR nº 7,
+un diagnostic manuel séparé est préparé au chemin autorisé ; son contenu ne
+possède aucun appel apply/destroy/import/migration. Il exige confirmation
+read-only, main et son SHA actuel, flags de déploiement désactivés, credentials
+external_account sans private_key, compte Terraform actif, backend GCS exact,
+workspace default et mêmes deux ressources/IDs/lineage/serial attendu. Il
+exécute init/validate/plan, refuse même un update (plan attendu sans changement),
+revérifie que le state distant n’a pas changé et supprime ses fichiers privés.
+Aucun plan ou state brut transféré en artifact ou affiché dans les logs.
+
+93 tests locaux réussis, validations statiques des hooks réussies. Quatre
+fichiers seulement publiés via worktree détaché préservant l’index :
+.github/workflows/terraform-gke.yml, scripts/terraform-readonly.py,
+terraform/backend.tf et tests/test_terraform_readonly.py. Commit
+eebf5d38b3afdad0b8a55c50446dd341250f098f. PR nº 11 :
+https://github.com/SaminouA/projet-jitsi-helm/pull/11 ; deux CI réussies
+44109500012 et 44109650419. La PR nº 7 n’a pas été modifiée ni fusionnée ; son
+workflow apply devra être réconcilié avec le diagnostic avant toute activation.
+
+Blocage réel rencontré : le contrôle automatique d’approbation a rejeté la
+commande qui fusionnait la PR nº 11 puis lançait le diagnostic, faute
+d’autorisation explicite de fusion dans la demande initiale. La commande n’a
+pas été exécutée ; aucun workflow Terraform lancé à ce stade. Une validation
+explicite de cette PR précise est demandée, sans contournement ni nouvelle
+commande de fusion. Après fusion autorisée et CI, lancer un unique dispatch
+confirm_read_only=true ; le job doit encore attendre l’approbation manuelle
+de l’utilisatrice dans Review deployments pour terraform-controlled.
+Aucun résultat OIDC, init GCS ou plan GitHub n’est encore revendiqué.
+
+Aucun apply, migration supplémentaire, mutation GKE ou activation automatique.
+Sauvegarde locale de state inchangée ; index et travail PR nº 7 conservés.
+
+### PR diagnostic intégrée après accord explicite, approbation manuelle attendue
+
+Après le refus initial du contrôle automatique, l’utilisatrice a explicitement
+autorisé la fusion de la seule PR nº 11. Tête et CI recontrôlées, fusion réussie
+sur main 933d2aa5a1ccf1597df6615577707e68021ab300. La CI main 44110122009 est
+réussie. La PR nº 7 n’a pas été fusionnée ni sa branche modifiée ; son workflow
+apply doit être réconcilié ultérieurement avec le fichier diagnostic main,
+sans supprimer les protections ni activer le flag.
+
+Un unique workflow_dispatch confirm_read_only=true a été lancé :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44110152970
+État initial waiting : protection d’environnement réellement appliquée.
+L’utilisatrice doit approuver elle-même Review deployments > terraform-controlled
+> Approve and deploy. Ce libellé de l’interface GitHub ne change pas le contenu
+plan-only du workflow. L’agent n’envoie aucune approbation automatique ni bypass.
+Tant que ce verrou n’est pas levé, OIDC, GCS init, validate et plan runner sont
+NON EXÉCUTÉS et ne sont pas annoncés comme réussis. TF_CD_ENABLED reste false.
+
+Dernier état vérifié du diagnostic 44110152970 : waiting, job plan en attente de
+l’approbation terraform-controlled ; current_user_can_approve=true. Le compte
+de l’utilisatrice peut donc effectuer l’action manuelle indiquée. TF_CD_ENABLED
+est false aux niveaux dépôt et environnement. La
+[synthèse du diagnostic GitHub](terraform-github-plan-resultats.json) est marquée
+NON EXÉCUTÉ pour OIDC/init/validate/plan tant que l’approbation manque. Aucune
+preuve d’apply n’est revendiquée. Les 93 tests locaux et les CI ne remplacent
+pas ce test runner.
+
+La branche de la PR nº 7 conserve exactement fe9edd1e3ab0ba81803b00c91f55bea27ce776da.
+GitHub signale désormais un conflit d’intégration sur le workflow, car main
+contient le diagnostic au même chemin imposé par OIDC. Ce conflit doit être
+résolu par revue ultérieure avant d’envisager le workflow apply ; aucune
+modification de la PR nº 7 ni activation automatique n’est faite pour le
+contourner. Le workflow Helm issu de la CI peut rester pending sous la
+concurrence partagée pendant cette attente ; son flag GKE_CD_ENABLED demeure
+false, aucun job de déploiement n’est autorisé par cette configuration.
+
+### Échec 44110152970 : subject OIDC immuable incompatible avec la condition
+
+Le run https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44110152970 a
+réellement échoué à google-github-actions/auth, avant setup-gcloud et avant le
+script init/validate/plan, tous ignorés. Erreur exacte non secrète :
+unauthorized_client, The given credential is rejected by the attribute condition.
+Ce n’est pas une preuve de refus des droits IAM du compte Terraform, d’erreur
+des variables backend, de GCS ou de Terraform : ces étapes n’ont pas été atteintes.
+Les logs privés sont conservés sous tests/results/20261117-terraform-github-plan.
+
+Cause identifiée par lecture de l’API GitHub OIDC customization/sub :
+use_default=true, use_immutable_subject=true, sub_claim_prefix égal à
+repo:SaminouA@194725286/projet-jitsi-helm@1427106572. Le provider attendait
+assertion.sub égal à repo:SaminouA/projet-jitsi-helm:environment:terraform-controlled.
+La condition de bootstrap préparée utilisait donc à tort l’ancien format.
+Le bon subject attendu est
+repo:SaminouA@194725286/projet-jitsi-helm@1427106572:environment:terraform-controlled.
+Aucun JWT n’a été récupéré, affiché ou décodé ; les paramètres non secrets
+GitHub et les règles du provider suffisent à identifier l’incompatibilité.
+Référence primaire : [subjects immuables GitHub](https://docs.github.com/en/actions/reference/security/oidc).
+
+Correction minimale préparée localement : remplacer exclusivement la valeur
+de la clause assertion.sub. Les cinq autres conditions repository, repository_id,
+repository_owner_id, ref main et workflow_ref exact restent identiques, ainsi
+que mapping, rôles, compte, environnement et permissions. Le
+[patch proposé](../deploy/terraform/oidc-subject-correction.json) contient avant/après.
+Le générateur local et ses tests refusent un préfixe inattendu, une condition
+modifiée ou l’affaiblissement des autres frontières ; ancien sub, autre dépôt,
+branche, workflow, propriétaire ou environnement sont rejetés.
+
+La correction n’a pas encore été appliquée : la demande interdit toute
+modification d’infrastructure. Modifier attributeCondition est une modification
+de fédération GCP ; une autorisation explicite ciblée est nécessaire, sans
+contourner la condition par modification du format GitHub ou suppression de
+vérifications. Aucun changement IAM, backend, state, GKE, PR nº 7, commit/push
+ou nouveau run effectué pendant ce diagnostic. Le nouveau diagnostic réutilisera
+le workflow plan-only existant, sans changement de code ni apply, après correction
+autorisée ; l’approbation manuelle de terraform-controlled restera exigée.
+Validation locale du correctif OIDC : 97 tests réussis, contrôle documentaire
+sans erreur et git diff --check réussi. L’index est identique avant/après et
+le worktree de la PR nº 7 reste intact. La synthèse du run a été mise à jour
+avec son échec réel et l’ancien état d’attente conservé comme historique.
+Une exception précise est demandée à l’utilisatrice pour appliquer la seule
+valeur subject immuable et lancer un diagnostic unique ; aucune décision
+n’est déduite du temps écoulé.
+
+### Correctif OIDC appliqué après autorisation ciblée, diagnostic unique relancé
+
+L’utilisatrice a explicitement autorisé l’exception à l’interdiction générale
+de modification d’infrastructure : seule la comparaison assertion.sub du
+provider Terraform a été remplacée par le subject immuable avec IDs, puis un
+seul diagnostic sans apply a été demandé. La condition avant modification a
+été recontrôlée ; après update-oidc, tous les champs du provider hors condition
+(et métadonnées techniques de mise à jour) sont identiques. Le mapping, issuer,
+rôles, bindings, branche main, workflow exact et environnement restent inchangés.
+Métadonnées generation/size/md5 du state GCS identiques avant/après correction.
+La [preuve du correctif](terraform-oidc-correction-resultats.json) distingue
+la modification de fédération autorisée de toute mutation GKE/state interdite.
+
+Nouveau run unique :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44112844403
+Même SHA main 933d2aa5a1ccf1597df6615577707e68021ab300 ; aucune publication de
+code nécessaire car le défaut était uniquement dans la condition WIF GCP.
+État initial waiting, approbation manuelle de terraform-controlled exigée et
+non effectuée par l’agent. L’ancien échec reste conservé ; le nouveau diagnostic
+n’est pas encore annoncé réussi. Aucun apply, nouvelle migration, modification
+GKE, release, secret, clé, variable ou activation. Index inchangé, PR nº 7 intacte.
+
+### Deuxième échec Terraform 44112844403 : plan atteint, lecture Compute manquante
+
+Le run https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44112844403 est
+terminé en échec. auth et setup-gcloud ont réussi (Successfully authenticated).
+L’étape en échec est Verify OIDC and GCS then validate and plan only ; message
+READONLY_COMMAND_FAILED_terraform. La correction du subject OIDC précédent a
+fonctionné. Les variables de contexte et l’identité passent les contrôles avant
+les commandes Terraform ; ne pas attribuer cet échec à l’ancienne condition WIF.
+
+Les logs GitHub ont malheureusement perdu stdout/stderr de la sous-commande
+Terraform : le message GCP exact n’est pas récupérable dans ces logs. Recherche
+GCP : GenerateAccessToken réussis, pas de refus détaillé conservé dans la fenêtre.
+Le verrou GCS archivé créé à 15:20:47.865 UTC contient OperationTypePlan et
+version 1.16.6. Il établit que le script avait atteint plan : init, workspace,
+lecture du state et validate précèdent ce point dans le code. Le state actif et
+sa génération sont restés inchangés ; aucun lock actif laissé par cet échec.
+Aucune relance du workflow n’a été effectuée pour obtenir plus de traces.
+
+Blocage de lecture démontré : le code exact du provider Google v7.46.1,
+resource_container_node_pool.go, appelle InstanceGroupManagers.List dans
+flattenNodePool pour obtenir le nombre de nœuds quand ignore_node_count_changes
+n’est pas activé. Notre pool géré correspond à ce cas. Cette API exige
+compute.instanceGroupManagers.list ; le seul rôle projet direct du compte
+Terraform est jitsiTerraformLabelUpdater et cette permission en était absente.
+Sources primaires :
+[provider v7.46.1](https://github.com/hashicorp/terraform-provider-google/blob/v7.46.1/google/services/container/resource_container_node_pool.go),
+[permission Compute list](https://docs.cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers/list).
+Cette analyse établit un droit nécessaire manquant ; elle ne remplace pas un
+message 403 brut que le script n’a pas conservé et ne prétend pas exclure tout
+autre problème non observé. IAM Troubleshooter n’a pas pu être utilisé (API
+SERVICE_DISABLED, non activée). L’opérateur ne dispose pas de l’impersonation
+locale : aucun rôle Token Creator n’a été accordé pour contourner ce manque.
+
+Correction IAM minimale réellement appliquée, dans le périmètre de correction
+sans changement de GKE : ajout uniquement de compute.instanceGroupManagers.list
+au rôle existant. Les cinq permissions initiales restent identiques ; aucun
+rôle Compute Viewer/Admin, droit d’écriture Compute, getCredentials, nouveau
+binding ou changement de compte. Description du rôle relue après update et
+métadonnées generation/size/md5 du state GCS comparées avant/après : identiques.
+La [preuve expurgée](terraform-second-failure-correction.json) conserve ce delta.
+La PR nº 7 reste inchangée ; son fichier rôle historique n’est pas édité. Le
+[correctif de définition](../deploy/terraform/gke-label-role-read-fix.yaml) est
+local, à réconcilier par revue avant toute future réutilisation du bootstrap.
+
+Correction locale du diagnostic opaque : noms de sous-commandes Terraform,
+catégories IAM_DENIED/QUOTA_EXCEEDED/STATE_LOCK/PROVIDER_INSTALL et seules
+permissions reconnues, jamais la sortie brute, le plan/state, chemins privés ou
+tokens. Jalons expurgés après identité, backend et validate. Tests anti-fuite
+avec valeurs sentinelles et tests du delta IAM strict. Ce code n’est pas publié
+et ne doit pas être annoncé exécuté sur GitHub. Le workflow et les protections
+GitHub ne sont pas modifiés.
+
+Un nouveau run unique sera justifié après publication du diagnostic expurgé et
+propagation de la permission de lecture, avec approbation manuelle conservée.
+Il vérifiera qu’aucune autre erreur/dérive ne subsiste ; aucun succès de plan
+ni preuve d’apply n’est annoncé à ce stade. Aucun terraform apply, migration,
+modification cluster, secret, PVC, IP, release Helm ou protection GitHub.
+Résultats finaux locaux : 100 tests réussis, documentation vérifiée sans erreur,
+git diff --check réussi ; index comparé identique et worktree PR nº 7 intact.
+Aucun nouveau run GitHub n’a été lancé pendant cette investigation/correction.
+
+### Publication ciblée du diagnostic expurgé — PR nº 12
+
+À la demande de l’utilisatrice, publication isolée de deux fichiers seulement :
+scripts/terraform-readonly.py et tests/test_terraform_readonly.py. Un worktree
+détaché basé sur main 933d2aa5 a permis de conserver intégralement l’index et
+les fichiers du répertoire de travail principal. Le test d’audit IAM dépendant
+d’un YAML local est conservé dans le travail utilisateur, pas embarqué avec ce
+correctif de traces. L’arbre exact publié a été testé indépendamment : 80 tests
+réussis, hooks statiques Helm/Terraform réussis avec provider déjà en cache.
+Aucun state, plan, sauvegarde ou secret dans le commit.
+
+Commit 412b558721ca9661743074ecc4fbda754c5a9e92 poussé sur la branche existante.
+PR https://github.com/SaminouA/projet-jitsi-helm/pull/12, deux contrôles verts :
+44116116566 et 44116249252. Le rôle GCP relu contient bien la seule addition
+compute.instanceGroupManagers.list. Le futur dispatch attend au moins 420 s
+après la vérification d’ajout IAM ; la réussite effective restera à confirmer
+par le runner, le délai seul ne prouve pas l’autorisation effective.
+
+Le contrôle automatique a rejeté la commande de fusion de la PR nº 12 faute
+d’autorisation explicite de fusion, malgré l’autorisation de publication.
+La commande n’a pas été exécutée. Une validation précise de cette PR et de
+ses deux fichiers est demandée sans contourner les protections. Aucun nouveau
+run lancé à ce stade ; l’ancien échec et toutes ses preuves sont conservés.
+Après fusion autorisée, un unique diagnostic plan-only sera lancé depuis main
+et attendra encore l’approbation manuelle terraform-controlled. Aucun apply,
+migration, changement de state, cluster ou protection GitHub.
+
+### Correctif de diagnostic publié après accord de fusion — run unique
+
+L’utilisatrice a explicitement autorisé la fusion de la seule PR nº 12 après
+le refus initial du contrôle automatique. Checks et SHA recontrôlés, fusion
+réussie sur main a5053689f79cb89e8706cc34b0112509b97e7fb5. La PR nº 7 reste
+inchangée. Le délai minimal de 420 s après vérification de l’ajout IAM a été
+contrôlé avant dispatch, sans le considérer comme preuve suffisante de propagation.
+
+Un seul nouveau workflow confirm_read_only=true a été lancé :
+https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44116737677
+État initial waiting : approbation manuelle terraform-controlled conservée,
+aucun bypass ou approval API envoyé. L’utilisatrice doit cliquer elle-même
+Review deployments > terraform-controlled > Approve and deploy. Le workflow
+reste plan-only. Aucun OIDC/plan nouveau n’est déclaré réussi tant que ce run
+n’a pas réellement exécuté ses étapes.
+Dernier état observé : run 44116737677 waiting, OIDC et plan non exécutés car
+l’approbation manuelle manque encore. TF_CD_ENABLED=false et GKE_CD_ENABLED=false
+relus. L’approbation n’est pas envoyée par l’agent ; aucune relance automatique.
+Les résultats seront à relever après Review deployments par l’utilisatrice.
+
+
+La réconciliation Terraform et son historique détaillé sont conservés dans
+[la validation plan/apply](terraform-plan-apply-validation.md).
+
+
+### Préparation des pipelines manuels Malleus et Chaos Mesh — 17 novembre 2026
+
+Deux workflows dédiés ont été préparés : `malleus-controlled.yml` et
+`chaos-controlled.yml`. Ils restent non exécutés. Leurs tests locaux ne
+remplacent pas les résultats expérimentaux historiques et ne constituent pas
+une nouvelle campagne de charge ou de chaos.
+
+Les manifestes publics GHCR des images Selenium et Malleus épinglées ont été
+relus avec HTTP 200 et digest conforme. Malleus réutilise le chart et le profil
+low CPU déjà expérimentés : deux participants, durée configurée 90 secondes,
+Job suspendu avant précontrôles, limites 900m/2 Gi et 300m/768 Mi. Les observations
+réutilisent les compteurs clients/JVB existants et ne prétendent pas valider
+90 secondes de vidéo continue, ni une charge audio.
+
+Le pipeline Chaos réutilise l'action PodChaos Web, avec nom et UID approuvés,
+sélecteur Web exact, garde des permissions du contrôleur et vérification des
+composants protégés. La preuve exige aussi AllInjected=True et un seul record
+Injected avec injectedCount=1 ; un simple remplacement Web ne suffit pas. Il attend un contrôleur minimal préinstallé après accord ;
+il ne recrée pas implicitement CRD, namespace ou droits cluster. Les relevés
+contrôlent le remplacement Web, sa readiness et la récupération HTTPS, sans
+prétendre tester une conférence pendant la panne.
+
+Les workflows exigent main, une CI push réussie sur le SHA exact, un flag
+explicitement activé, une confirmation et l'approbation de l'environnement.
+Le groupe de concurrence est partagé avec les déploiements. Les métriques CPU
+et mémoire et les pressions des nœuds sont surveillées, avec arrêt à 80 %.
+Une identité dédiée est prévue, sans élargir les comptes Helm/Terraform.
+Le nettoyage cible uniquement les ressources de test possédées par le run,
+via finally et une étape always ; une perte complète du runner reste une limite.
+Les artefacts sont limités aux statistiques et logs filtrés, sans secret ni
+candidat ICE.
+
+L'audit a constaté l'absence des prérequis d'expérience dédiés et le refus RBAC
+du compte Helm dans le namespace de charge. Aucun IAM, environnement GitHub,
+bootstrap ou test réel n'a été créé ou exécuté. Les validations et les accords
+restants sont détaillés dans [les pipelines contrôlés](pipelines-experiences-controlees.md).
+La CI de la PR Terraform corrigée était verte ; ses modes apply et les deux
+pipelines d'expérience restent à valider en exécution après autorisations.
+
+
+### Revue finale des PR nº 7 et nº 13 — 17 novembre 2026
+
+La comparaison des deux branches à main a révélé un conflit potentiel de fin
+de rapport, malgré leur statut individuellement mergeable. La section Terraform
+a été replacée dans le chapitre d'analyse et sa copie redondante remplacée par
+un lien vers l'annexe commune. Aucun fait ou résultat de test n'est supprimé.
+La compatibilité doit être contrôlée par une fusion virtuelle, sans fusion de PR.
+
+La revue a aussi établi que l'approbation initiale du job Terraform précédait la
+génération du plan et ne valait pas revue du plan exact. La correction impose
+un job de revue distinct après préparation, un artefact chiffré/authentifié lié
+au même SHA/run/attempt et l'apply du seul binaire approuvé sans recalcul préalable.
+Le secret de transport et l'environnement terraform-apply-review restent des
+prérequis soumis à accord. Le détail et les limites figurent dans l'annexe.
+Les pipelines d'expérience restent manuels, désactivés et non exécutés.
+
+
+Le [tableau de conformité de la revue finale](revue-integration-pr7-pr13.md)
+consigne les périmètres exacts des deux PR, les garanties du plan revu, les tests
+combinés et les validations d'exécution encore manquantes. La fusion virtuelle
+sans conflit et ses 138 tests ne constituent ni une fusion réelle, ni un apply,
+ni une nouvelle expérience Malleus/Chaos. Le déclenchement Terraform actuel
+reste manuel et doit être rapproché de l'attendu éventuel « après push ».
