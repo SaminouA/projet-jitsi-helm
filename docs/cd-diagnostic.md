@@ -211,3 +211,65 @@ Les nouveaux tests sont synthétiques, sans connexion réseau/plugin réel.
 La correction doit être revue, publiée et intégrée sur main avec CI après
 accord ; un nouvel accord de lancement sera ensuite requis. **Aucun résultat
 GitHub de cette correction n'est encore disponible et aucune relance n'a eu lieu.**
+
+
+## Correction proposée : kubeconfig exec ADC, OIDC conservé
+
+La source de get-gke-credentials au commit épinglé génère bien auth-provider gcp
+avec use_auth_provider=true. La cause du run 43959531200 reste une hypothèse
+cohérente avec ce mécanisme ; le stderr natif n'est pas disponible.
+
+**Correction locale non publiée :** remplacer cette seule étape du diagnostic
+par `python3 scripts/diagnose-cd.py --configure-gke`. Le script garde le contexte
+main/SHA puis utilise uniquement `gcloud container clusters get-credentials`
+sur le cluster existant, projet et zone explicites. Cette opération lit les
+informations GCP et écrit seulement le kubeconfig local du runner.
+
+L'action OIDC, son compte Google et ses credentials WIF temporaires restent
+inchangés. USE_GKE_GCLOUD_AUTH_PLUGIN=True et
+CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS=true sélectionnent le
+plugin avec les ADC fédérés. Pas de clé JSON statique, login utilisateur,
+activation API ou droit supplémentaire.
+
+KUBECONFIG est fourni à l'étape avec runner.temp ; sa création est exclusive,
+mode 0600, sous le nom dédié jitsi-diagnostic-kubeconfig. Le chemin seul est
+propagé via GITHUB_ENV aux étapes suivantes après création. Aucun fichier
+existant n'est remplacé. Un échec de configuration supprime le fichier partiel ;
+le always() du workflow supprime le kubeconfig final, et l'action auth nettoie
+ses credentials fédérés.
+
+Le script vérifie quatre champs ciblés en mémoire, sans kubeconfig complet ou
+--raw : absence d'auth-provider, commande exec gke-gcloud-auth-plugin, API exec
+v1 ou v1beta1 et argument ADC attendu. Seul le statut EXEC_ADC ou une catégorie
+fixe est affiché. whoami reste requis pour valider l'identité effective ; le
+seul format exec ne prouve ni un échange de jeton réussi ni un accès RBAC.
+La catégorie AUTH_PROVIDER_LEGACY remplace désormais INDETERMINE pour l'erreur
+publique connue de l'ancien provider.
+
+Sources : [code de l'action épinglée](https://github.com/google-github-actions/get-gke-credentials/blob/3da1e46a907576cefaa90c484278bb5b259dd395/src/client.ts#L399),
+[CLI get-credentials et propriété ADC](https://docs.cloud.google.com/sdk/gcloud/reference/container/clusters/get-credentials).
+Le code SDK installé a aussi été lu : il génère exec v1beta1 avec
+--use_application_default_credentials. Aucune commande get-credentials réelle
+n'a été exécutée localement pour cette préparation.
+
+### Validation réelle sur GitHub, à autoriser séparément
+
+1. Revoir les cinq fichiers et autoriser une publication sur branche de
+   correction, puis attendre les CI du nouveau commit.
+2. Autoriser une PR/fusion vers main ; recontrôler GKE_CD_ENABLED absente/false,
+   attendre la CI de main et le job CD skipped. Le workflow CD conserve encore
+   son ancien paramètre : ne pas l'activer sur la seule réussite du diagnostic.
+3. Relever le **nouveau SHA de main contenant cette correction**. Une exécution
+   sur le main actuel ne testerait pas le changement local.
+4. Après accord explicite, effectuer un seul workflow_dispatch sur main,
+   confirm_read_only=true, comme décrit plus haut ; aucune relance automatique.
+5. Vérifier EXEC_ADC, plugin disponible, TCP, identité CONFIRMEE, puis les 49
+   autorisations, le PVC existant Bound, SOPS/KMS, comparaison des secrets/réseau
+   et nettoyage. Une réussite partielle ne valide pas les étapes suivantes.
+6. En cas d'échec, conserver seulement les catégories et étapes atteintes,
+   arrêter et analyser sans changement de permissions à l'aveugle.
+
+58 tests locaux passent (51 précédents et sept nouveaux), avec génération
+simulée, refus du legacy, permissions fichier, absence d'écrasement, nettoyage et
+whitelist gcloud limitée. Aucune validation runner de cette correction n'a eu
+lieu ; le run réel connu reste en échec et SOPS/KMS runner non validé.

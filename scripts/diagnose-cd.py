@@ -18,6 +18,14 @@ PROJECT = 'project-fcf2ef91-c005-4910-a10'
 ACCOUNT = 'github-jitsi-deployer@' + PROJECT + '.iam.gserviceaccount.com'
 CONTEXT = 'gke_' + PROJECT + '_europe-west1-b_jitsi-cluster'
 DOMAIN = 'jitsi-meet-m2.duckdns.org'
+GKE_CREDENTIALS = ['gcloud', 'container', 'clusters', 'get-credentials', 'jitsi-cluster',
+                   '--project=' + PROJECT, '--zone=europe-west1-b', '--quiet']
+AUTH_FIELDS = {
+    'provider': 'jsonpath={.users[0].user.auth-provider.name}',
+    'command': 'jsonpath={.users[0].user.exec.command}',
+    'api': 'jsonpath={.users[0].user.exec.apiVersion}',
+    'args': 'jsonpath={.users[0].user.exec.args}',
+}
 
 
 def require(ok, message):
@@ -42,6 +50,8 @@ def verify_guard(env, payload, main_sha, local_sha):
 def identity_error_category(text):
     """Categories fixes uniquement ; aucune portion de stderr n'est retournee."""
     error = text.lower()
+    if 'no auth provider found for name' in error and 'gcp' in error:
+        return 'AUTH_PROVIDER_LEGACY'
     if 'gke-gcloud-auth-plugin' in error and any(x in error for x in
             ['not found', 'does not exist', 'no such file', 'not installed']):
         return 'PLUGIN_ABSENT'
@@ -92,12 +102,60 @@ def probe_api_tcp(server):
         return 'CONFIG_ENDPOINT_INVALIDE'
 
 
+def verify_exec_metadata(provider, command, api_version, args):
+    # Toutes les sorties sont des constantes, jamais une valeur du kubeconfig.
+    require(not provider, 'Diagnostic auth GKE : AUTH_PROVIDER_LEGACY')
+    require(Path(command).name == 'gke-gcloud-auth-plugin' and
+            api_version in ('client.authentication.k8s.io/v1', 'client.authentication.k8s.io/v1beta1'),
+            'Diagnostic auth GKE : EXEC_INCOMPATIBLE')
+    require(args == ['--use_application_default_credentials'],
+            'Diagnostic auth GKE : ADC_EXEC_ARGUMENTS_INATTENDUS')
+
+
+def verify_exec_kubeconfig():
+    fields = {name: read_command('metadonnees auth', ['kubectl', 'config', 'view', '--minify',
+               '-o', field]).strip() for name, field in AUTH_FIELDS.items()}
+    try:
+        args = json.loads(fields['args'] or '[]')
+    except ValueError:
+        raise SystemExit('Diagnostic auth GKE : EXEC_INCOMPATIBLE') from None
+    verify_exec_metadata(fields['provider'], fields['command'], fields['api'], args)
+    print('Diagnostic auth GKE : EXEC_ADC')
+
+
+def configure_gke():
+    guard()
+    root = Path(os.environ['RUNNER_TEMP']).resolve()
+    path = Path(os.environ['KUBECONFIG'])
+    require(path == root / 'jitsi-diagnostic-kubeconfig' and not path.is_symlink(),
+            'Diagnostic auth GKE : KUBECONFIG_TEMPORAIRE_REQUIS')
+    require(os.environ.get('USE_GKE_GCLOUD_AUTH_PLUGIN') == 'True' and
+            os.environ.get('CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS') == 'true',
+            'Diagnostic auth GKE : EXEC_ADC_NON_SELECTIONNE')
+    # Creation exclusive en 0600 : jamais de remplacement d'un kubeconfig existant.
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    os.close(descriptor)
+    try:
+        # Propager seulement le chemin du fichier cree a nous, pour le diagnostic
+        # suivant et le nettoyage always(). Le contexte runner est fourni au step.
+        with open(os.environ['GITHUB_ENV'], 'a') as env:
+            env.write('KUBECONFIG=' + str(path) + '\n')
+        read_command('configuration kubeconfig exec ADC', GKE_CREDENTIALS)
+        os.chmod(path, 0o600)
+        verify_exec_kubeconfig()
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    print('Kubeconfig exec ADC temporaire configure ; aucune ressource GKE modifiee.')
+
+
 def check_identity():
     require(shutil.which('gke-gcloud-auth-plugin') is not None,
             'Diagnostic identite GKE : PLUGIN_ABSENT')
     # --version ne genere pas de jeton. L'execution effective du plugin passe par whoami.
     read_command('controle plugin', ['gke-gcloud-auth-plugin', '--version'])
     print('Diagnostic plugin : DISPONIBLE')
+    verify_exec_kubeconfig()
     server = read_command('endpoint API', ['kubectl', 'config', 'view', '--minify', '-o',
         'jsonpath={.clusters[0].cluster.server}']).strip()
     network = probe_api_tcp(server)
@@ -120,6 +178,8 @@ def read_command(label, args):
                args == ['gh', 'api', 'repos/' + REPO + '/git/ref/heads/main', '--jq', '.object.sha'] or
                args[:2] == ['sops', '--decrypt'] or
                args == ['gke-gcloud-auth-plugin', '--version'] or
+               args == GKE_CREDENTIALS or
+               any(args == ['kubectl', 'config', 'view', '--minify', '-o', f] for f in AUTH_FIELDS.values()) or
                args == ['kubectl', 'config', 'view', '--minify', '-o', 'jsonpath={.clusters[0].cluster.server}'] or
                args[:2] in [['helm', 'list'], ['helm', 'lint'], ['helm', 'template']] or
                args[:3] in [['kubectl', 'config', 'current-context'], ['kubectl', 'auth', 'whoami'],
@@ -233,13 +293,17 @@ def diagnose():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--guard-only', action='store_true')
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--guard-only', action='store_true')
+    modes.add_argument('--configure-gke', action='store_true')
     args = parser.parse_args()
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit('Diagnostic interrompu.')))
     try:
         if args.guard_only:
             guard()
             print('Dispatch manuel, depot, branche et SHA main verifies.')
+        elif args.configure_gke:
+            configure_gke()
         else:
             diagnose()
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):

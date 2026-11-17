@@ -1,7 +1,7 @@
 # Déploiement et validation d'une plateforme de visioconférence Jitsi Meet sur Google Kubernetes Engine (GKE)
 
 **Rapport de projet — Master 2 DevOps**
-**Période documentée : octobre–novembre 2026 ; expérimentations du 15 novembre 2026**
+**Période documentée : octobre–novembre 2026 ; expérimentations et consolidation des 15–16 novembre 2026**
 
 | Élément académique | Information |
 |---|---|
@@ -10,6 +10,29 @@
 | Enseignant ou encadrant | À compléter |
 | Année universitaire | À confirmer |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
+
+## État actuel pour la remise — consolidation locale du 16 novembre
+
+Cette synthèse prévaut sur les descriptions historiques qui suivent. Aucune
+nouvelle interrogation du cluster ou de GitHub, aucune mutation distante, aucun
+commit ni push n’a été effectué pendant cette finalisation locale.
+
+| Élément | Résultat et niveau de preuve |
+|---|---|
+| HTTPS public | Dernière validation : certificat de production, domaine `jitsi-meet-m2.duckdns.org`, Web `34.78.71.58` ; aucune nouvelle mesure distante ici |
+| Jitsi / Caddy | Dernier état observé : Jitsi révision 3, edge révision 2, PVC indépendant 10 Gi Bound ; état actuel à recontrôler avant opération |
+| Réunion publique | Test manuel confirmé par l’utilisatrice : salle `jitsitest`, ordinateur et téléphone simultanés, audio et vidéo dans les deux sens |
+| Portée de cette réunion | Ni partage d’écran ni charge validés ; deux participants peuvent utiliser P2P, donc pas de preuve supplémentaire du trajet JVB |
+| Main et CI | Dernier main confirmé `c3e8ead17a35e234c1789c6d80da2e89c87a77fe` ; CI réussie, job CD ignoré |
+| Diagnostic réel | Run `43959531200` : plugin disponible, TCP API OK, `kubectl auth whoami` échoue avec `INDETERMINE` ; RBAC/PVC/SOPS runner non atteints |
+| Correction locale | Kubeconfig dédié exec `gke-gcloud-auth-plugin` avec ADC OIDC ; aucun changement IAM/RBAC ; pas encore validé sur GitHub |
+| CD | Intégrée, désactivée, non validée de bout en bout ; ancien `use_auth_provider: true` encore présent dans le workflow CD, adaptation séparée indispensable |
+
+L’[architecture actuelle](architecture.md), la [procédure contrôlée](validation-cd-controlee.md),
+la [soutenance](soutenance.md) et la [checklist de remise](checklist-remise.md)
+regroupent les éléments opérationnels. Les sections chronologiques conservent
+les manipulations et mesures antérieures : une ancienne mention de localhost,
+de CD non implémentée ou de test restant ne décrit pas l’état final ci-dessus.
 
 ## Résumé
 
@@ -26,8 +49,11 @@ l'activité du pont média. Une référence au repos de deux minutes et un palie
 progressif de cinq minutes ont ensuite été enregistrés. Les résultats montrent
 une augmentation du CPU JVB pendant la conférence, sans redémarrage observé.
 Ils ne permettent pas d'établir une capacité maximale ni une qualité de service
-garantie. La CI est validée ; la CD n'est pas implémentée et son périmètre reste
-à confirmer avec l'enseignant.
+garantie. Ces mesures appartiennent à la phase du 15 novembre. Depuis, l’accès
+HTTPS public et un essai manuel ordinateur/téléphone ont été confirmés par
+l’utilisatrice. La CI fonctionne ; la CD est intégrée mais désactivée et non
+validée de bout en bout. Le dernier diagnostic runner échoue sur l’identité
+Kubernetes ; une correction exec ADC est préparée uniquement en local.
 
 ## Table des matières
 
@@ -1270,8 +1296,9 @@ sur un premier palier apportent des résultats reproductibles à l'échelle de
 l'expérience, sans constituer un dimensionnement de production.
 
 Le résultat est une plateforme pédagogique fonctionnelle et documentée,
-accompagnée d'une CI éprouvée. La validation entre réseaux, les essais de
-charge plus complets et une éventuelle CD restent des perspectives explicites,
+accompagnée d'une CI éprouvée. La validation publique ordinateur/téléphone est désormais confirmée par
+l’utilisatrice. Des essais de charge plus complets et la validation effective
+de la CD restent des perspectives explicites,
 à traiter selon les exigences de l'enseignement et les contraintes de coût.
 
 ## 10. Références
@@ -2883,3 +2910,294 @@ nouvelle autorisation de diagnostic sur le SHA main contenant cette correction.
 Aucune permission IAM/RBAC, ressource GCP/Kubernetes, variable GitHub ou release
 Helm n'a été modifiée pendant cette préparation. Aucune opération de déploiement
 n'a été effectuée.
+
+
+### Diagnostic instrumenté exécuté une seule fois : erreur INDETERMINE
+
+**16 novembre 2026.** L'utilisateur autorise une seule exécution du diagnostic
+manuel sur main au SHA `c3e8ead17a35e234c1789c6d80da2e89c87a77fe`, sans changement
+de droit, variable ou ressource. Les précontrôles ont confirmé ce SHA, le flag
+GKE_CD_ENABLED absent/inactif, et le workflow exact ID 420594675, actif, manuel,
+avec les mêmes script et YAML que la correction relue. Aucun deploy-gke n'est
+ciblé. Une ancienne exécution existait sur l'ancien SHA ; aucune sur le nouveau.
+
+Un seul dispatch a été effectué avec main et confirm_read_only=true :
+
+```bash
+gh workflow run 420594675 --repo SaminouA/projet-jitsi-helm \
+  --ref main -f confirm_read_only=true
+```
+
+Run [43959531200](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43959531200),
+créé à **21:23:03 UTC (22:23:03 Paris)**, événement workflow_dispatch,
+branche main et SHA attendu, **run_attempt=1**, conclusion **failure**.
+Le job diagnose (133622904392) termine avec code 1. L'inventaire après exécution
+confirme une seule tentative sur ce SHA ; aucune relance automatique ou manuelle.
+
+#### Résultats effectifs du runner
+
+| Étape | Résultat réel |
+|---|---|
+| Garde dépôt/main/SHA/confirmation | success |
+| Installation Helm/SOPS et vérification checksum | success ; pas une preuve de déchiffrement |
+| Authentification OIDC et configuration gcloud | success |
+| get-gke-credentials, informations GCP du cluster | success |
+| Présence et invocation --version du plugin | **Diagnostic plugin : DISPONIBLE** |
+| Connexion TCP à l'endpoint API | **Diagnostic reseau TCP : OK** |
+| kubectl auth whoami | **Diagnostic identite GKE : INDETERMINE** ; échec |
+| Comparaison de l'identité effective | Non réalisée, pas de réponse whoami valide |
+| Contrôles runner RBAC (49 autorisations) | **Non réalisés** |
+| Contrôle runner du PVC | **Non réalisé** |
+| Déchiffrement SOPS/KMS et comparaison des secrets | **Non réalisés** |
+| Rendus et contrôles applicatifs ultérieurs | **Non réalisés** |
+| Nettoyage always() et post-action credentials | **success** |
+
+Le plugin n'est pas absent et la connectivité TCP depuis ce runner est établie.
+Cela ne prouve pas TLS, authentification ou autorisation Kubernetes. whoami
+reste en échec ; aucun succès RBAC/PVC/SOPS/KMS runner n'est déduit des succès
+locaux antérieurs. Le répertoire SOPS n'est pas créé avant ce contrôle : aucune
+valeur SOPS déchiffrée n'a été produite par le script dans cette exécution.
+Les journaux ont été capturés seulement pour extraction de catégories fixes et
+états d'étapes ; aucun token, credential, kubeconfig ou log brut n'a été affiché.
+
+#### Piste principale identifiée par lecture des sources, non confirmée par le stderr du run
+
+Une investigation supplémentaire strictement en lecture a examiné les sources
+[officielles de l'action get-gke-credentials au commit épinglé](https://github.com/google-github-actions/get-gke-credentials/blob/3da1e46a907576cefaa90c484278bb5b259dd395/src/client.ts#L399).
+La branche useAuthProvider=true y génère le mécanisme kubeconfig legacy
+`auth-provider: {name: gcp}`, plutôt qu'une entrée exec du plugin. Le workflow
+courant fournit précisément `use_auth_provider: true`.
+
+La [documentation Google de dépannage kubectl](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/kubectl)
+indique l'erreur « no Auth Provider found for name gcp » pour les clients basés
+sur client-go 1.26 et ultérieurs. Installer le binaire ne suffit pas si le
+kubeconfig sélectionne encore l'ancien mécanisme.
+
+Un contrôle synthétique local confirme que le texte public documenté de cette
+erreur est classé INDETERMINE par le classificateur actuel. Cela est cohérent
+avec la catégorie reçue et constitue une piste concrète de compatibilité,
+**pas une preuve que ce texte exact a été produit par ce run** : le stderr
+natif était expurgé, et la version exacte de kubectl n'a pas été qualifiée dans
+cette analyse. Aucun kubeconfig du runner n'a été exporté ou lu par l'agent.
+Les permissions RBAC ne doivent pas être élargies sans autre preuve.
+
+#### Prochaine action proposée, non exécutée
+
+Préparer après accord la correction de la configuration d'authentification
+locale au runner : soit le mode jeton court fourni par l'action issue d'OIDC
+(use_auth_provider=false), soit une vraie entrée exec moderne du plugin,
+avec tests et nettoyage du kubeconfig temporaire. Ajouter un contrôle expurgé
+du mécanisme choisi et une catégorie dédiée à l'ancien auth-provider, sans
+publier le contenu du kubeconfig ou le token. Le workflow CD utilise le même
+paramètre et devra être examiné séparément avant toute activation.
+
+Aucun de ces changements n'a été effectué ici. Leur publication/intégration et
+un nouvel essai demandent un accord distinct ; aucune tentative supplémentaire
+n'est faite pour contourner l'échec. Main reste sur c3e8ead et le flag CD est
+inactif. Aucune permission, variable, ressource GCP/Kubernetes ou release Helm
+n'a été modifiée. Aucun déploiement Jitsi ou workflow CD déclenché par l'agent.
+
+Cette section est ajoutée uniquement au rapport local de la branche de
+correction, sans commit ni push. Le code et le workflow ne sont pas modifiés
+pendant cette exécution ; les limites d'identification de la cause restent
+explicitement distinguées des faits observés et du test synthétique local.
+
+
+### Correction locale de l'authentification GKE : exec ADC via OIDC
+
+**16 novembre 2026.** À la demande de l'utilisateur, une correction minimale
+est préparée uniquement dans le workflow de diagnostic et son script, sans
+changer IAM/RBAC, CD ou ressources. Le dernier run réel reste
+[43959531200](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43959531200)
+en échec : plugin disponible, TCP OK, whoami INDETERMINE ; RBAC/PVC/SOPS non
+atteints. La correction suivante n'a pas été exécutée sur GitHub.
+
+#### Vérification de la piste et choix
+
+Une nouvelle lecture des sources officielles confirme qu'au commit épinglé
+3da1e46a907576cefaa90c484278bb5b259dd395, get-gke-credentials génère
+`auth-provider: {name: gcp}` quand useAuthProvider=true, et non une entrée exec.
+Le workflow diagnostic passait précisément use_auth_provider=true. Cette
+construction est un fait vérifié par le code de l'action ; son implication
+comme cause exacte du stderr masqué reste une hypothèse.
+
+La méthode retenue est la génération officielle gcloud d'un kubeconfig exec
+avec Application Default Credentials fédérés. La documentation
+[get-credentials](https://docs.cloud.google.com/sdk/gcloud/reference/container/clusters/get-credentials)
+prévoit la propriété container/use_application_default_credentials=true.
+Le code SDK installé, lu sans obtenir de credentials, confirme l'entrée exec
+v1beta1 et l'argument --use_application_default_credentials.
+
+#### Changements préparés, non exécutés sur des ressources
+
+- `.github/workflows/diagnose-gke.yml` conserve l'action auth OIDC épinglée,
+  les restrictions dispatch/main/SHA, contents:read et id-token:write.
+  Seule l'étape de génération de kubeconfig par get-gke-credentials est remplacée
+  par un appel au script `--configure-gke`. Setup-gcloud installe toujours
+  kubectl et le plugin.
+- Le mode exec du plugin et la propriété ADC sont explicitement sélectionnés
+  via les variables d'environnement du runner, pas des variables GitHub de
+  dépôt. KUBECONFIG utilise runner.temp au niveau de l'étape appropriée, puis
+  son chemin seul est propagé par GITHUB_ENV.
+- `scripts/diagnose-cd.py --configure-gke` revalide main/SHA et exécute seulement
+  la lecture GCP suivante pour générer un fichier local privé :
+
+```bash
+gcloud container clusters get-credentials jitsi-cluster \
+  --project=project-fcf2ef91-c005-4910-a10 --zone=europe-west1-b --quiet
+```
+
+Cette commande est **préparée, pas exécutée ici**. Elle est l'unique opération
+gcloud ajoutée à la whitelist ; commande de création/suppression ou arguments
+supplémentaires tels que --log-http restent refusés.
+
+Le kubeconfig dédié est créé exclusivement en 0600 dans RUNNER_TEMP ; un fichier
+préexistant ne peut pas être remplacé. En cas d'échec, le fichier partiel est
+supprimé. Le nettoyage always() supprime aussi le fichier après le diagnostic,
+et le post de l'action auth nettoie ses credentials fédérés. Aucun kubeconfig
+opérateur n'est utilisé ou modifié ; aucune clé statique n'est introduite.
+
+Avant whoami, quatre champs ciblés sont lus en mémoire : absence du provider
+legacy, exec vers gke-gcloud-auth-plugin, API exec v1/v1beta1 et argument ADC
+attendu. Aucun kubeconfig complet, token ou credential n'est affiché. Le seul
+statut positif ajouté est EXEC_ADC. Une erreur legacy connue obtient désormais
+AUTH_PROVIDER_LEGACY plutôt que INDETERMINE. La présence/format du plugin ne
+remplace pas la future validation effective whoami.
+
+#### Tests réellement effectués localement
+
+Sept nouveaux tests vérifient le mode exec ADC, le refus de l'ancien provider,
+la lecture sélective sans --raw, les permissions 0600, le refus d'un fichier
+existant ou extérieur au répertoire prévu, le nettoyage sur échec, le workflow
+OIDC inchangé et la whitelist gcloud. Les fixtures anciennes ont été adaptées
+aux contrôles supplémentaires ; aucune opération de génération GKE réelle ou
+requête de token n'est utilisée par les tests.
+
+| Validation | Résultat |
+|---|---|
+| Suite Python | **58 tests réussis** (51 précédents + 7 nouveaux), relancée après ajustement du contexte runner.temp |
+| Validation Helm public/local et Terraform sans backend | Réussie |
+| Validation edge/Caddyfile | Réussie |
+| Syntaxe Python, YAML et blocs Bash | Valide |
+| git diff --check et scan des motifs de secrets | Sans erreur / aucun motif sensible détecté |
+
+Les cinq fichiers modifiés sont le workflow diagnostic, le script diagnostic,
+les tests, le guide `docs/cd-diagnostic.md` et ce rapport. Les notes locales du
+run précédent sont conservées. Le workflow de déploiement CD et le manifeste
+RBAC n'ont pas été modifiés.
+
+#### Étapes GitHub encore prévues
+
+Après revue et autorisations distinctes : publier sur branche de correction,
+attendre CI, intégrer sur main avec GKE_CD_ENABLED inactive, attendre CI main et
+CD skipped, puis relever le **nouveau SHA** et autoriser un seul diagnostic
+manuel avec confirm_read_only=true. Contrôler alors EXEC_ADC, whoami CONFIRMEE,
+RBAC 49, PVC Bound, déchiffrement et comparaison SOPS/KMS, puis nettoyages.
+En cas d'échec, aucune relance ou attribution de droit automatique.
+
+Aucun commit, push, merge ou workflow déclenché pendant cette préparation.
+Aucune permission, variable de dépôt, ressource GCP/Kubernetes ou release Helm
+modifiée ; aucun secret déchiffré réellement. Le workflow CD garde son paramètre
+legacy et nécessite une revue séparée avant toute activation. Le succès local
+ne démontre pas encore le succès de la correction sur runner GitHub.
+
+## Consolidation pédagogique et contrôles locaux de remise — 16 novembre 2026
+
+### Technologies : utilité, intégration et travail effectué
+
+| Technologie | Utilité et intégration dans ce projet | Manipulation / limite documentée |
+|---|---|---|
+| GCP | Héberge calcul, réseau, stockage, GKE et KMS dans le projet pédagogique | API et quotas contrôlés lors des étapes autorisées antérieures ; aucune nouvelle vérification distante pendant cette consolidation |
+| Terraform | Décrit le cluster GKE et son pool de nœuds dans `terraform/main.tf` | Deux nœuds e2-standard-2, zone europe-west1-b, disques de nœud 30 Go pd-balanced ; init isolé sans backend, fmt et validate réalisés localement |
+| État Terraform | Relie les adresses déclaratives aux ressources existantes | État local exclu de Git ; absence de backend distant partagé. Ne pas assimiler validation statique et absence de dérive ; aucun plan/apply réalisé ici |
+| GKE / Kubernetes | GKE gère le plan de contrôle ; Kubernetes orchestre les composants et expose les Services | Pods, Services, endpoints et événements ont été contrôlés pendant les étapes précédentes ; disponibilité non réinterrogée ici |
+| Conteneurs | Images distinctes pour Web, Prosody, Jicofo, JVB et Caddy | Images et chart déterminent le comportement ; les tests de rendu ne prouvent pas que toutes les images démarrent sur un autre cluster |
+| Helm | Assemble les objets Kubernetes et conserve les révisions des releases | Chart applicatif `charts-officiels/jitsi-meet`, complément `charts/jitsi-edge` ; profils public et localhost validés séparément |
+| Jitsi | Web sert l’interface ; Prosody assure XMPP/BOSH, Jicofo coordonne les conférences, JVB relaie les médias lorsque sélectionné | Migration antérieure de publicURL vers HTTPS ; essai public manuel à deux confirmé par l’utilisatrice ; route média non instrumentée |
+| Caddy / ACME | Termine TLS, renouvelle le certificat et relaie vers les composants privés | Staging puis production ont été validés antérieurement ; profil du domaine en production, défaut générique staging ; ports publics TCP 80/443, sonde interne 8082 |
+| Stockage persistant | Conserve données ACME et identité du serveur lors des mises à jour Caddy | PVC indépendant `jitsi-edge-data`, 10 Gi, RWO, standard-rwo observé pd-balanced ; ne pas supprimer pour résoudre un incident |
+| DNS / réseau | DuckDNS associe le nom public à l’IP Web fixe ; le LB média reste distinct | Web 34.78.71.58, média 34.62.165.81 UDP 10000 ; pas de modification DNS pendant cette finalisation |
+| Git / GitHub Actions CI | Revue par PR et contrôles reproductibles avant intégration | Dernières CI main réussies selon preuves antérieures ; validations locales répétées ci-dessous, sans nouvel appel Actions |
+| OIDC / WIF | Échange une identité GitHub temporaire contre l’identité Google CD sans clé statique | Restriction dépôt et refs/heads/main auditée précédemment ; action auth réussie, mais cela ne démontre pas l’authentification Kubernetes |
+| Plugin GKE / ADC | Le plugin exec fournit au client Kubernetes des credentials issus de l’identité fédérée | Correctif local : get-credentials ciblé, fichier runner privé exclusif, ADC et métadonnées exec vérifiées sans afficher le kubeconfig |
+| IAM / RBAC | IAM autorise lecture du cluster et déchiffrement KMS ; RBAC borne les opérations Kubernetes | Aucun droit modifié ici. Le diagnostic interroge les droits de déploiement sans les exercer ; rôle PVC séparé limité à get sur son nom |
+| SOPS / Cloud KMS | SOPS chiffre les valeurs et KMS protège la clé de données | Fichier versionné chiffré ; diagnostic prévoit déchiffrement privé temporaire puis comparaison sans affichage. Étape runner non atteinte lors des deux échecs réels |
+| CD | Enchaîner une CI push main approuvée et des préflights avant Helm | Workflow intégré mais flag désactivé ; identité runner et premier déploiement non validés de bout en bout ; aucun essai déclenché ici |
+
+L’architecture et la propriété des ressources figurent dans [architecture.md](architecture.md).
+Terraform ne gère pas l’ensemble du projet : WIF/IAM, IP Web et PVC ont des
+procédures distinctes. `deletion_protection=false` est un risque de destruction
+à traiter dans une évolution autorisée, sans modifier l’infrastructure pendant
+la remise. Deux nœuds dans une zone ne constituent pas une preuve de haute
+ disponibilité, de reprise après sinistre ou de mise à l’échelle automatique.
+
+### Incident d’authentification et sécurité du correctif
+
+Le run [43959531200](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43959531200)
+a confirmé plugin disponible et connexion TCP API, puis échoué sur whoami
+avec INDETERMINE. Cela ne tranche pas entre TLS, credentials et autorisations.
+La source de l’action get-gke-credentials épinglée montre que
+`use_auth_provider=true` génère l’ancien auth-provider gcp ; le client Kubernetes
+moderne exige le mécanisme exec. Il s’agit d’une hypothèse étayée par le code,
+pas d’une récupération de l’erreur brute du runner.
+
+La correction retire cette action du diagnostic seulement et prépare un
+kubeconfig exec ADC privé. Les sorties des outils sont capturées ; les erreurs
+publiées sont des catégories fixes. Le fichier est créé exclusivement en 0600,
+le chemin est transmis au step suivant, puis nettoyé même en échec. Le guard
+continue d’exiger dispatch confirmé, dépôt attendu, main et SHA courant.
+Aucune permission GitHub, IAM ou RBAC n’est étendue. Aucun secret n’est déchiffré
+pendant les validations de cette consolidation.
+
+Le workflow de déploiement conserve encore l’ancien mode ; il doit être corrigé
+séparément après le diagnostic, en tenant compte de son événement workflow_run.
+Copier directement la commande diagnostique protégée pour workflow_dispatch
+ferait échouer son garde. Les deux mises à jour Helm ne sont pas atomiques
+ensemble ; une ConfigMap PUBLIC_URL ne déclenche pas nécessairement les rollouts
+Jitsi. Ces limites sont prises en compte dans la procédure et le rollback.
+
+### Validations réellement exécutées pendant cette finalisation
+
+| Contrôle local | Résultat | Portée |
+|---|---|---|
+| `python3 -B -m unittest discover -s tests -p 'test_*.py'` | 58 tests réussis | Régressions et cas d’authentification simulés, aucune preuve runner supplémentaire |
+| `sh scripts/validate.sh` | Réussi | Helm lint strict, rendus publics/localhost, Terraform fmt/init isolé backend=false/validate ; aucun plan ni apply |
+| `CADDY_BIN=/tmp/jitsi-remise-caddy/caddy python3 scripts/validate-edge.py` | Réussi | Chart edge, ports/persistance/protections et Caddyfile validés ; aucun serveur démarré |
+| `python3 -B scripts/check-docs.py` | Réussi | Liens relatifs et syntaxe des blocs shell ; aucune commande documentaire exécutée, URLs externes contrôlées syntaxiquement seulement |
+| `git diff --check` | Réussi | Absence d’erreur d’espacement dans le diff ; ne constitue pas un audit de secrets |
+
+Le validateur documentaire est exécuté de nouveau après les dernières écritures.
+Les liens Actions sont des références de preuves antérieures, sans nouvelle
+consultation des runs pendant cette session. Actionlint n’est pas installé ;
+la réussite locale du parse YAML et des tests ne remplace pas les futures CI.
+Les coûts ne sont pas recalculés depuis une facture : nœuds, disques, deux LB,
+IPv4, gestion GKE et trafic sont les postes à surveiller. Aucun nouveau coût
+cloud n’est engagé ; un montant mensuel actualisé nécessite tarification,
+consommation et éventuels crédits réellement observés.
+
+### Remise, soutenance et étapes soumises à accord
+
+La [checklist](checklist-remise.md) sépare livrables disponibles, informations
+académiques encore à renseigner et actions distantes restantes. La
+[soutenance](soutenance.md) propose 12 minutes, une démonstration en lecture,
+les questions techniques et des solutions autorisées si DuckDNS est bloqué.
+Aucune capture ou répétition chronométrée n’est présentée comme déjà réalisée.
+
+La [procédure contrôlée](validation-cd-controlee.md) prépare publication du
+correctif, CI/revue/fusion, un seul diagnostic manuel autorisé, adaptation CD,
+puis premier essai contrôlé et retour arrière aux révisions relevées juste avant.
+Le rollback conserve PVC et données ACME ; il ne restaure pas leur contenu.
+Aucun commit, push, PR, merge, dispatch, activation CD ou changement de ressources
+n’a été effectué pendant cette finalisation locale.
+
+Contrôle final du lot local : 11 fichiers modifiés ou nouveaux, sans mise en
+index. Le scan heuristique (clés privées, formats courants de jetons et noms
+sensibles) ne relève aucune alerte ; toutes les feuilles applicatives du fichier
+SOPS restent chiffrées et les principales exclusions Git sont effectives.
+Ce scan ne constitue pas une garantie exhaustive d’absence de secret. Les
+syntaxes Python, shell et YAML des workflows ont été contrôlées. Le contrôle
+documentaire final couvre 11 documents, 25 liens locaux et 63 blocs shell sans
+erreur ; les 35 URLs externes sont vérifiées syntaxiquement, pas par HTTP.
+Le brouillon de message/PR et la liste exacte du lot sont préparés dans
+`/tmp/jitsi-remise-pr.md` et `/tmp/jitsi-remise-files.txt`, hors index Git ;
+ils ne représentent ni commit ni PR publiés.

@@ -25,6 +25,8 @@ jobs:
       EXPECTED_SHA: ${{ github.sha }}
       GH_TOKEN: ${{ github.token }}
       JITSI_ACCESS_PROFILE: public-edge
+      USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
+      CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS: 'true'
     steps:
     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       with:
@@ -64,13 +66,10 @@ jobs:
     - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       with:
         install_components: kubectl,gke-gcloud-auth-plugin
-    - name: Configurer l'acces au cluster existant
-      uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395
-      with:
-        project_id: project-fcf2ef91-c005-4910-a10
-        cluster_name: jitsi-cluster
-        location: europe-west1-b
-        use_auth_provider: 'true'
+    - name: Configurer le kubeconfig exec ADC du runner (sans mutation GKE)
+      env:
+        KUBECONFIG: ${{ runner.temp }}/jitsi-diagnostic-kubeconfig
+      run: python3 scripts/diagnose-cd.py --configure-gke
     - name: Diagnostic lecture seule et SOPS temporaire
       run: python3 scripts/diagnose-cd.py
     - name: Nettoyage de secours des donnees sensibles
@@ -80,4 +79,7 @@ jobs:
         set -euo pipefail
         if [[ -n "${CD_DIAG_TMP_DIR:-}" && "$CD_DIAG_TMP_DIR" == "$RUNNER_TEMP"/jitsi-diagnostic.* ]]; then
           rm -rf -- "$CD_DIAG_TMP_DIR"
+        fi
+        if [[ "${KUBECONFIG:-}" == "$RUNNER_TEMP"/jitsi-diagnostic-kubeconfig ]]; then
+          rm -f -- "$KUBECONFIG"
         fi
