@@ -159,14 +159,14 @@ pas automatiquement aux 12 minutes.
 - L'apply est-il validé ? Non ; plan readonly exécuté, apply contrôlé seulement préparé.
 - Le chaos démontre-t-il la HA ? Non ; récupération mesurée avec une interruption temporaire.
 
-Sources : [rapport](rapport.md), [preuves](preuves/preuves-livraison.md),
-[conformité](livraison/conformite-finale.md). Compléter le nom de famille et l'enseignant ; vérifier les captures,
+Sources : [rapport](../rapport.md), [preuves](preuves-livraison.md),
+[conformité](conformite-finale.md). Compléter le nom de famille et l'enseignant ; vérifier les captures,
 la durée imposée et l'export PDF avant remise.
 
 
 ## Compléments de préparation conservés de l’ancien support
 
-Le [support du 16 novembre](archives/soutenance-2026-11-16.md) reste historique :
+Le [support du 16 novembre](soutenance-2026-11-16.md) reste historique :
 ses statuts CD, révisions et diagnostics ne doivent pas remplacer le présent plan.
 Ses précautions pratiques restent utiles : batteries/casques, consentement des
 participants, fenêtres sensibles fermées et vérification préalable du réseau.

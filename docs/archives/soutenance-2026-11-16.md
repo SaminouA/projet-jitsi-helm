@@ -1,6 +1,6 @@
 > Document historique conservé. Pour l’état consolidé du 17 novembre 2026,
-> consulter le [rapport final](../rapport.md), les [preuves](../preuves/preuves-livraison.md)
-> et le [plan oral final](../presentation-finale.md). Les statuts antérieurs ci-dessous
+> consulter le [rapport final](../rapport.md), les [preuves](preuves-livraison.md)
+> et le [plan oral final](presentation-finale.md). Les statuts antérieurs ci-dessous
 > ne décrivent pas nécessairement la version livrée.
 
 # Soutenance Master 2 — Jitsi DevOps sur GCP
@@ -15,7 +15,7 @@ un déploiement pendant la soutenance sans autorisation distincte.
 | Temps | Diapositive / propos | Preuve à montrer |
 |---|---|---|
 | 0:00–1:00 | Besoin : rendre une visioconférence reproductible, publique et contrôlée | URL HTTPS et objectifs, distinction configuration/disponibilité/usage |
-| 1:00–2:30 | Architecture : HTTPS → Caddy → Web/BOSH → Prosody ; Jicofo et JVB | [Schémas](../architecture.md), séparation Web TCP / média UDP |
+| 1:00–2:30 | Architecture : HTTPS → Caddy → Web/BOSH → Prosody ; Jicofo et JVB | [Schémas](architecture-reference-2026-11-17.md), séparation Web TCP / média UDP |
 | 2:30–3:45 | Terraform et GKE : cluster zonal, pool de deux e2-standard-2 | Sources .tf et lock provider ; état local exclu, aucune prétention HA |
 | 3:45–5:00 | Helm/Kubernetes : chart communautaire 3.10.0, valeurs et révisions | Quatre composants, Services, endpoints ; Jitsi dernière révision observée 3 |
 | 5:00–6:00 | Caddy/HTTPS : IP fixe Web, ACME production et PVC indépendant | Caddy révision 2 ; certificat reconnu, ports publics 80/443 et routes privées 404 |

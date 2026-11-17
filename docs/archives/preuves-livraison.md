@@ -8,12 +8,12 @@ selon son contenu : build, validation, plan et déploiement sont des preuves dif
 |---|---|---|
 | CI finale main | [44167828378](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44167828378) | Validation Helm/Terraform/Python, pas de test média |
 | CD après fusion | [44167893494](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44167893494) | Skipped : aucune nouvelle opération Helm |
-| Plan Terraform readonly | [44116737677](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44116737677), [synthèse](terraform-github-plan-final.json) | Plan sans changement sur son SHA ; aucun apply |
+| Plan Terraform readonly | [44116737677](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44116737677), [synthèse](../../tests/terraform/terraform-github-plan-final.json) | Plan sans changement sur son SHA ; aucun apply |
 | Diagnostic runner Helm | [44053382824](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44053382824) | Identité Kubernetes et contrôles d'autorisation réussis |
-| CD Helm contrôlée | [44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445), [procédure et résultat](../livraison/validation-cd-controlee.md) | Déploiement réel, révisions Jitsi 4 et edge 3 |
+| CD Helm contrôlée | [44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445), [procédure et résultat](validation-cd-controlee.md) | Déploiement réel, révisions Jitsi 4 et edge 3 |
 | Image Selenium corrigée | [44094388902](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44094388902), [résultat](../../tests/load/selenium-image-results.json) | Capture synthétique dans Chrome ; pas une conférence |
 | Image Malleus | [44097184022](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44097184022), [résultat](../../tests/load/malleus-image-results.json) | Build et contrôle d'exécution ; pas une charge GKE |
-| Référence/palier | [Synthèse recalculée](preuve-repos-palier-2026-11-15.json) | Agrégats issus des collectes locales du 15 novembre |
+| Référence/palier | [Synthèse recalculée](../../tests/load/preuve-repos-palier-2026-11-15.json) | Agrégats issus des collectes locales du 15 novembre |
 | Vidéo GKE initiale | [Résultat expurgé](../../tests/load/k8s-video-results.json) | Arrêt de sécurité pour saturation, pas une réussite |
 | Vidéo GKE low CPU | [Résultat expurgé](../../tests/load/k8s-video-low-cpu-results.json) | Test terminé, RTP reçu et décodé par deux clients |
 | Chaos Web | [Résultat expurgé](../../tests/chaos/results-summary.json) | Une injection, remplacement du pod et récupération HTTPS |
@@ -29,7 +29,7 @@ Les JSON versionnés sont des synthèses expurgées, pas des traces exhaustives.
 Les collectes brutes locales et les états Terraform sont volontairement exclus
 de Git. Les témoignages fonctionnels de l'utilisatrice sont signalés comme tels
 dans le [rapport](../rapport.md), sans capture inventée ni mesure reconstituée.
-Le [journal conservé](../archives/rapport-avant-livraison-finale-2026-11-17.md)
+Le [journal conservé](rapport-avant-livraison-finale-2026-11-17.md)
 permet de retrouver les commandes et incidents antérieurs ; ses statuts sont historiques.
 
 ## Contrôles de cette consolidation
@@ -54,5 +54,5 @@ les exclusions Git ni la revue humaine des données.
 
 Les chiffres de contrôle ci-dessus décrivent la consolidation de la PR nº 15.
 Après déplacement des documents, consulter la
-[revue de réorganisation](../livraison/reorganisation-documentaire.md) pour le
+[revue de réorganisation](reorganisation-documentaire.md) pour le
 nouveau périmètre récursif, les correspondances de chemins et les validations locales.

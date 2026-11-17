@@ -15,5 +15,5 @@
 
 Le Terraform apply GitHub et les nouveaux workflows Malleus/Chaos restent non
 exécutés. Leur exécution ne doit pas être improvisée pour compléter une case.
-Voir [conformité](conformite-finale.md), [preuves](../preuves/preuves-livraison.md),
-[rapport](../rapport.md) et [plan oral](../presentation-finale.md).
+Voir [conformité](conformite-finale.md), [preuves](preuves-livraison.md),
+[rapport](../rapport.md) et [plan oral](presentation-finale.md).

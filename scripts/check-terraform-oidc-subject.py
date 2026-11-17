@@ -25,7 +25,7 @@ def propose(condition,settings):
 
 
 if __name__=='__main__':
-    source=json.loads(Path('docs/preuves/terraform-bootstrap-resultats.json').read_text())
+    source=json.loads(Path('tests/terraform/terraform-bootstrap-resultats.json').read_text())
     settings={'use_default':True,'use_immutable_subject':True,'sub_claim_prefix':PREFIX}
     before=source['attribute_condition'];after=propose(before,settings)
     result={'status':'PROPOSED_NOT_APPLIED','provider':source['provider'],

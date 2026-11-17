@@ -15,7 +15,7 @@ conservées ; il ne remplace pas une grille officielle signée.
 | CI GitHub Actions | Validé | Run 44167828378 ; job obligatoire Validation Helm | Ne prouve pas le succès des pipelines manuels |
 | CD Helm OIDC | Validé historiquement | Run 44057014445 ; révisions 4 et 3 | Flag désactivé, pas de nouvelle exécution pour la remise |
 | Réunion fonctionnelle | Validé dans les scénarios observés | Tests manuels à deux puis trois ; diagnostic JVB | Pas de validation exhaustive de tous les réseaux et flux |
-| Mesure de référence et palier 3 | Validé, portée limitée | [Synthèse recalculée](../preuves/preuve-repos-palier-2026-11-15.json) | 120/300 secondes, répétitions Metrics Server, pas de capacité maximale |
+| Mesure de référence et palier 3 | Validé, portée limitée | [Synthèse recalculée](../../tests/load/preuve-repos-palier-2026-11-15.json) | 120/300 secondes, répétitions Metrics Server, pas de capacité maximale |
 | Charge vidéo Malleus/Selenium GKE | Validé historiquement à deux | `tests/load/k8s-video-low-cpu-results.json` | Fenêtre stricte 56,35 s ; pas 90 s continues ni HD garantie |
 | Pipeline Malleus dédié | Préparé, non exécuté | PR 13/14, `malleus-controlled.yml` | Identité/environnement dédiés à finaliser ; aucune exécution réelle |
 | Résilience Chaos Mesh Web | Validé historiquement | `tests/chaos/results-summary.json` | Une injection ; HTTPS indisponible temporairement ; aucune réunion active |
@@ -23,7 +23,7 @@ conservées ; il ne remplace pas une grille officielle signée.
 | Observabilité | Partielle | Collecteur, métriques, JVB, logs, JSON expurgés | Pas de tableaux de bord corrélés ni de seuil de capacité démontré |
 | Documentation et reproductibilité | Préparé pour revue | Rapport, guides, sources, index et plan oral | Nom de famille et enseignant à compléter ; captures réelles, export et relecture finale |
 
-Les liens exécutables, SHA et statuts sont regroupés dans l'[index des preuves](../preuves/preuves-livraison.md).
+Les liens exécutables, SHA et statuts sont regroupés dans l'[index des preuves](preuves-livraison.md).
 Le [rapport](../rapport.md) explique les résultats et les limites de chaque essai.
 
 La livraison documentaire est recommandée en l'état avec ces réserves visibles.

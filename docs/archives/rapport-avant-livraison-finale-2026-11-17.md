@@ -158,7 +158,7 @@ runner de l’adaptateur workflow_run ni aucun upgrade ne sont revendiqués.
 Cette préparation ne réalise aucun Helm upgrade, changement de variable ou
 mutation GCP/GKE. **La CD n’est pas encore validée de bout en bout.**
 
-La [procédure contrôlée](../livraison/validation-cd-controlee.md) précise fusion/revue, contrôle
+La [procédure contrôlée](validation-cd-controlee.md) précise fusion/revue, contrôle
 de dérive avant l’essai sans modification fonctionnelle, variables publiques,
 révisions relevées immédiatement avant l’essai et rollback Jitsi puis edge si
 concernés. Une mise à jour peut néanmoins redémarrer des pods ; prévoir une
@@ -182,8 +182,8 @@ commit ni push n’a été effectué pendant cette finalisation locale.
 | Correction locale | Kubeconfig dédié exec `gke-gcloud-auth-plugin` avec ADC OIDC ; aucun changement IAM/RBAC ; pas encore validé sur GitHub |
 | CD | Intégrée, désactivée, non validée de bout en bout ; ancien `use_auth_provider: true` encore présent dans le workflow CD, adaptation séparée indispensable |
 
-L’[architecture actuelle](../architecture.md), la [procédure contrôlée](../livraison/validation-cd-controlee.md),
-la [soutenance](soutenance-2026-11-16.md) et la [checklist de remise](../livraison/checklist-remise.md)
+L’[architecture actuelle](architecture-reference-2026-11-17.md), la [procédure contrôlée](validation-cd-controlee.md),
+la [soutenance](soutenance-2026-11-16.md) et la [checklist de remise](checklist-remise.md)
 regroupent les éléments opérationnels. Les sections chronologiques conservent
 les manipulations et mesures antérieures : une ancienne mention de localhost,
 de CD non implémentée ou de test restant ne décrit pas l’état final ci-dessus.
@@ -1397,13 +1397,13 @@ et de l’état, backend local isolé ; il lit GCP sans appliquer ni écrire dan
 l’état original. Résultat : **cluster update, pool no-op**, changements limités
 à resource_labels, terraform_labels et effective_labels ; aucune valeur inconnue
 après apply, aucune création, suppression ou remplacement. Le garde strict a
-accepté ce vrai plan. La [preuve expurgée](../preuves/terraform-plan-preuve.json) ne contient
+accepté ce vrai plan. La [preuve expurgée](../../tests/terraform/terraform-plan-preuve.json) ne contient
 ni état, ni plan complet, ni credential. Ce plan local ne valide pas les futures
 permissions du compte runner et doit être recalculé après migration.
 
 #### Backend, identité et workflow proposés
 
-Le [guide Terraform contrôlé](../guides/terraform-cd-controlee.md) détaille les commandes
+Le [guide Terraform contrôlé](terraform-cd-controlee.md) détaille les commandes
 préparées, coûts, conditions d’arrêt et preuves futures. Backend GCS proposé :
 bucket dédié régional europe-west1, versioning, accès uniforme et prévention
 d’accès public, préfixe jitsi/gke, workspace default, verrouillage GCS natif.
@@ -1995,7 +1995,7 @@ Avant toute mise en service restent nécessaires : le choix du domaine réel,
 l'accord sur les coûts disque/IP/LB, le bootstrap, les contrôles ACME staging
 puis production, la politique d'accès des utilisateurs, les tests BOSH et une
 réunion externe mesurée sur JVB. Le dimensionnement et les commandes de contrôle
-sont consignés dans [la préparation technique](../guides/jitsi-public-edge.md). Les coûts
+sont consignés dans [la préparation technique](jitsi-public-edge.md). Les coûts
 supplémentaires dépendent notamment du groupe de règles réseau déjà facturé au
 projet, du disque et du trafic ; aucun total mensuel n'a été mesuré.
 
@@ -2130,7 +2130,7 @@ supplément forfaitaire de 18,25 USD/mois n'est affirmé. Le tarif exact pd-bala
 europe-west1 et le budget global restent à confirmer, sans coût créé ici. La facturation du projet est activée (`billingEnabled=true`),
 sans consultation de montant contractuel ou de facture.
 Les hypothèses, formules et sources consultées sont dans
-[le mode opératoire DuckDNS](../guides/https-duckdns.md).
+[le mode opératoire DuckDNS](https-duckdns.md).
 
 Validations locales réellement réussies : lint/rendu du chart edge avec domaine
 réel, invariants d'exposition, `caddy validate` staging et production, rendu Jitsi
@@ -3441,7 +3441,7 @@ ne démontre pas encore le succès de la correction sur runner GitHub.
 | SOPS / Cloud KMS | SOPS chiffre les valeurs et KMS protège la clé de données | Fichier versionné chiffré ; diagnostic prévoit déchiffrement privé temporaire puis comparaison sans affichage. Étape runner non atteinte lors des deux échecs réels |
 | CD | Enchaîner une CI push main approuvée et des préflights avant Helm | Workflow intégré mais flag désactivé ; identité runner et premier déploiement non validés de bout en bout ; aucun essai déclenché ici |
 
-L’architecture et la propriété des ressources figurent dans [architecture.md](../architecture.md).
+L’architecture et la propriété des ressources figurent dans [architecture.md](architecture-reference-2026-11-17.md).
 Terraform ne gère pas l’ensemble du projet : WIF/IAM, IP Web et PVC ont des
 procédures distinctes. `deletion_protection=false` est un risque de destruction
 à traiter dans une évolution autorisée, sans modifier l’infrastructure pendant
@@ -3494,13 +3494,13 @@ consommation et éventuels crédits réellement observés.
 
 ### Remise, soutenance et étapes soumises à accord
 
-La [checklist](../livraison/checklist-remise.md) sépare livrables disponibles, informations
+La [checklist](checklist-remise.md) sépare livrables disponibles, informations
 académiques encore à renseigner et actions distantes restantes. La
 [soutenance](soutenance-2026-11-16.md) propose 12 minutes, une démonstration en lecture,
 les questions techniques et des solutions autorisées si DuckDNS est bloqué.
 Aucune capture ou répétition chronométrée n’est présentée comme déjà réalisée.
 
-La [procédure contrôlée](../livraison/validation-cd-controlee.md) prépare publication du
+La [procédure contrôlée](validation-cd-controlee.md) prépare publication du
 correctif, CI/revue/fusion, un seul diagnostic manuel autorisé, adaptation CD,
 puis premier essai contrôlé et retour arrière aux révisions relevées juste avant.
 Le rollback conserve PVC et données ACME ; il ne restaure pas leur contenu.
@@ -3525,7 +3525,7 @@ ils ne représentent ni commit ni PR publiés.
 Les essais ci-dessous ont réellement été exécutés sur le Jitsi public
 https://jitsi-meet-m2.duckdns.org, entre environ 11:15 et 11:38, heure de Paris.
 Ils ne modifient pas la PR Terraform nº 7, dont l’apply reste reporté.
-La [configuration et la reproduction](../guides/malleus-selenium.md) et la
+La [configuration et la reproduction](malleus-selenium.md) et la
 [synthèse expurgée](../../tests/load/results-summary.json) sont préparées localement,
 sans nouvelle branche, commit, push ou PR. Cette section est ajoutée au rapport
 existant, dont toutes les modifications précédentes sont préservées.
@@ -3671,7 +3671,7 @@ et ce comportement doivent être explicitement acceptés avant exécution.
 ## Chaos Mesh : précontrôles et préparation uniquement — 17 novembre 2026
 
 Après les essais Malleus, les résultats et journaux privés sont conservés.
-Aucune nouvelle branche/PR n’est créée. Le [guide de test Web](../guides/chaos-web-controle.md)
+Aucune nouvelle branche/PR n’est créée. Le [guide de test Web](chaos-web-controle.md)
 prépare l’installation, l’expérience, les mesures et le nettoyage ; **aucune
 installation Chaos Mesh ni expérience de résilience n’a été exécutée**.
 L’autorisation de l’utilisatrice est attendue avant toute modification du cluster.
@@ -3748,7 +3748,7 @@ Cette section actualise la préparation précédente : l’utilisatrice a autori
 l’installation minimale et **une seule** expérience pod-kill Web. Le test a
 réussi et les ressources temporaires ont été retirées. La
 [preuve expurgée](../../tests/chaos/results-summary.json) et le
-[guide avec bilan](../guides/chaos-web-controle.md) sont préparés localement, sans commit,
+[guide avec bilan](chaos-web-controle.md) sont préparés localement, sans commit,
 push, nouvelle branche ou PR. Les résultats Malleus et sections antérieures sont
 conservés intégralement.
 
@@ -3886,7 +3886,7 @@ Le générateur produit une vidéo synthétique Y4M I420 1280×720 à 30 images/
 (deux images bouclées, 2 764 856 octets) et un WAV synthétique. Chrome capture
 ici en 640×360, au maximum 15 images/s. Les options fake-device, fake-ui et
 fake-video-capture, l’activation explicite de la caméra et les observations
-média sont documentées dans [la procédure vidéo/Docker](../guides/malleus-video-docker.md).
+média sont documentées dans [la procédure vidéo/Docker](malleus-video-docker.md).
 La réussite ne démontre ni une qualité HD, ni une capacité maximale du cluster.
 La combinaison corrigée est validée ; une cause unique des anciennes tentatives
 sans vidéo n’a pas été isolée expérimentalement.
@@ -4094,7 +4094,7 @@ caches Maven/target inscriptibles et éphémères pour Malleus ; aucun PVC, RBAC
 LoadBalancer ou secret créé. Rien n’est ajouté aux pipelines de production.
 Les limites ne prouvent pas que la capacité actuelle de GKE est suffisante.
 
-La [procédure Selenium/Helm](../guides/selenium-helm-validation.md) détaille les sources,
+La [procédure Selenium/Helm](selenium-helm-validation.md) détaille les sources,
 la validation future, les commandes non exécutées et les blocages : image
 Selenium non validée, image Malleus non publiée et exécution Kubernetes non
 testée, dépendances Maven à froid, capacité cluster à recontrôler, profil vidéo
@@ -4251,7 +4251,7 @@ GHCR sont accessibles sans secret de registre.
 Verdict GO technique pour déploiement contrôlé des ressources de test avec Job
 suspendu, sous réserve d’accord utilisateur et d’un nouveau contrôle zéro
 conférence au lancement. Aucun déploiement n’est effectué ici. La
-[procédure exacte](../guides/test-video-helm-2x90.md) prévoit l’observation des pistes et
+[procédure exacte](test-video-helm-2x90.md) prévoit l’observation des pistes et
 débits clients et JVB, les seuils d’arrêt, preuves JUnit, disponibilité HTTPS et
 nettoyage limité au test. Risques : pull initial, contention des ressources,
 compatibilité runtime Kubernetes et activation caméra encore à vérifier.
@@ -4473,7 +4473,7 @@ deux ressources), avec provider existant en cache et backend local isolé.
 Init, validate et garde strict réussis : un seul update du label de preuve,
 aucune création, destruction ou remplacement ; pool no-op, autres labels
 conservés. L’empreinte du state original est inchangée. Aucun terraform apply,
-backend distant ou migration. La [preuve expurgée](../preuves/terraform-plan-actualise.json)
+backend distant ou migration. La [preuve expurgée](../../tests/terraform/terraform-plan-actualise.json)
 ne contient ni état complet ni plan brut. Plans/logs restent privés sous /tmp.
 
 Blocages réels : bucket dédié absent (HTTP 404 et liste projet vide), compte
@@ -4523,7 +4523,7 @@ IAM supplémentaire proposée par défaut.
 
 Sources : [portée des tests IAM](https://docs.cloud.google.com/iam/docs/testing-permissions),
 [droits des rôles Cloud Storage et création uniforme](https://docs.cloud.google.com/storage/docs/access-control/iam-roles).
-La [synthèse expurgée](../preuves/terraform-droits-verifies.json) distingue droits projet
+La [synthèse expurgée](../../tests/terraform/terraform-droits-verifies.json) distingue droits projet
 confirmés et droits bucket futurs non testés, sans identité personnelle ni jeton.
 
 Verdict GO pour bootstrap progressif uniquement après accord : créer le bucket
@@ -4598,7 +4598,7 @@ transféré ; seul le petit marqueur non secret a servi au test d’accès. Pas 
 nouveau nœud, VM, disque, KMS ni LoadBalancer. Aucun montant de facture mesuré
 ni gratuité garantie ; voir la [tarification GCS](https://cloud.google.com/storage/pricing).
 
-La [preuve expurgée](../preuves/terraform-bootstrap-resultats.json) contient les identifiants,
+La [preuve expurgée](../../tests/terraform/terraform-bootstrap-resultats.json) contient les identifiants,
 protections, permissions et conditions exactes, sans token ni state. Preuves
 privées sous tests/results/20261117-terraform-bootstrap : étapes, contrôles,
 inventaire comparatif et pilote exécuté, exclus de Git.
@@ -4654,7 +4654,7 @@ destruction ou remplacement. Le state distant relu après plan est inchangé.
 Le label de preuve prévu par la PR nº 7 n’a PAS été appliqué ; son ancien plan
 label-only est distinct de ce contrôle de migration sans dérive.
 
-La [preuve expurgée](../preuves/terraform-migration-resultats.json) ne contient pas le state
+La [preuve expurgée](../../tests/terraform/terraform-migration-resultats.json) ne contient pas le state
 brut, le lineage ou les credentials. Les state pull, plans, logs, sauvegarde et
 pilotes exacts restent privés sous tests/results/20261117-terraform-state-migration.
 Les empreintes de l’original et de la sauvegarde sont identiques à celles avant
@@ -4691,7 +4691,7 @@ TF_STATE_LINEAGE lu de la migration validée (valeur non publiée ici),
 TF_CD_ENABLED=false. Le flag TF_CD_ENABLED=false a aussi été créé au niveau
 dépôt pour rendre la désactivation explicite. TF_APPROVED_SHA reste absent.
 GKE_CD_ENABLED reste false. Aucune clé ni nouveau secret GitHub ajouté.
-La [configuration expurgée](../preuves/terraform-github-environnement.json) conserve les
+La [configuration expurgée](../../tests/terraform/terraform-github-environnement.json) conserve les
 protections vérifiées, sans afficher le contenu du state ou le lineage.
 
 Provider WIF actif et binding iam.workloadIdentityUser du compte Terraform
@@ -4750,7 +4750,7 @@ Dernier état vérifié du diagnostic 44110152970 : waiting, job plan en attente
 l’approbation terraform-controlled ; current_user_can_approve=true. Le compte
 de l’utilisatrice peut donc effectuer l’action manuelle indiquée. TF_CD_ENABLED
 est false aux niveaux dépôt et environnement. La
-[synthèse du diagnostic GitHub](../preuves/terraform-github-plan-resultats.json) est marquée
+[synthèse du diagnostic GitHub](../../tests/terraform/terraform-github-plan-resultats.json) est marquée
 NON EXÉCUTÉ pour OIDC/init/validate/plan tant que l’approbation manque. Aucune
 preuve d’apply n’est revendiquée. Les 93 tests locaux et les CI ne remplacent
 pas ce test runner.
@@ -4820,7 +4820,7 @@ seul diagnostic sans apply a été demandé. La condition avant modification a
 (et métadonnées techniques de mise à jour) sont identiques. Le mapping, issuer,
 rôles, bindings, branche main, workflow exact et environnement restent inchangés.
 Métadonnées generation/size/md5 du state GCS identiques avant/après correction.
-La [preuve du correctif](../preuves/terraform-oidc-correction-resultats.json) distingue
+La [preuve du correctif](../../tests/terraform/terraform-oidc-correction-resultats.json) distingue
 la modification de fédération autorisée de toute mutation GKE/state interdite.
 
 Nouveau run unique :
@@ -4871,7 +4871,7 @@ au rôle existant. Les cinq permissions initiales restent identiques ; aucun
 rôle Compute Viewer/Admin, droit d’écriture Compute, getCredentials, nouveau
 binding ou changement de compte. Description du rôle relue après update et
 métadonnées generation/size/md5 du state GCS comparées avant/après : identiques.
-La [preuve expurgée](../preuves/terraform-second-failure-correction.json) conserve ce delta.
+La [preuve expurgée](../../tests/terraform/terraform-second-failure-correction.json) conserve ce delta.
 La PR nº 7 reste inchangée ; son fichier rôle historique n’est pas édité. Le
 [correctif de définition](../../deploy/terraform/gke-label-role-read-fix.yaml) est
 local, à réconcilier par revue avant toute future réutilisation du bootstrap.
@@ -4942,7 +4942,7 @@ Les résultats seront à relever après Review deployments par l’utilisatrice.
 
 
 La réconciliation Terraform et son historique détaillé sont conservés dans
-[la validation plan/apply](../guides/terraform-plan-apply-validation.md).
+[la validation plan/apply](terraform-plan-apply-validation.md).
 
 
 ### Préparation des pipelines manuels Malleus et Chaos Mesh — 17 novembre 2026
@@ -4980,7 +4980,7 @@ candidat ICE.
 L'audit a constaté l'absence des prérequis d'expérience dédiés et le refus RBAC
 du compte Helm dans le namespace de charge. Aucun IAM, environnement GitHub,
 bootstrap ou test réel n'a été créé ou exécuté. Les validations et les accords
-restants sont détaillés dans [les pipelines contrôlés](../guides/pipelines-experiences-controlees.md).
+restants sont détaillés dans [les pipelines contrôlés](pipelines-experiences-controlees.md).
 La CI de la PR Terraform corrigée était verte ; ses modes apply et les deux
 pipelines d'expérience restent à valider en exécution après autorisations.
 

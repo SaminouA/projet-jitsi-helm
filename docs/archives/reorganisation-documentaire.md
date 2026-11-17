@@ -207,3 +207,35 @@ Ces contrôles ne sont pas des réunions ni des expériences Malleus/Chaos.
 Les anciens liens de fichiers sur une révision Git précise restent historiques ;
 les chemins de la version courante sont ceux de cette table. La CI de la nouvelle
 PR doit être vérifiée séparément après publication ; aucune fusion automatique.
+
+
+## Simplification retenue ensuite sur la même PR nº 16
+
+À la demande de l'utilisatrice, la proposition ci-dessus est remplacée par
+une navigation à deux points d'entrée : README.md à la racine et docs/rapport.md.
+Les arbres précédents restent l'historique de la première proposition.
+
+- Les documents des anciens dossiers guides/, preuves/ et livraison/ sont
+  archivés à plat, ainsi que l'architecture et la présentation séparées.
+- L'ancien sommaire docs/README.md, l'ancien index d'archives et le README
+  racine précédent sont conservés dans les archives ; rien n'est supprimé.
+- Les dix JSON Terraform rejoignent tests/terraform/ ; le JSON de référence
+  et palier rejoint tests/load/. Leur contenu reste identique octet pour octet.
+- Le seul lecteur exécutable identifié, check-terraform-oidc-subject.py,
+  utilise désormais tests/terraform/terraform-bootstrap-resultats.json. Son
+  exécution purement locale a été contrôlée dans un répertoire temporaire,
+  sans toucher à une configuration cloud ni remplacer de sortie suivie.
+- Les liens Markdown de tous les documents sont recalculés ; les anciens
+  chemins des citations historiques restent des citations, pas des dépendances.
+- Les références des charts amont à leurs propres guides ne sont pas réécrites :
+  elles appartiennent à la documentation du chart conservé, pas à nos dossiers.
+
+Cette simplification ne valide aucune nouvelle opération technique ni expérience.
+
+
+Contrôles de cette simplification : 40 fichiers de la proposition précédente
+retrouvés ; 11 JSON identiques ; 32 documents Markdown, 243 liens locaux et
+104 blocs shell contrôlés sans erreur ; 138 tests Python réussis ; actionlint,
+Helm, Caddy et Terraform sans backend réussis. Aucun workflow modifié et aucun
+nouvel accès GCP. La présentation est désormais une archive, pas un document
+principal. Aucun dossier guides/, preuves/ ou livraison/ ne subsiste dans docs/.

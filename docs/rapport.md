@@ -40,7 +40,7 @@ Ce document remplace la présentation cumulative du journal par une synthèse
 chronologique. Le [journal intégral antérieur](archives/rapport-avant-livraison-finale-2026-11-17.md)
 conserve les commandes, états intermédiaires, échecs et préparations dans leur
 contexte historique. Il ne constitue pas la procédure actuelle à rejouer.
-L'[index des preuves](preuves/preuves-livraison.md) relie les résultats aux fichiers,
+L'[index des preuves](archives/preuves-livraison.md) relie les résultats aux fichiers,
 commits et exécutions GitHub. Les journaux bruts et sauvegardes sensibles restent
 locaux, hors Git.
 
@@ -243,7 +243,7 @@ Le workspace est `default`, le lineage est resté identique sans être publié,
 et le serial est passé de 9 à 10. Deux ressources, attributs, identifiants et
 outputs identiques ont été contrôlés. Le plan de vérification de cette migration
 était sans changement ; l'état distant n'a pas changé pendant ce plan.
-La [preuve de migration](preuves/terraform-migration-resultats.json) distingue transfert
+La [preuve de migration](../tests/terraform/terraform-migration-resultats.json) distingue transfert
 de l'état et mutation d'infrastructure. Le fichier local ancien est une
 sauvegarde, pas une autorité concurrente à réutiliser pour apply.
 
@@ -259,7 +259,7 @@ Compute nécessaire au provider. Après corrections ciblées, le
 a réussi sur le commit `a5053689f79cb89e8706cc34b0112509b97e7fb5`, après approbation
 manuelle. Il atteste OIDC sans clé, identité Terraform, GCS, validate et un plan
 **0 create, 0 update, 0 delete, 0 replace**, avec état distant inchangé.
-La [synthèse expurgée](preuves/terraform-github-plan-final.json) est la preuve structurée.
+La [synthèse expurgée](../tests/terraform/terraform-github-plan-final.json) est la preuve structurée.
 L'ancien journal s'arrêtait à l'attente d'approbation ; ce statut n'est plus
 le résultat final du run.
 
@@ -538,7 +538,7 @@ de panne ni preuve de transport WebRTC.
 `monitor-load.sh` collecte toutes les 15 s les métriques Kubernetes, les états
 et redémarrages des pods et les statistiques JVB, avec horodatages et conservation
 à l'interruption. Il ne crée pas de charge. Les données brutes JSONL restent
-privées sous `tests/results/` ; une [synthèse recalculée pour la livraison](preuves/preuve-repos-palier-2026-11-15.json)
+privées sous `tests/results/` ; une [synthèse recalculée pour la livraison](../tests/load/preuve-repos-palier-2026-11-15.json)
 expose seulement les résultats agrégés.
 
 La première référence, nommée `reference-sans-participants`, a été écartée :
@@ -795,7 +795,7 @@ configuration finale. Aucune destruction n'est faite pour cette livraison.
 
 ## 12. Conformité et travaux restant à valider
 
-Le [tableau final de conformité](livraison/conformite-finale.md) rassemble les preuves
+Le [tableau de conformité complémentaire conservé en archive](archives/conformite-finale.md) rassemble les preuves
 et les limites des attendus techniques connus. Le sujet/barème original n'est
 pas présent dans les fichiers examinés ; l'exigence exacte d'un Terraform
 automatique après push et le format de remise restent à confirmer.
@@ -844,11 +844,11 @@ présentées comme des travaux déjà accomplis.
 | Profil public et réseau | [values-gke.yaml](../values-gke.yaml), [surcharge DuckDNS](../deploy/jitsi-duckdns.yaml) |
 | Caddy / stockage | [Chart.yaml edge](../charts/jitsi-edge/Chart.yaml), [profil réel](../deploy/jitsi-edge-duckdns.yaml), [PVC](../deploy/jitsi-edge-storage.yaml) |
 | Charge / budget | [Chart.yaml de test](../charts/jitsi-load-test/Chart.yaml), [profil 2×90](../tests/load/values-video-2x90.yaml), [overlay low CPU](../tests/load/values-video-2x90-low-cpu.yaml) |
-| CD Helm et identité | [procédure CD contrôlée](livraison/validation-cd-controlee.md), [diagnostic](guides/cd-diagnostic.md) |
-| Plan / revue exacte | [procédure Terraform mise à jour](guides/terraform-plan-apply-validation.md) |
-| Nouveaux pipelines | [guide d'expériences](guides/pipelines-experiences-controlees.md) |
+| CD Helm et identité | [procédure CD contrôlée](archives/validation-cd-controlee.md), [diagnostic](archives/cd-diagnostic.md) |
+| Plan / revue exacte | [procédure Terraform mise à jour](archives/terraform-plan-apply-validation.md) |
+| Nouveaux pipelines | [guide d'expériences](archives/pipelines-experiences-controlees.md) |
 | Historique complet des commandes | [journal avant consolidation](archives/rapport-avant-livraison-finale-2026-11-17.md) |
-| Présentation et démonstrations | [plan oral final](presentation-finale.md) |
+| Support oral complémentaire (archive) | [support oral archivé](archives/presentation-finale.md) |
 
 ### B. Commandes locales de validation
 
@@ -884,9 +884,9 @@ mise à jour. Cette procédure historique se trouve dans le journal archivé.
 L'environnement final utilise HTTPS et un état distant existant : il ne faut
 ni recréer son backend ni appliquer les anciennes valeurs localhost sans revue.
 
-Les guides [HTTPS](guides/https-duckdns.md), [bootstrap](guides/bootstrap-https-court.md),
-[CD contrôlée](livraison/validation-cd-controlee.md), [test vidéo Kubernetes](guides/test-video-helm-2x90.md)
-et [Chaos Web](guides/chaos-web-controle.md) conservent les paramètres et étapes de
+Les guides [HTTPS](archives/https-duckdns.md), [bootstrap](archives/bootstrap-https-court.md),
+[CD contrôlée](archives/validation-cd-controlee.md), [test vidéo Kubernetes](archives/test-video-helm-2x90.md)
+et [Chaos Web](archives/chaos-web-controle.md) conservent les paramètres et étapes de
 leurs phases. Avant toute réutilisation, relire leurs dates, l'état présent,
 le propriétaire des ressources et les autorisations. Leurs commandes de mutation
 n'ont pas été rejouées pour cette livraison. La consultation des révisions,

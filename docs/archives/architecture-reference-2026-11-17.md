@@ -3,7 +3,7 @@
 Architecture de référence de la livraison, consolidée à partir du rapport et
 des configurations versionnées. Les observations citées datent du 17 novembre
 2026 ; aucune nouvelle interrogation du cluster n'a été faite pour cette réorganisation.
-L'[ancienne description du 16 novembre](archives/architecture-2026-11-16.md)
+L'[ancienne description du 16 novembre](architecture-2026-11-16.md)
 est conservée pour la traçabilité.
 
 ```mermaid
@@ -28,18 +28,18 @@ pas activés. Un réseau bloquant UDP peut empêcher le transport média.
 
 Ce schéma représente les chemins configurés, pas une capture de trafic.
 À deux participants, P2P est possible. Les preuves média JVB historiques sont
-analysées dans le [rapport](rapport.md), sans extrapolation de capacité.
+analysées dans le [rapport](../rapport.md), sans extrapolation de capacité.
 
 | Couche | Source | Périmètre et limite |
 |---|---|---|
-| Cluster/pool | [main.tf](../terraform/main.tf) | Deux ressources Terraform ; deux e2-standard-2 en europe-west1-b |
-| État distant | [backend.tf](../terraform/backend.tf) | GCS privé/versionné ; pas de state dans Git |
-| Application | [chart Jitsi](../charts-officiels/jitsi-meet/Chart.yaml) | Communautaire, version 3.10.0 ; dernière release attestée : révision 4 |
-| HTTPS | [chart edge](../charts/jitsi-edge/Chart.yaml) | Caddy ; dernière release attestée : révision 3 |
-| Configuration réseau | [profil Jitsi](../deploy/jitsi-duckdns.yaml), [profil edge](../deploy/jitsi-edge-duckdns.yaml) | DNS DuckDNS vers le LB Web, IP JVB annoncée séparément ; adresses à relire après recréation |
-| Stockage TLS | [PVC indépendant](../deploy/jitsi-edge-storage.yaml) | 10Gi, RWO, Recreate ; supprimer le PVC peut supprimer le disque ; rollback sans restauration des données |
-| Secrets | [fichier chiffré](../values-secrets.sops.yaml) | SOPS/KMS ; base64 Kubernetes seul ne chiffre pas les secrets |
-| Tests | [chart de charge](../charts/jitsi-load-test/Chart.yaml) | Selenium ClusterIP + Job Malleus isolés ; aucune exposition publique supplémentaire |
+| Cluster/pool | [main.tf](../../terraform/main.tf) | Deux ressources Terraform ; deux e2-standard-2 en europe-west1-b |
+| État distant | [backend.tf](../../terraform/backend.tf) | GCS privé/versionné ; pas de state dans Git |
+| Application | [chart Jitsi](../../charts-officiels/jitsi-meet/Chart.yaml) | Communautaire, version 3.10.0 ; dernière release attestée : révision 4 |
+| HTTPS | [chart edge](../../charts/jitsi-edge/Chart.yaml) | Caddy ; dernière release attestée : révision 3 |
+| Configuration réseau | [profil Jitsi](../../deploy/jitsi-duckdns.yaml), [profil edge](../../deploy/jitsi-edge-duckdns.yaml) | DNS DuckDNS vers le LB Web, IP JVB annoncée séparément ; adresses à relire après recréation |
+| Stockage TLS | [PVC indépendant](../../deploy/jitsi-edge-storage.yaml) | 10Gi, RWO, Recreate ; supprimer le PVC peut supprimer le disque ; rollback sans restauration des données |
+| Secrets | [fichier chiffré](../../values-secrets.sops.yaml) | SOPS/KMS ; base64 Kubernetes seul ne chiffre pas les secrets |
+| Tests | [chart de charge](../../charts/jitsi-load-test/Chart.yaml) | Selenium ClusterIP + Job Malleus isolés ; aucune exposition publique supplémentaire |
 
 ```mermaid
 flowchart TD
@@ -66,5 +66,5 @@ opérateur distinct reste nécessaire ; le CD Helm ne reconstruit pas seul un
 cluster absent. Deux nœuds zonaux et une seule réplique Caddy/JVB ne constituent
 pas une haute disponibilité démontrée.
 
-Voir l'[index des preuves](preuves/preuves-livraison.md), les
-[guides](README.md) et le [tableau de conformité](livraison/conformite-finale.md).
+Voir l'[index des preuves](preuves-livraison.md), les
+[guides](sommaire-avant-simplification.md) et le [tableau de conformité](conformite-finale.md).
