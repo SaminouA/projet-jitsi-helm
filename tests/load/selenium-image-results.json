@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-17",
+  "run": "https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44094388902",
+  "attempts_this_iteration": 1,
+  "result": "success",
+  "commit": "ffcbe7d5818bb7ddf5450792f7b68197daca770c",
+  "main_sha": "0886d5882c6a41589698d306156d3357b1f5af07",
+  "image": "ghcr.io/saminoua/jitsi-selenium:synthetic-0886d5882c6a41589698d306156d3357b1f5af07",
+  "digest": "sha256:5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86",
+  "platform": "linux/amd64",
+  "chrome_version": "130.0.6723.91",
+  "chromedriver_version": "130.0.6723.91",
+  "runner_root_available_gib_rounded": 86,
+  "media_checksums_match": true,
+  "synthetic_flags_verified": true,
+  "media": {
+    "ok": true,
+    "videoTracks": 1,
+    "audioTracks": 1,
+    "width": 1280,
+    "height": 720,
+    "decodedFrames": 61,
+    "audioRms": 0.06480044907001042
+  },
+  "anonymous_manifest_http": 200,
+  "anonymous_manifest_digest_matches": true,
+  "gke_deployment": false,
+  "meeting_test_in_this_image": false,
+  "rtp_video_in_this_image_validated": false,
+  "previous_image_remains_media_unvalidated": true
+}

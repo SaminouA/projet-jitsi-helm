@@ -1,0 +1,52 @@
+{
+  "status": "PREPARED_NOT_DEPLOYED",
+  "previous_result": "90s trial aborted on node CPU safety threshold",
+  "saturated_node": "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2",
+  "previous_node_cpu_m": 1998,
+  "previous_node_allocatable_cpu_m": 1930,
+  "previous_node_cpu_percent_allocatable": 103,
+  "selenium_sampled_max_cpu_m": 543,
+  "selenium_peak_at_abort_not_sampled": true,
+  "previous_selenium_cpu_request_m": 250,
+  "previous_selenium_cpu_limit_m": 2000,
+  "capacity": [
+    {
+      "node": "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2",
+      "cpu_allocatable_m": 1930,
+      "memory_allocatable_mib": 6025.6,
+      "cpu_requested_m": 827,
+      "memory_requested_mib": 1915.6,
+      "cpu_request_free_m": 1103,
+      "memory_request_free_mib": 4110.0
+    },
+    {
+      "node": "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0",
+      "cpu_allocatable_m": 1930,
+      "memory_allocatable_mib": 6025.6,
+      "cpu_requested_m": 727,
+      "memory_requested_mib": 1272.9,
+      "cpu_request_free_m": 1203,
+      "memory_request_free_mib": 4752.7
+    }
+  ],
+  "new": {
+    "selenium_cpu_request_m": 750,
+    "selenium_cpu_limit_m": 900,
+    "selenium_memory_request_mib": 1024,
+    "selenium_memory_limit_mib": 2048,
+    "malleus_cpu_request_m": 250,
+    "malleus_cpu_limit_m": 300,
+    "malleus_memory_request_mib": 256,
+    "malleus_memory_limit_mib": 768,
+    "required_anti_affinity_namespace": "jitsi",
+    "required_anti_affinity_component": "jvb",
+    "required_anti_affinity_topology": "kubernetes.io/hostname",
+    "job_suspended": true,
+    "participants": 2,
+    "duration_s": 90
+  },
+  "estimated_free_cpu_request_m_if_both_on_other_node": 203,
+  "estimated_free_memory_request_mib_if_both_on_other_node": 3472.7,
+  "extra_nodes_requested": 0,
+  "new_test_run": false
+}

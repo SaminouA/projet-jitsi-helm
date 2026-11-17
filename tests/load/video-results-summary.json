@@ -1,0 +1,244 @@
+{
+  "date": "2026-11-17",
+  "tool_commit": "4c00915e97006ff2224bb509eb3582bf3a10ca85",
+  "selenium": "4.26.0",
+  "chrome_and_driver": "130.0.6723.116",
+  "fixture": {
+    "format": "Y4M I420",
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "frames_looped": 2,
+    "bytes": 2764856,
+    "sha256": "2b0a4abfa0739922964d19df1cd753446ea7b76d3a70c108c8844b181b2150c7"
+  },
+  "requested_client_capture": "640x360, maximum 15 fps",
+  "audio_senders": 0,
+  "results": [
+    {
+      "evidence_dir": "tests/results/20261117T113225Z-malleus-video-2",
+      "participants_requested": 2,
+      "duration_requested_s": 90,
+      "elapsed_s": 81.06,
+      "maven_exit_code": null,
+      "abort": "seuil de securite cluster/generateur atteint",
+      "malleus_junit": null,
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 52.0,
+      "node_cpu_max_percent": 18,
+      "node_memory_max_percent": 39,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 6.0,
+          "memory_max_mib": 15.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 13.0,
+          "memory_max_mib": 213.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 196.0,
+          "memory_max_mib": 289.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 45.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-xkswg": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 15.0
+        }
+      },
+      "jvb_active_endpoints_max": 2,
+      "jvb_upload_raw_max": 477,
+      "jvb_download_raw_max": 590,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 2,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": true,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": true,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true,
+      "video_verified_samples": 2,
+      "video_verified_span_s": 24.97,
+      "video_proven": true,
+      "complete_video_test_passed": false,
+      "audio_senders": 0,
+      "decoded_frames_max_per_anonymous_client": [
+        696,
+        699
+      ],
+      "clients_video_bitrate_raw": [
+        {
+          "upload_min": 58,
+          "download_min": 44
+        },
+        {
+          "upload_min": 89,
+          "download_min": 24
+        }
+      ],
+      "generator_disk_free_min_mib": 264
+    },
+    {
+      "evidence_dir": "tests/results/20261117T113720Z-malleus-video-2",
+      "participants_requested": 2,
+      "duration_requested_s": 90,
+      "elapsed_s": 110.03,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "92.700"
+      },
+      "participants_max_observed": 2,
+      "full_count_observation_span_s": 55.57,
+      "node_cpu_max_percent": 15,
+      "node_memory_max_percent": 39,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 7.0,
+          "memory_max_mib": 15.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 14.0,
+          "memory_max_mib": 213.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 119.0,
+          "memory_max_mib": 290.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 4.0,
+          "memory_max_mib": 45.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-xkswg": {
+          "cpu_max_m": 2.0,
+          "memory_max_mib": 15.0
+        }
+      },
+      "jvb_active_endpoints_max": 2,
+      "jvb_upload_raw_max": 154,
+      "jvb_download_raw_max": 511,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 2,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": true,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": true,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true,
+      "video_verified_samples": 4,
+      "video_verified_span_s": 41.4,
+      "video_proven": true,
+      "complete_video_test_passed": true,
+      "audio_senders": 0,
+      "decoded_frames_max_per_anonymous_client": [
+        1048,
+        1025
+      ],
+      "clients_video_bitrate_raw": [
+        {
+          "upload_min": 66,
+          "download_min": 46
+        },
+        {
+          "upload_min": 100,
+          "download_min": 31
+        }
+      ],
+      "generator_disk_free_min_mib": 795,
+      "generator_mem_available_mib_min": 3996,
+      "generator_tmpfs_free_mib_min": 2983
+    },
+    {
+      "evidence_dir": "tests/results/20261117T114026Z-malleus-video-3",
+      "participants_requested": 3,
+      "duration_requested_s": 90,
+      "elapsed_s": 115.48,
+      "maven_exit_code": 0,
+      "abort": null,
+      "malleus_junit": {
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "95.085"
+      },
+      "participants_max_observed": 3,
+      "full_count_observation_span_s": 46.64,
+      "node_cpu_max_percent": 17,
+      "node_memory_max_percent": 39,
+      "pods_metrics_observed_max": {
+        "jitsi-edge-6b74c6cf6-t4t4k": {
+          "cpu_max_m": 10.0,
+          "memory_max_mib": 16.0
+        },
+        "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+          "cpu_max_m": 14.0,
+          "memory_max_mib": 214.0
+        },
+        "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+          "cpu_max_m": 175.0,
+          "memory_max_mib": 292.0
+        },
+        "jitsi-jitsi-meet-prosody-0": {
+          "cpu_max_m": 4.0,
+          "memory_max_mib": 45.0
+        },
+        "jitsi-jitsi-meet-web-8454659c99-xkswg": {
+          "cpu_max_m": 3.0,
+          "memory_max_mib": 15.0
+        }
+      },
+      "jvb_active_endpoints_max": 3,
+      "jvb_upload_raw_max": 160,
+      "jvb_download_raw_max": 752,
+      "unmuted_audio_tracks_max": 0,
+      "unmuted_video_tracks_max": 3,
+      "audio_media_forwarding_observed": false,
+      "video_media_forwarding_observed": true,
+      "audio_verified_samples": 0,
+      "audio_full_count_observation_span_s": 0,
+      "explicit_media_activation": true,
+      "pod_restarts_after": 0,
+      "all_pods_ready_after": true,
+      "video_verified_samples": 3,
+      "video_verified_span_s": 31.23,
+      "video_proven": true,
+      "complete_video_test_passed": true,
+      "audio_senders": 0,
+      "decoded_frames_max_per_anonymous_client": [
+        943,
+        929,
+        908
+      ],
+      "clients_video_bitrate_raw": [
+        {
+          "upload_min": 75,
+          "download_min": 48
+        },
+        {
+          "upload_min": 59,
+          "download_min": 50
+        },
+        {
+          "upload_min": 65,
+          "download_min": 53
+        }
+      ],
+      "generator_disk_free_min_mib": 794,
+      "generator_mem_available_mib_min": 4331,
+      "generator_tmpfs_free_mib_min": 3636
+    }
+  ],
+  "ten_participants_attempted": false,
+  "ten_participants_reason": "Generator VM: 2 vCPU, narrow disk budget; no safe increase beyond 3 slots",
+  "limits": "Synthetic low-complexity pattern; sampled metrics, not maximum capacity or subjective image quality."
+}

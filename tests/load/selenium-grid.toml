@@ -1,0 +1,15 @@
+# Generateur LOCAL uniquement ; aucun Service Kubernetes ou port public.
+[server]
+host = "127.0.0.1"
+port = 4444
+[node]
+detect-drivers = false
+selenium-manager = false
+max-sessions = 3
+override-max-sessions = true
+session-timeout = 180
+[[node.driver-configuration]]
+display-name = "Chrome synthetic media"
+max-sessions = 3
+webdriver-executable = "/tmp/jitsi-load-tools/chromedriver-linux64/chromedriver"
+stereotype = '{"browserName":"chrome","goog:chromeOptions":{"binary":"/tmp/jitsi-load-tools/chrome-linux64/chrome"}}'

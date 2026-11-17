@@ -1,19 +1,23 @@
 # No resource rendered by default. Only use images validated by real media tests.
 selenium:
   enabled: false
-  image: '' # full registry/repository@sha256:digest
+  image: ghcr.io/saminoua/jitsi-selenium@sha256:5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86
   imageValidated: false
   sessions: 2
+  avoidJvb: true
+  jvbNamespace: jitsi
+  jvbRelease: jitsi
+  javaOpts: "-Xms128m -Xmx256m"
   resources:
-    requests: {cpu: 250m, memory: 1Gi, ephemeral-storage: 128Mi}
-    limits: {cpu: '2', memory: 3Gi, ephemeral-storage: 512Mi}
+    requests: {cpu: 750m, memory: 1Gi, ephemeral-storage: 128Mi}
+    limits: {cpu: 900m, memory: 2Gi, ephemeral-storage: 512Mi}
 malleus:
   enabled: false
-  image: '' # Must be published; local-only image cannot be pulled on GKE.
+  image: ghcr.io/saminoua/jitsi-malleus@sha256:01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092
   imageValidated: false
   suspend: true
   participants: 2
-  duration: 60
+  duration: 90
   resources:
-    requests: {cpu: 100m, memory: 256Mi, ephemeral-storage: 256Mi}
-    limits: {cpu: 500m, memory: 768Mi, ephemeral-storage: 1Gi}
+    requests: {cpu: 250m, memory: 256Mi, ephemeral-storage: 256Mi}
+    limits: {cpu: 300m, memory: 768Mi, ephemeral-storage: 1Gi}

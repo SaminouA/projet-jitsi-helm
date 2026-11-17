@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-17",
+  "result": "ABORTED_SAFETY_THRESHOLD",
+  "complete_90s_passed": false,
+  "attempts": 1,
+  "participants_requested": 2,
+  "duration_requested_s": 90,
+  "elapsed_with_install_and_cleanup_s": 206.22,
+  "reason": "NODE_SATURATION",
+  "strict_video_samples": 2,
+  "strict_video_sample_span_s": 5.26,
+  "browser_video_bitrates_last_strict": [
+    {
+      "download": 38,
+      "upload": 83
+    },
+    {
+      "download": 34,
+      "upload": 85
+    }
+  ],
+  "dom_decoded_frame_maxima": [
+    390,
+    362
+  ],
+  "dom_frames_not_individual_rtp_framesDecoded": true,
+  "jvb_last_strict": {
+    "conferences": 1,
+    "participants": 2,
+    "local_active_endpoints": 2,
+    "stress_level": 1.111110833472153,
+    "bit_rate_download": 510,
+    "bit_rate_upload": 59,
+    "packet_rate_download": 233,
+    "packet_rate_upload": 58
+  },
+  "saved_pod_metric_maxima": {
+    "jitsi-edge-6b74c6cf6-t4t4k": {
+      "cpu_m": 11.0,
+      "memory_mib": 15.0
+    },
+    "jitsi-jitsi-meet-jicofo-674df5dbdc-hthps": {
+      "cpu_m": 28.0,
+      "memory_mib": 214.0
+    },
+    "jitsi-jitsi-meet-jvb-0-6cc5d59b5-krgd6": {
+      "cpu_m": 31.0,
+      "memory_mib": 295.0
+    },
+    "jitsi-jitsi-meet-prosody-0": {
+      "cpu_m": 5.0,
+      "memory_mib": 45.0
+    },
+    "jitsi-jitsi-meet-web-8454659c99-xkswg": {
+      "cpu_m": 4.0,
+      "memory_mib": 15.0
+    },
+    "load-selenium-87948d4d8-7zgcp": {
+      "cpu_m": 543.0,
+      "memory_mib": 610.0
+    },
+    "load-malleus-8nwpj": {
+      "cpu_m": 494.0,
+      "memory_mib": 231.0
+    }
+  },
+  "node_saved_pre_abort_cpu_max_percent": 65,
+  "node_cpu_sample_immediately_after_cleanup_percent": 103,
+  "node_memory_sample_immediately_after_cleanup_percent": 63,
+  "abort_trigger_sample_not_persisted": true,
+  "metric_window_can_lag_cleanup": true,
+  "malleus_junit_completed": false,
+  "standard_rtp_capture_completed": false,
+  "preserved_secrets_pvc_ips_helm": true,
+  "production_pod_identity_and_restarts_unchanged": true,
+  "helm_test_uninstalled": true,
+  "test_namespace_deleted": true,
+  "final": {
+    "jicofo": {
+      "conferences": 0,
+      "participants": 0
+    },
+    "jvb-0": {
+      "conferences": 0,
+      "participants": 0,
+      "local_active_endpoints": 0,
+      "stress_level": 0.05007206868458983
+    },
+    "nodes": [
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-ddx2   123m   6%    2775Mi   46%   ",
+      "gke-jitsi-cluster-jitsi-node-pool-7a63f5be-jjk0   131m   6%    2268Mi   37%"
+    ],
+    "https": {
+      "/": 200,
+      "/config.js": 200,
+      "/http-bind": 200
+    },
+    "test_namespace_absent": true,
+    "utc": "2026-11-17T14:07:25Z"
+  }
+}

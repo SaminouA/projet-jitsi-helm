@@ -1,0 +1,38 @@
+# TEMPLATE NON DEPLOYE ; suspend=true interdit un lancement accidentel.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: malleus-video-light
+  namespace: jitsi-load-test
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 240
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+        - name: malleus
+          image: jitsi-malleus:m2-video-20261117
+          imagePullPolicy: IfNotPresent
+          args: [test]
+          env:
+            - {name: GRID_URL, value: 'http://selenium-grid:4444/wd/hub'}
+            - {name: PARTICIPANTS, value: '2'}
+            - {name: DURATION, value: '60'}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi, ephemeral-storage: 128Mi}
+            limits: {cpu: 500m, memory: 768Mi, ephemeral-storage: 512Mi}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 128Mi}

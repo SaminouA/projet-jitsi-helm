@@ -1,0 +1,52 @@
+{
+  "attempts": [
+    {
+      "malleus_tag": "jitsi-malleus:m2-video-20261117",
+      "context_bytes": 90492284,
+      "root_free_before_mib": 795.81,
+      "estimated_peak_extra_mib": 236.6,
+      "reserve_target_mib": 512,
+      "selenium_built": false,
+      "selenium_reason": "Base absent, 600 MiB compressed plus extraction; disk reserve insufficient",
+      "malleus_built": false,
+      "aborted_for_resource_guard": true,
+      "build_exit_code": 143,
+      "build_elapsed_s": 34.58,
+      "root_free_min_during_build_mib": 416.45,
+      "error_category": "AssertionError",
+      "root_free_after_mib": 416.45,
+      "partial_layers_removed": true,
+      "root_free_after_cleanup_mib": 793.71875
+    },
+    {
+      "malleus_tag": "jitsi-malleus:m2-video-20261117",
+      "context_bytes": 10812764,
+      "root_free_before_mib": 793.71,
+      "estimated_peak_extra_mib": 84.62,
+      "reserve_target_mib": 512,
+      "selenium_built": false,
+      "selenium_reason": "Base absent, 600 MiB compressed plus extraction; disk reserve insufficient",
+      "malleus_built": true,
+      "build_exit_code": 0,
+      "build_elapsed_s": 23.28,
+      "root_free_min_during_build_mib": 752.27,
+      "image_id": "sha256:29dc9daac1308ecd0b30804b172a43d9991e22ca65ce3be0056b4f2cb8d8ec3d",
+      "image_size_bytes": 331841718,
+      "image_user": "10001:10001",
+      "architecture": "amd64",
+      "image_maven_version_verified": true,
+      "existing_containers_preserved": true,
+      "root_free_after_mib": 774.17
+    }
+  ],
+  "malleus_built": true,
+  "selenium_built": false,
+  "image_compile_check_with_readonly_external_cache": {
+    "exit_code": 0,
+    "network": "none",
+    "cache_embedded": false,
+    "target": "tmpfs",
+    "production_test": false
+  },
+  "image_docker_cli_display_size": "1.13GB"
+}

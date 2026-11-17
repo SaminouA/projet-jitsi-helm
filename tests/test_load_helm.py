@@ -66,3 +66,29 @@ class LoadHelm(unittest.TestCase):
                          (*GRID, 'selenium.image=example:latest')]:
             with self.subTest(settings=settings):
                 self.assertNotEqual(render(*settings).returncode, 0)
+
+    def test_low_cpu_profile_avoids_jvb_and_reserves_real_capacity(self):
+        result=subprocess.run(['helm','template','load',CHART,'-n','jitsi-load-test',
+            '-f','tests/load/values-video-2x90.yaml',
+            '-f','tests/load/values-video-2x90-low-cpu.yaml'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        objects={o['kind']:o for o in yaml.safe_load_all(result.stdout)}
+        grid=objects['Deployment']['spec']['template']['spec']
+        rule=grid['affinity']['podAntiAffinity']['requiredDuringSchedulingIgnoredDuringExecution'][0]
+        self.assertEqual(rule['namespaces'],['jitsi'])
+        self.assertEqual(rule['topologyKey'],'kubernetes.io/hostname')
+        self.assertEqual(rule['labelSelector']['matchLabels'],{
+            'app.kubernetes.io/component':'jvb','app.kubernetes.io/instance':'jitsi'})
+        resources=grid['containers'][0]['resources']
+        self.assertEqual(resources['requests']['cpu'],'750m')
+        self.assertEqual(resources['limits']['cpu'],'900m')
+        self.assertEqual(resources['limits']['memory'],'2Gi')
+        self.assertIn({'name':'SE_JAVA_OPTS','value':'-Xms128m -Xmx256m'},grid['containers'][0]['env'])
+        job=objects['Job']['spec']
+        self.assertTrue(job['suspend'])
+        self.assertEqual(job['backoffLimit'],0)
+        self.assertEqual(job['template']['spec']['containers'][0]['resources']['limits']['cpu'],'300m')
+        for pod in [grid,job['template']['spec']]:
+            image=pod['containers'][0]['image']
+            self.assertTrue(image.endswith(('5b898424cffed5b99a0c8acbb558c0e3f3e4a2fbb0aac48bb54af60b445dcd86',
+                '01de65fb72bf78ded0191caa6302916f04850b94bdb6d1d943b0ceae6ce87092')))
