@@ -92,6 +92,12 @@ class TerraformRunnerTests(unittest.TestCase):
     def test_valid_context(self):
         self.assertEqual(tf.verify_context(self.payload, self.env, self.sha, self.sha), self.sha)
 
+    def test_preflight_does_not_require_environment_scoped_backend_variables(self):
+        env = dict(self.env)
+        env.pop('TF_STATE_BUCKET'); env.pop('TF_STATE_LINEAGE')
+        self.assertEqual(tf.verify_context(self.payload, env, self.sha, self.sha, check_backend=False), self.sha)
+        with self.assertRaises(SystemExit): tf.verify_context(self.payload, env, self.sha, self.sha)
+
     def test_absent_flag_bad_sha_wrong_backend_or_helm_active_rejected(self):
         for key, value in [('TF_CD_ENABLED', ''), ('TF_CD_ENABLED', 'false'), ('TF_APPROVED_SHA', 'b' * 40),
                            ('HELM_CD_ENABLED', 'true'), ('HELM_CD_ENABLED', 'TRUE'),

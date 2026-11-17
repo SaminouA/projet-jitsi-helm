@@ -25,7 +25,8 @@ Le 17 novembre, les lectures IAM ont confirmé les rôles dédiés cluster et bu
 la permission compute.instanceGroupManagers.list, le binding WIF, le versioning,
 l'accès uniforme et la prévention publique du bucket europe-west1. Le garde
 recontrôle ces protections, le workspace, le lineage privé et les deux ressources.
-Un plan frais a été exécuté sur une copie privée avec le backend GCS : **une mise
+Un plan frais a été exécuté avec les ADC de l'opératrice, sur une copie privée
+avec le backend GCS (ce n'est pas un essai d'apply avec le compte du runner) : **une mise
 à jour du seul label devops-apply-proof, zéro création, destruction ou remplacement,
 node pool inchangé**. L'état distant était identique avant et après. Le plan privé
 a été supprimé et aucune valeur sensible n'a été publiée.
