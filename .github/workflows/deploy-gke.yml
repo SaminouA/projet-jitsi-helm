@@ -34,6 +34,8 @@ jobs:
       EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
       GH_TOKEN: ${{ github.token }}
       CD_ENABLE: ${{ vars.GKE_CD_ENABLED }}
+      USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
+      CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS: 'true'
       JITSI_ACCESS_PROFILE: ${{ vars.JITSI_ACCESS_PROFILE }}
       JITSI_EDGE_CD_ENABLED: ${{ vars.JITSI_EDGE_CD_ENABLED || 'false' }}
       JITSI_PUBLIC_DOMAIN: ${{ vars.JITSI_PUBLIC_DOMAIN }}
@@ -70,6 +72,7 @@ jobs:
             *) echo 'Profil CD explicite requis : localhost ou public-edge.' >&2; exit 1 ;;
           esac
           python3 -m unittest discover -s tests -p test_cd.py -v
+          python3 -m unittest discover -s tests -p test_cd_auth.py -v
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
         with:
           version: v3.22.1
@@ -97,13 +100,10 @@ jobs:
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
         with:
           install_components: kubectl,gke-gcloud-auth-plugin
-      - name: Configurer l'acces au cluster existant
-        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395 # v3
-        with:
-          project_id: project-fcf2ef91-c005-4910-a10
-          cluster_name: jitsi-cluster
-          location: europe-west1-b
-          use_auth_provider: true
+      - name: Configurer le kubeconfig exec ADC du runner CD
+        env:
+          KUBECONFIG: ${{ runner.temp }}/jitsi-cd-kubeconfig
+        run: python3 scripts/configure-cd-gke.py
       - name: Preflight, dechiffrement temporaire, validation et mise a jour
         shell: bash
         run: bash scripts/deploy-gke.sh
@@ -114,4 +114,7 @@ jobs:
           set -euo pipefail
           if [[ -n "${CD_TMP_DIR:-}" && "$CD_TMP_DIR" == "$RUNNER_TEMP"/jitsi-cd.* ]]; then
             rm -rf -- "$CD_TMP_DIR"
+          fi
+          if [[ "${KUBECONFIG:-}" == "$RUNNER_TEMP"/jitsi-cd-kubeconfig ]]; then
+            rm -f -- "$KUBECONFIG"
           fi

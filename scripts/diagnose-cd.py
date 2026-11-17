@@ -123,11 +123,11 @@ def verify_exec_kubeconfig():
     print('Diagnostic auth GKE : EXEC_ADC')
 
 
-def configure_gke():
-    guard()
+def configure_gke(*, guard_fn=None, filename="jitsi-diagnostic-kubeconfig"):
+    (guard_fn or guard)()
     root = Path(os.environ['RUNNER_TEMP']).resolve()
     path = Path(os.environ['KUBECONFIG'])
-    require(path == root / 'jitsi-diagnostic-kubeconfig' and not path.is_symlink(),
+    require(path == root / filename and not path.is_symlink(),
             'Diagnostic auth GKE : KUBECONFIG_TEMPORAIRE_REQUIS')
     require(os.environ.get('USE_GKE_GCLOUD_AUTH_PLUGIN') == 'True' and
             os.environ.get('CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS') == 'true',

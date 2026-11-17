@@ -6,19 +6,21 @@ accord distinct couvrant l'opération. Ce document n'autorise aucun lancement.
 
 ## Situation et conditions d'arrêt
 
-Dernier main confirmé : c3e8ead17a35e234c1789c6d80da2e89c87a77fe. Dernier
-diagnostic réel : [43959531200](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/43959531200),
-plugin disponible, TCP OK, whoami INDETERMINE, RBAC/PVC/SOPS runner non atteints.
-Le correctif exec ADC est local. Le workflow CD conserve use_auth_provider=true.
-**Ne pas activer la CD en l'état.** L'état GitHub/GKE doit être revérifié lors
-de la future session ; ce document n'est pas un relevé temps réel.
+Dernier main confirmé : cbe2192bc2104b2f40b88633b24ae691eb854788.
+Le [diagnostic 44053382824](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44053382824)
+a réussi le 17 novembre : OIDC, exec ADC, identité kubectl, 49 autorisations,
+PVC Bound et SOPS/KMS validés, nettoyages réussis, une seule tentative.
+La présente correction aligne localement l’authentification CD sur les mêmes
+primitives, avec un garde propre à workflow_run. **La CD reste désactivée et
+aucun déploiement automatisé n’est encore validé.** L’état doit être revérifié
+lors de la future session ; ce document n’est pas un relevé temps réel.
 
 Arrêter si SHA inattendu, CI non verte, flag CD déjà actif avant accord,
 ressource/release absente, secret différent, IP/ports modifiés, pod indisponible,
 ou erreur d'authentification. Ne pas élargir les droits pour contourner une erreur
 non identifiée. Ne pas relancer automatiquement une opération échouée.
 
-## A. Publier puis valider le diagnostic corrigé
+## A. Historique du diagnostic, déjà réussi avant cette correction CD
 
 1. Relire le lot local exact, l'audit secrets et les tests. Après accord seulement,
    créer une branche depuis le main courant en conservant les modifications,
@@ -58,14 +60,33 @@ secrets/rendus réussis, tous les nettoyages réussis. Ne jamais copier les logs
 bruts, un kubeconfig, un jeton ou les valeurs déchiffrées dans le rapport.
 Une réussite du diagnostic n'est pas une autorisation de déployer.
 
-## B. Préparer le premier essai CD après succès du diagnostic
+## B. Premier essai CD après fusion autorisée de la correction
 
-Préalables qui ne sont pas encore tous satisfaits :
+1. Relire la PR CD et ses CI, confirmer le flag absent/false, puis fusionner
+   seulement après accord. Attendre la CI du nouveau main et le job CD skipped.
+2. Vérifier sur ce SHA que deploy-gke.yml appelle configure-cd-gke.py, sans
+   use_auth_provider, et que le profil public est explicite. Un nouveau diagnostic
+   sur ce SHA peut être autorisé séparément pour actualiser les préflights ;
+   il n’est jamais lancé automatiquement par cette procédure.
+3. Pour l’essai sans modification fonctionnelle, conserver chart/images/valeurs,
+   IP, ports et secrets. Vérifier les révisions et l’absence de dérive applicative.
+   Le diagnostic vérifie notamment secrets, réseau et disponibilité, mais ne
+   garantit pas une égalité exhaustive des configurations Helm. Si les rendus
+   privés et les valeurs live divergent fonctionnellement, arrêter : ne pas
+   exécuter Helm sous prétexte que le dernier diagnostic a réussi.
+4. Faire autoriser explicitement la configuration des variables, un unique essai
+   et son rollback. Ne pas activer le flag tant que ces conditions restent ouvertes.
 
-- Porter le mode exec ADC validé vers le workflow CD dans une PR séparée, après
-  revue. **Ne pas copier directement --configure-gke** : son garde attend
-  workflow_dispatch, alors que la CD reçoit workflow_run. Conserver le contrôle
-  check-cd-event.py et les vérifications de main avant toute authentification.
+La section A conserve la procédure historique ; **ne pas rejouer le diagnostic
+ou republier son correctif automatiquement**. Pour cette PR, seule la fusion
+future puis la procédure ci-dessous restent à considérer.
+
+Préalables complémentaires :
+
+- Faire valider cette adaptation CD par revue/CI puis fusion autorisée.
+  configure-cd-gke.py applique check-cd-event.py, vérifie le checkout et main,
+  puis réutilise configure_gke avec un nom de fichier CD distinct. Le garde
+  workflow_dispatch du diagnostic reste inchangé ; il n’est pas contourné.
 - Vérifier le mode public explicite, domaine/réservation attendus, guardrails
   SOPS/secrets/réseau, PVC existant, chart et images inchangés, et diagnostic
   valide pour le SHA/correction concerné.
