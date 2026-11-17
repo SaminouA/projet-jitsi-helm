@@ -1,0 +1,60 @@
+name: Build and publish synthetic Selenium
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: selenium-image-publication
+  cancel-in-progress: false
+jobs:
+  selenium:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Check disk and prepare isolated build context
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h /
+          free=$(df -B1 --output=avail / | tail -1)
+          test "$free" -ge 6442450944
+          context="$RUNNER_TEMP/selenium-context"
+          mkdir -p "$context"
+          python3 scripts/generate-synthetic-media.py --output "$context/resources"
+          cp tests/load/docker/Dockerfile.selenium "$context/Dockerfile"
+          cp tests/load/docker/chrome-wrapper.sh "$context/chrome-wrapper.sh"
+          echo "IMAGE=ghcr.io/saminoua/jitsi-selenium:synthetic-${GITHUB_SHA}" >> "$GITHUB_ENV"
+      - name: Build amd64 image
+        run: |
+          docker build --platform linux/amd64 \
+            --label org.opencontainers.image.source=https://github.com/SaminouA/projet-jitsi-helm \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            -t "$IMAGE" "$RUNNER_TEMP/selenium-context"
+      - name: Test real synthetic camera and microphone
+        run: |
+          docker run -d --name selenium-smoke --platform linux/amd64 \
+            --shm-size=1g --memory=3g --cpus=2 \
+            --tmpfs /tmp:rw,size=1g,mode=1777 -p 127.0.0.1:4444:4444 "$IMAGE"
+          python3 scripts/test-selenium-media.py | tee "$RUNNER_TEMP/media-result.json"
+      - name: Publish only after media test success
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+          digest=$(docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}')
+          printf 'Image: `%s`\n\nDigest: `%s`\n\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/media-result.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Cleanup local runner only
+        if: always()
+        run: |
+          docker rm -f selenium-smoke 2>/dev/null || true
+          docker logout ghcr.io || true
