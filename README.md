@@ -31,11 +31,15 @@ HTTPS public. Les tests statiques ne prouvent pas une réunion. Le retour au
 profil localhost nécessite une surcharge explicite et un rechargement des pods ;
 un port-forward seul ne modifie pas la configuration publique déployée.
 
-La CI valide ; la CD préparée reste désactivée et son premier échange OIDC runner
-n'est pas validé. Ne pas activer la CD avant revue du profil et des droits PVC.
+La CI valide ; la CD intégrée reste désactivée. OIDC et la lecture des métadonnées
+GKE ont réussi sur le runner, mais l’identité Kubernetes a échoué. La correction
+exec ADC reste locale ; RBAC/PVC/SOPS runner et CD de bout en bout restent à valider.
+Le workflow CD conserve un mécanisme d’authentification à adapter après ce diagnostic.
 Aucun secret ou sauvegarde Helm ne doit être affiché ou ajouté à Git.
 
 Consulter le [rapport](docs/rapport.md), la [soutenance](docs/soutenance.md),
 le [guide HTTPS](docs/https-duckdns.md) et la [séquence de bootstrap](docs/bootstrap-https-court.md).
 Les créations/suppressions GCP sont soumises à accord ; le PVC indépendant et
 l'adresse réservée ne disparaissent pas avec une simple désinstallation Helm.
+
+Pour la remise : [architecture](docs/architecture.md), [validation CD contrôlée](docs/validation-cd-controlee.md) et [checklist](docs/checklist-remise.md).

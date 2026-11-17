@@ -87,7 +87,12 @@ class DiagnosticTests(unittest.TestCase):
         def fake(label, args):
             calls.append(args)
             if args[:3] == ['kubectl', 'config', 'current-context']: return diag.CONTEXT
-            if args[:3] == ['kubectl', 'config', 'view']: return 'https://192.0.2.10'
+            if args[:3] == ['kubectl', 'config', 'view']:
+                metadata = {diag.AUTH_FIELDS['provider']: '',
+                            diag.AUTH_FIELDS['command']: 'gke-gcloud-auth-plugin',
+                            diag.AUTH_FIELDS['api']: 'client.authentication.k8s.io/v1beta1',
+                            diag.AUTH_FIELDS['args']: '["--use_application_default_credentials"]'}
+                return metadata.get(args[-1], 'https://192.0.2.10')
             if args[:3] == ['kubectl', 'auth', 'whoami']:
                 return json.dumps({'status': {'userInfo': {'username': diag.ACCOUNT}}})
             if args[:3] == ['kubectl', 'auth', 'can-i']: return 'yes'
@@ -166,6 +171,7 @@ class DiagnosticTests(unittest.TestCase):
 
     def test_identity_error_categories_never_include_input(self):
         samples = [
+            ('no Auth Provider found for name "gcp"', 'AUTH_PROVIDER_LEGACY'),
             ('exec: executable gke-gcloud-auth-plugin not found', 'PLUGIN_ABSENT'),
             ('getting credentials: exec: executable gke-gcloud-auth-plugin failed with exit code 1', 'PLUGIN_EXECUTION'),
             ('invalid_grant: fixture-token', 'AUTHENTIFICATION_CREDENTIALS'),
@@ -234,6 +240,7 @@ class DiagnosticTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, 'DELAI_INDETERMINE'): diag.read_command('identite GKE', args)
         with patch.object(diag.shutil, 'which', return_value='/fixture/plugin'), \
              patch.object(diag, 'probe_api_tcp', return_value='OK'), \
+             patch.object(diag, 'verify_exec_kubeconfig'), \
              patch.object(diag, 'read_command', side_effect=['version-not-printed', 'https://192.0.2.10', 'fixture-token']), \
              patch('sys.stdout', new_callable=io.StringIO) as output:
             with self.assertRaisesRegex(SystemExit, 'REPONSE_INVALIDE'): diag.check_identity()
@@ -244,6 +251,7 @@ class DiagnosticTests(unittest.TestCase):
         identity = json.dumps({'status': {'userInfo': {'username': diag.ACCOUNT}}})
         with patch.object(diag.shutil, 'which', return_value='/fixture/plugin'), \
              patch.object(diag, 'probe_api_tcp', return_value='RESEAU_TIMEOUT'), \
+             patch.object(diag, 'verify_exec_kubeconfig'), \
              patch.object(diag, 'read_command', side_effect=['version-not-printed', 'https://192.0.2.10', identity]) as command, \
              patch('sys.stdout', new_callable=io.StringIO) as output:
             diag.check_identity()
@@ -256,6 +264,7 @@ class DiagnosticTests(unittest.TestCase):
         value = json.dumps({'status': {'userInfo': {'username': 'fixture-sensitive-user'}}})
         with patch.object(diag.shutil, 'which', return_value='/fixture/plugin'), \
              patch.object(diag, 'probe_api_tcp', return_value='OK'), \
+             patch.object(diag, 'verify_exec_kubeconfig'), \
              patch.object(diag, 'read_command', side_effect=['version', 'https://192.0.2.10', value]), \
              patch('sys.stdout', new_callable=io.StringIO) as output:
             with self.assertRaisesRegex(SystemExit, 'IDENTITE_INATTENDUE'): diag.check_identity()
@@ -268,6 +277,126 @@ class DiagnosticTests(unittest.TestCase):
             with self.assertRaises(SystemExit): diag.diagnose()
             rbac.assert_not_called()
             tmp.assert_not_called()
+
+
+    def test_exec_metadata_requires_modern_plugin_with_adc(self):
+        for version in ['client.authentication.k8s.io/v1', 'client.authentication.k8s.io/v1beta1']:
+            diag.verify_exec_metadata('', '/fixture/bin/gke-gcloud-auth-plugin', version,
+                                      ['--use_application_default_credentials'])
+        for provider, command, api_version, args in [
+            ('gcp', '', '', []), ('gcp', 'gke-gcloud-auth-plugin', 'client.authentication.k8s.io/v1', []),
+            ('', 'other-plugin', 'client.authentication.k8s.io/v1', []),
+            ('', 'gke-gcloud-auth-plugin', 'client.authentication.k8s.io/v1alpha1', []),
+            ('', 'gke-gcloud-auth-plugin', 'client.authentication.k8s.io/v1', ['fixture-token']),
+        ]:
+            with self.subTest(provider=provider), self.assertRaises(SystemExit) as error:
+                diag.verify_exec_metadata(provider, command, api_version, args)
+            self.assertNotIn('fixture-token', str(error.exception))
+
+    def test_exec_mode_check_never_exports_full_kubeconfig(self):
+        values = ['', 'gke-gcloud-auth-plugin', 'client.authentication.k8s.io/v1beta1',
+                  '["--use_application_default_credentials"]']
+        with patch.object(diag, 'read_command', side_effect=values) as read, \
+             patch('sys.stdout', new_callable=io.StringIO) as output:
+            diag.verify_exec_kubeconfig()
+            self.assertEqual(output.getvalue(), 'Diagnostic auth GKE : EXEC_ADC\n')
+        self.assertEqual(len(read.call_args_list), 4)
+        for call in read.call_args_list:
+            self.assertEqual(call.args[1][:5], ['kubectl', 'config', 'view', '--minify', '-o'])
+            self.assertIn(call.args[1][-1], diag.AUTH_FIELDS.values())
+            self.assertNotIn('--raw', call.args[1])
+        with patch.object(diag, 'read_command', side_effect=['gcp', '', '', '[]']), \
+             patch('sys.stdout', new_callable=io.StringIO) as output:
+            with self.assertRaisesRegex(SystemExit, 'AUTH_PROVIDER_LEGACY'):
+                diag.verify_exec_kubeconfig()
+            self.assertEqual(output.getvalue(), '')
+
+    def configure_environment(self, root):
+        return {'RUNNER_TEMP': str(root), 'KUBECONFIG': str(root / 'jitsi-diagnostic-kubeconfig'),
+                'GITHUB_ENV': str(root / 'github-env'),
+                'USE_GKE_GCLOUD_AUTH_PLUGIN': 'True',
+                'CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS': 'true'}
+
+    def test_configure_gke_only_writes_private_runner_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            env = self.configure_environment(root)
+            calls = []
+            def fake(label, args):
+                calls.append(args)
+                if args == diag.GKE_CREDENTIALS:
+                    Path(env['KUBECONFIG']).write_text('fixture: private runner config')
+                    return 'fixture-sensitive-tool-output'
+                values = {diag.AUTH_FIELDS['provider']: '', diag.AUTH_FIELDS['command']: 'gke-gcloud-auth-plugin',
+                          diag.AUTH_FIELDS['api']: 'client.authentication.k8s.io/v1beta1',
+                          diag.AUTH_FIELDS['args']: '["--use_application_default_credentials"]'}
+                return values[args[-1]]
+            with patch.dict(os.environ, env), patch.object(diag, 'guard') as guard, \
+                 patch.object(diag, 'read_command', side_effect=fake), \
+                 patch('sys.stdout', new_callable=io.StringIO) as output:
+                diag.configure_gke()
+                guard.assert_called_once()
+                self.assertNotIn('fixture-sensitive-tool-output', output.getvalue())
+                self.assertNotIn(str(root), output.getvalue())
+            self.assertEqual(Path(env['KUBECONFIG']).stat().st_mode & 0o777, 0o600)
+            self.assertIn('KUBECONFIG=' + env['KUBECONFIG'], Path(env['GITHUB_ENV']).read_text())
+            self.assertEqual(calls[0], diag.GKE_CREDENTIALS)
+            self.assertEqual(len(calls), 5)
+
+    def test_configure_rejects_existing_or_external_kubeconfig(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            env = self.configure_environment(root)
+            file = Path(env['KUBECONFIG']); file.write_text('existing-config')
+            with patch.dict(os.environ, env), patch.object(diag, 'guard'), patch.object(diag, 'read_command') as run:
+                with self.assertRaises(FileExistsError): diag.configure_gke()
+                run.assert_not_called()
+            self.assertEqual(file.read_text(), 'existing-config')
+            env['KUBECONFIG'] = str(root / 'other-config')
+            with patch.dict(os.environ, env), patch.object(diag, 'guard'), patch.object(diag, 'read_command') as run:
+                with self.assertRaisesRegex(SystemExit, 'KUBECONFIG_TEMPORAIRE_REQUIS'): diag.configure_gke()
+                run.assert_not_called()
+            env = self.configure_environment(root); env['CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS'] = 'false'
+            with patch.dict(os.environ, env), patch.object(diag, 'guard'):
+                with self.assertRaisesRegex(SystemExit, 'EXEC_ADC_NON_SELECTIONNE'): diag.configure_gke()
+
+    def test_configuration_failure_removes_partial_kubeconfig(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve(); env = self.configure_environment(root)
+            with patch.dict(os.environ, env), patch.object(diag, 'guard'), \
+                 patch.object(diag, 'read_command', side_effect=SystemExit('opaque')):
+                with self.assertRaises(SystemExit): diag.configure_gke()
+            self.assertFalse(Path(env['KUBECONFIG']).exists())
+
+    def test_workflow_uses_exec_adc_without_changing_oidc_or_permissions(self):
+        w = yaml.safe_load((ROOT / '.github/workflows/diagnose-gke.yml').read_text())
+        j = w['jobs']['diagnose']; env = j['env']
+        self.assertNotIn('KUBECONFIG', env)
+        self.assertEqual(env['CLOUDSDK_CONTAINER_USE_APPLICATION_DEFAULT_CREDENTIALS'], 'true')
+        self.assertEqual(env['USE_GKE_GCLOUD_AUTH_PLUGIN'], 'True')
+        self.assertEqual(j['permissions'], {'contents': 'read', 'id-token': 'write'})
+        self.assertFalse(any('get-gke-credentials@' in s.get('uses', '') for s in j['steps']))
+        auth = next(s for s in j['steps'] if 'google-github-actions/auth@' in s.get('uses', ''))
+        self.assertIn('workload_identity_provider', auth['with'])
+        self.assertNotIn('credentials_json', auth['with'])
+        configure = next(i for i,s in enumerate(j['steps']) if '--configure-gke' in s.get('run', ''))
+        diagnose = next(i for i,s in enumerate(j['steps']) if s.get('run') == 'python3 scripts/diagnose-cd.py')
+        self.assertLess(configure, diagnose)
+        self.assertEqual(j['steps'][configure]['env']['KUBECONFIG'], '${{ runner.temp }}/jitsi-diagnostic-kubeconfig')
+        cleanup = j['steps'][-1]
+        self.assertEqual(cleanup['if'], '${{ always() }}')
+        self.assertIn('rm -f -- "$KUBECONFIG"', cleanup['run'])
+        self.assertIn('"$RUNNER_TEMP"/jitsi-diagnostic-kubeconfig', cleanup['run'])
+
+    def test_gcloud_whitelist_is_limited_to_one_read_operation(self):
+        result = subprocess.CompletedProcess([], 0, stdout='fixture', stderr='')
+        with patch.object(diag.subprocess, 'run', return_value=result):
+            self.assertEqual(diag.read_command('configuration', diag.GKE_CREDENTIALS), 'fixture')
+        for args in [diag.GKE_CREDENTIALS + ['--log-http'],
+                     ['gcloud', 'container', 'clusters', 'delete', 'jitsi-cluster']]:
+            with patch.object(diag.subprocess, 'run') as run:
+                with self.assertRaises(SystemExit): diag.read_command('interdit', args)
+                run.assert_not_called()
 
 
 if __name__ == '__main__':
