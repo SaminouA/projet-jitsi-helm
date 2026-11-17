@@ -1,0 +1,17 @@
+{
+  "status": "PROPOSED_NOT_APPLIED",
+  "provider": "projects/198310729956/locations/global/workloadIdentityPools/github-jitsi-pool/providers/github-terraform-provider",
+  "github_settings_observed": {
+    "use_default": true,
+    "use_immutable_subject": true,
+    "sub_claim_prefix": "repo:SaminouA@194725286/projet-jitsi-helm@1427106572"
+  },
+  "old_subject": "repo:SaminouA/projet-jitsi-helm:environment:terraform-controlled",
+  "new_subject": "repo:SaminouA@194725286/projet-jitsi-helm@1427106572:environment:terraform-controlled",
+  "before_attribute_condition": "assertion.repository=='SaminouA/projet-jitsi-helm' && assertion.repository_id=='1427106572' && assertion.repository_owner_id=='194725286' && assertion.ref=='refs/heads/main' && assertion.workflow_ref=='SaminouA/projet-jitsi-helm/.github/workflows/terraform-gke.yml@refs/heads/main' && assertion.sub=='repo:SaminouA/projet-jitsi-helm:environment:terraform-controlled'",
+  "after_attribute_condition": "assertion.repository=='SaminouA/projet-jitsi-helm' && assertion.repository_id=='1427106572' && assertion.repository_owner_id=='194725286' && assertion.ref=='refs/heads/main' && assertion.workflow_ref=='SaminouA/projet-jitsi-helm/.github/workflows/terraform-gke.yml@refs/heads/main' && assertion.sub=='repo:SaminouA@194725286/projet-jitsi-helm@1427106572:environment:terraform-controlled'",
+  "other_conditions_unchanged": true,
+  "attribute_mapping_changed": false,
+  "iam_roles_changed": false,
+  "state_changed": false
+}
