@@ -4763,3 +4763,83 @@ Dernier état observé : run 44116737677 waiting, OIDC et plan non exécutés ca
 l’approbation manuelle manque encore. TF_CD_ENABLED=false et GKE_CD_ENABLED=false
 relus. L’approbation n’est pas envoyée par l’agent ; aucune relance automatique.
 Les résultats seront à relever après Review deployments par l’utilisatrice.
+
+
+### Réconciliation de la PR Terraform nº 7 — 17 novembre 2026
+
+La branche de la PR a intégré la base main actuelle ; le conflit add/add sur
+`terraform-gke.yml` a été résolu en conservant le diagnostic readonly et en
+ajoutant un mode manuel `operation=apply-label`. Aucun apply ni fusion dans main
+n'a été exécuté. Le mode readonly reste celui par défaut, avec sa confirmation
+explicite et son invariant de plan sans changement. Avant la preuve de label,
+ce diagnostic pourra refuser le changement attendu : ce refus ne vaut pas apply.
+
+Le fournisseur OIDC existant impose le dépôt, ses identifiants immuables, main,
+le chemin exact de ce workflow et le sujet de l'environnement terraform-controlled.
+Ce chemin est conservé pour ne pas modifier IAM. Le mode apply exige le flag
+Terraform, le flag Helm désactivé, le SHA main explicitement saisi, une CI push
+réussie sur ce SHA et une seconde vérification avant application. Le job de
+précontrôle n'a pas de droit OIDC. Le job apply attend l'approbation humaine de
+l'environnement puis utilise des identifiants externes sans clé JSON.
+Le contrôle GitHub impose un reviewer configuré, interdit le bypass administrateur
+et n'autorise que main. L'auto-approbation par l'utilisatrice déclenchante reste
+permise par le paramètre existant ; il ne s'agit pas d'une séparation à deux personnes.
+
+Le 17 novembre, les lectures IAM ont confirmé les rôles dédiés cluster et bucket,
+la permission compute.instanceGroupManagers.list, le binding WIF, le versioning,
+l'accès uniforme et la prévention publique du bucket europe-west1. Le garde
+recontrôle ces protections, le workspace, le lineage privé et les deux ressources.
+Un plan frais a été exécuté avec les ADC de l'opératrice, sur une copie privée
+avec le backend GCS (ce n'est pas un essai d'apply avec le compte du runner) : **une mise
+à jour du seul label devops-apply-proof, zéro création, destruction ou remplacement,
+node pool inchangé**. L'état distant était identique avant et après. Le plan privé
+a été supprimé et aucune valeur sensible n'a été publiée.
+
+L'approbation de l'environnement intervient avant le job plan/apply. Elle ne
+constitue pas une approbation interactive du plan binaire intermédiaire : le
+contenu de celui-ci est contraint par le garde label-only testé, conservé sur le
+même runner et appliqué sans recalcul. Aucun artefact state/plan n'est transféré.
+Le fichier du plan est privé, son empreinte et l'état complet sont recontrôlés.
+Les flags restent false. Pour une future exécution autorisée, il faudra activer
+explicitement TF_CD_ENABLED au niveau dépôt **et environnement**, saisir le SHA
+main approuvé, puis approuver humainement le job. Aucune de ces opérations n'a
+été faite dans cette préparation.
+
+
+### Préparation des pipelines manuels Malleus et Chaos Mesh — 17 novembre 2026
+
+Deux workflows dédiés ont été préparés : `malleus-controlled.yml` et
+`chaos-controlled.yml`. Ils restent non exécutés. Leurs tests locaux ne
+remplacent pas les résultats expérimentaux historiques et ne constituent pas
+une nouvelle campagne de charge ou de chaos.
+
+Les manifestes publics GHCR des images Selenium et Malleus épinglées ont été
+relus avec HTTP 200 et digest conforme. Malleus réutilise le chart et le profil
+low CPU déjà expérimentés : deux participants, durée configurée 90 secondes,
+Job suspendu avant précontrôles, limites 900m/2 Gi et 300m/768 Mi. Les observations
+réutilisent les compteurs clients/JVB existants et ne prétendent pas valider
+90 secondes de vidéo continue, ni une charge audio.
+
+Le pipeline Chaos réutilise l'action PodChaos Web, avec nom et UID approuvés,
+sélecteur Web exact, garde des permissions du contrôleur et vérification des
+composants protégés. Il attend un contrôleur minimal préinstallé après accord ;
+il ne recrée pas implicitement CRD, namespace ou droits cluster. Les relevés
+contrôlent le remplacement Web, sa readiness et la récupération HTTPS, sans
+prétendre tester une conférence pendant la panne.
+
+Les workflows exigent main, une CI push réussie sur le SHA exact, un flag
+explicitement activé, une confirmation et l'approbation de l'environnement.
+Le groupe de concurrence est partagé avec les déploiements. Les métriques CPU
+et mémoire et les pressions des nœuds sont surveillées, avec arrêt à 80 %.
+Une identité dédiée est prévue, sans élargir les comptes Helm/Terraform.
+Le nettoyage cible uniquement les ressources de test possédées par le run,
+via finally et une étape always ; une perte complète du runner reste une limite.
+Les artefacts sont limités aux statistiques et logs filtrés, sans secret ni
+candidat ICE.
+
+L'audit a constaté l'absence des prérequis d'expérience dédiés et le refus RBAC
+du compte Helm dans le namespace de charge. Aucun IAM, environnement GitHub,
+bootstrap ou test réel n'a été créé ou exécuté. Les validations et les accords
+restants sont détaillés dans [les pipelines contrôlés](pipelines-experiences-controlees.md).
+La CI de la PR Terraform corrigée était verte ; ses modes apply et les deux
+pipelines d'expérience restent à valider en exécution après autorisations.
