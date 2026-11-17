@@ -37,13 +37,40 @@ jobs:
             --label org.opencontainers.image.source=https://github.com/SaminouA/projet-jitsi-helm \
             --label org.opencontainers.image.revision="$GITHUB_SHA" \
             -t "$IMAGE" "$RUNNER_TEMP/selenium-context"
-      - name: Test real synthetic camera and microphone
+      - name: Check media files as image default user
+        shell: bash
         run: |
+          set -euo pipefail
+          docker run --rm --entrypoint /bin/sh "$IMAGE" -ec '
+            test "$(id -u)" != 0
+            test -x /opt/jitsi/chrome-wrapper
+            /usr/bin/google-chrome --version
+            chromedriver --version
+            grep -F /opt/jitsi/chrome-wrapper /opt/selenium/browser_binary_location
+            cd /usr/share/jitsi-meet-torture/resources
+            test -r FourPeople_1280x720_30.y4m
+            test -r fakeAudioStream.wav
+            sha256sum FourPeople_1280x720_30.y4m fakeAudioStream.wav
+          ' > "$RUNNER_TEMP/image-media-check.txt"
+          head -n 3 "$RUNNER_TEMP/image-media-check.txt"
+          cd "$RUNNER_TEMP/selenium-context/resources"
+          sha256sum FourPeople_1280x720_30.y4m fakeAudioStream.wav > "$RUNNER_TEMP/expected-media.sha256"
+          tail -2 "$RUNNER_TEMP/image-media-check.txt" > "$RUNNER_TEMP/actual-media.sha256"
+          diff -u "$RUNNER_TEMP/expected-media.sha256" "$RUNNER_TEMP/actual-media.sha256"
+      - name: Test real synthetic camera and microphone
+        id: media
+        shell: bash
+        run: |
+          set -euo pipefail
           docker run -d --name selenium-smoke --platform linux/amd64 \
             --shm-size=1g --memory=3g --cpus=2 \
             --tmpfs /tmp:rw,size=1g,mode=1777 -p 127.0.0.1:4444:4444 "$IMAGE"
-          python3 scripts/test-selenium-media.py | tee "$RUNNER_TEMP/media-result.json"
+          status=0
+          python3 scripts/test-selenium-media.py > "$RUNNER_TEMP/media-result.json" || status=$?
+          cat "$RUNNER_TEMP/media-result.json"
+          exit "$status"
       - name: Publish only after media test success
+        if: success() && steps.media.outcome == 'success'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
