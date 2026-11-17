@@ -1,0 +1,19 @@
+# No resource rendered by default. Only use images validated by real media tests.
+selenium:
+  enabled: false
+  image: '' # full registry/repository@sha256:digest
+  imageValidated: false
+  sessions: 2
+  resources:
+    requests: {cpu: 250m, memory: 1Gi, ephemeral-storage: 128Mi}
+    limits: {cpu: '2', memory: 3Gi, ephemeral-storage: 512Mi}
+malleus:
+  enabled: false
+  image: '' # Must be published; local-only image cannot be pulled on GKE.
+  imageValidated: false
+  suspend: true
+  participants: 2
+  duration: 60
+  resources:
+    requests: {cpu: 100m, memory: 256Mi, ephemeral-storage: 256Mi}
+    limits: {cpu: 500m, memory: 768Mi, ephemeral-storage: 1Gi}

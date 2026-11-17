@@ -1,0 +1,52 @@
+{{- if .Values.malleus.enabled }}
+{{- if not .Values.selenium.enabled }}
+{{- fail "Malleus requires the isolated Selenium deployment" }}
+{{- end }}
+{{- if not .Values.malleus.imageValidated }}
+{{- fail "Malleus image must be validated and published before enabling" }}
+{{- end }}
+{{- if not (regexMatch "^[^ ]+@sha256:[a-f0-9]{64}$" .Values.malleus.image) }}
+{{- fail "Malleus image must use a registry digest" }}
+{{- end }}
+{{- if not (and (has (int .Values.malleus.participants) (list 2 3)) (has (int .Values.malleus.duration) (list 60 90))) }}
+{{- fail "Malleus is bounded to 2/3 participants and 60/90 seconds" }}
+{{- end }}
+{{- if gt (int .Values.malleus.participants) (int .Values.selenium.sessions) }}
+{{- fail "Participants cannot exceed Selenium sessions" }}
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-malleus
+spec:
+  suspend: {{ .Values.malleus.suspend }}
+  backoffLimit: 0
+  activeDeadlineSeconds: 240
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels: {app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: malleus}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector: {kubernetes.io/arch: amd64}
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001}
+      containers:
+        - name: malleus
+          image: {{ .Values.malleus.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args: [test]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          env:
+            - {name: GRID_URL, value: {{ printf "http://%s-selenium:4444/wd/hub" .Release.Name | quote }}}
+            - {name: PARTICIPANTS, value: {{ .Values.malleus.participants | quote }}}
+            - {name: DURATION, value: {{ .Values.malleus.duration | quote }}}
+          resources:
+{{ toYaml .Values.malleus.resources | indent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: tmp, emptyDir: {sizeLimit: 128Mi}}
+{{- end }}

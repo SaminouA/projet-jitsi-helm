@@ -1,0 +1,67 @@
+name: Build and publish executable Malleus
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: malleus-image-publication
+  cancel-in-progress: false
+jobs:
+  malleus:
+    if: github.repository == 'SaminouA/projet-jitsi-helm' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare pinned public sources
+        run: |
+          set -euo pipefail
+          df -h /
+          test "$(df -B1 --output=avail / | tail -1)" -ge 8589934592
+          source_dir="$RUNNER_TEMP/torture-source"
+          git init "$source_dir"
+          git -C "$source_dir" fetch --depth=1 https://github.com/jitsi/jitsi-meet-torture.git 4c00915e97006ff2224bb509eb3582bf3a10ca85
+          git -C "$source_dir" checkout --detach FETCH_HEAD
+          python3 scripts/prepare-malleus-image-context.py --source "$source_dir" --directory "$RUNNER_TEMP/malleus-context"
+          echo "IMAGE=ghcr.io/saminoua/jitsi-malleus:executable-${GITHUB_SHA}" >> "$GITHUB_ENV"
+      - name: Build public Java project and dependencies on runner
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 \
+            --label org.opencontainers.image.source=https://github.com/SaminouA/projet-jitsi-helm \
+            -f "$RUNNER_TEMP/malleus-context/Dockerfile.malleus" \
+            -t "$IMAGE" "$RUNNER_TEMP/malleus-context"
+      - name: Verify offline compilation and actual Malleus entry point
+        id: execution
+        run: |
+          set -euo pipefail
+          docker run --rm --network=none --memory=768m --cpus=1 "$IMAGE" --version
+          docker run --rm --network=none --memory=768m --cpus=1 "$IMAGE" --compile-check
+          docker run --rm --network=none --read-only --memory=768m --cpus=1 \
+            --tmpfs /tmp:rw,uid=10001,gid=10001,size=128m \
+            "$IMAGE" --self-test
+          docker run --rm --network=none --memory=768m --cpus=1 "$IMAGE" --maven-self-test
+          # Verify project and dependency classpath are present.
+          docker run --rm --network=none --memory=768m --cpus=1 --entrypoint /bin/sh "$IMAGE" -ec \
+            'test -f /opt/malleus/torture/pom.xml; test -d /opt/malleus/torture/src; test -s /opt/malleus/classpath.txt'
+      - name: Publish only after successful execution
+        if: success() && steps.execution.outcome == 'success'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+          docker image inspect "$IMAGE" --format '{{json .RepoDigests}}' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real Malleus entry point: zero peers, offline; no meeting/traffic test.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Logout
+        if: always()
+        run: docker logout ghcr.io || true
