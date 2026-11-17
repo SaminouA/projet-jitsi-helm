@@ -260,6 +260,20 @@ def cleanup():
     path.unlink()
 
 
+def cleanup_permissions(mode):
+    # Refuse to create anything if the identity cannot clean it up later.
+    if mode == 'malleus':
+        namespace = 'jitsi-load-test'
+        checks = [(v, r) for r in ['configmaps', 'secrets', 'services', 'deployments.apps', 'jobs.batch']
+                  for v in ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']]
+        checks += [('get', 'pods'), ('list', 'pods'), ('get', 'pods/log'), ('create', 'pods/portforward'), ('list', 'replicasets.apps')]
+    else:
+        namespace = 'jitsi'
+        checks = [(v, 'podchaos.chaos-mesh.org') for v in ['get', 'create', 'delete']]
+    for verb, resource in checks:
+        require(kubectl('auth', 'can-i', verb, resource, '-n', namespace).strip() == 'yes', 'REQUIRED_EXECUTION_OR_CLEANUP_PERMISSION_MISSING')
+
+
 def execute(mode):
     guard(mode)
     require(run(['gcloud', 'auth', 'list', '--filter=status:ACTIVE', '--format=value(account)']).strip() == ACCOUNT, 'DEDICATED_IDENTITY_REQUIRED')
@@ -272,6 +286,7 @@ def execute(mode):
         require(kubectl('auth', 'can-i', verb, 'pods', '-n', 'jitsi').strip() == 'no', 'PRODUCTION_POD_MUTATION_RIGHT_REFUSED')
     for verb, resource in [('create', 'pods/exec'), ('get', 'pods/exec'), ('create', 'pods/eviction'), ('get', 'secrets')]:
         require(kubectl('auth', 'can-i', verb, resource, '-n', 'jitsi').strip() == 'no', 'SENSITIVE_PRODUCTION_RIGHT_REFUSED')
+    cleanup_permissions(mode)
     before = production(); capacity(projected=True); https()
     jvb = [n for n, p in before.items() if p['component'] == 'jvb']
     require(len(jvb) == 1, 'ONE_JVB_REQUIRED')

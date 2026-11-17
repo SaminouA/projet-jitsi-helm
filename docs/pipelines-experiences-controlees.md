@@ -137,7 +137,7 @@ perte du runner.
 - Un dispatch réel est une nouvelle opération modifiant Kubernetes et générant
   de la charge : il demande un accord explicite. Aucun dispatch n'a été lancé.
 
-Les validations locales couvrent 14 tests dédiés (fixtures, simulations et
+Les validations locales couvrent 15 tests dédiés (fixtures, simulations et
 rendus Helm), ajoutés aux tests existants. Elles ne valident pas les nouveaux
 échanges OIDC, le RBAC futur ou une exécution des workflows sur GKE.
 
@@ -145,3 +145,7 @@ La permission GitHub `actions: read` permet la lecture des protections :
 [environnements](https://docs.github.com/en/rest/deployments/environments#get-an-environment)
 et [politiques de branche](https://docs.github.com/en/rest/deployments/branch-policies#list-deployment-branch-policies).
 Aucun droit GitHub d’administration ou d’approbation n’est attribué au workflow.
+
+Revue finale : les autorisations d’exécution **et de suppression nécessaires au
+nettoyage** sont désormais contrôlées avant toute création. Un droit delete
+manquant bloque le test en amont, sans élargissement automatique du RBAC.

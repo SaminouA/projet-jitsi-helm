@@ -133,7 +133,7 @@ class ExperimentGuards(unittest.TestCase):
                 raise AssertionError(args)
             def kube(*args,**kwargs):
                 if args[:2]==('auth','whoami'):return json.dumps({'status':{'userInfo':{'username':m.ACCOUNT}}})
-                if args[:2]==('auth','can-i'):return 'no'
+                if args[:2]==('auth','can-i'):return 'yes' if args[-1]=='jitsi-load-test' else 'no'
                 raise AssertionError(args)
             def reader(kind,namespace=None):
                 if kind=='namespace jitsi-load-test':return {'metadata':{'name':'jitsi-load-test'}}
@@ -170,3 +170,14 @@ class ExperimentGuards(unittest.TestCase):
         self.assertFalse(m.injection_verified(s))
         s['experiment']['containerRecords'][0]['injectedCount']=2
         with self.assertRaises(RuntimeError):m.injection_verified(s)
+
+
+    def test_cleanup_rights_must_exist_before_any_creation(self):
+        for mode in ['malleus','chaos']:
+            with patch.object(m,'kubectl',return_value='yes'):
+                m.cleanup_permissions(mode)
+            def deny_delete(*args,**kwargs):
+                return 'no' if args[2]=='delete' else 'yes'
+            with patch.object(m,'kubectl',side_effect=deny_delete),patch.object(m,'run') as mutation:
+                with self.assertRaises(RuntimeError):m.cleanup_permissions(mode)
+                mutation.assert_not_called()
