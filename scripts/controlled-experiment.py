@@ -76,6 +76,11 @@ def ready(pod):
     return bool(cs) and all(c.get('ready') for c in cs) and not pod['metadata'].get('deletionTimestamp')
 
 
+def pod_observation(pods):
+    return {p['metadata']['name']: {'uid': p['metadata']['uid'], 'ready': ready(p)}
+            for p in pods}
+
+
 def production():
     items = read('pods', 'jitsi')['items']
     require(len(items) == 5 and all(ready(p) for p in items), 'FIVE_READY_PRODUCTION_PODS_REQUIRED')
@@ -330,6 +335,7 @@ def execute(mode):
                             '-f', 'tests/load/values-video-2x90.yaml', '-f', 'tests/load/values-video-2x90-low-cpu.yaml'])
             verify_load_render([d for d in yaml.safe_load_all(rendered) if d], name)
             (out / 'ownership.json').write_text(json.dumps({'run': run_id, 'mode': mode, 'name': name, 'namespace': 'jitsi-load-test'}))
+            print(f'Installation Helm de {name} avec Job suspendu', flush=True)
             run(['helm', 'install', name, 'charts/jitsi-load-test', '-n', 'jitsi-load-test',
                  '-f', 'tests/load/values-video-2x90.yaml', '-f', 'tests/load/values-video-2x90-low-cpu.yaml',
                  '--set', 'malleus.suspend=true', '--wait', '--timeout', '180s'], timeout=210)
@@ -338,6 +344,7 @@ def execute(mode):
             light = importlib.util.module_from_spec(spec); spec.loader.exec_module(light)
             light.GRID = 'http://127.0.0.1:14444'; light.VIDEO_MODE = True
             guard(mode); require_idle(stats()); stable(before, production())
+            print(f'Selenium prêt · activation du Job {name}-malleus', flush=True)
             kubectl('-n', 'jitsi-load-test', 'patch', 'job', name + '-malleus', '--type=merge', '-p', '{"spec":{"suspend":false}}')
         else:
             name = 'm2-chaos-' + run_id
@@ -357,11 +364,13 @@ def execute(mode):
             manifest = experiment(approved, uid, run_id)
             guard(mode); exact_web(production(), approved, uid); require_idle(stats())
             (out / 'ownership.json').write_text(json.dumps({'run': run_id, 'mode': mode, 'name': name, 'namespace': 'jitsi'}))
+            print(f'Expérience PodChaos {name} · pod-kill · cible {approved} ({uid})', flush=True)
             kubectl('create', '-f', '-', data=json.dumps(manifest))
         completed = False
         injected_seen = False
         start = time.monotonic()
-        with (out / 'metrics.jsonl').open('w') as output:
+        last_observation = None
+        with (out / 'metrics.jsonl').open('w') as output, (out / 'pods-during.txt').open('w') as evidence:
             while time.monotonic() - start < (240 if mode == 'malleus' else 180):
                 sample = {'timestamp': datetime.now(timezone.utc).isoformat(), 'elapsed_s': round(time.monotonic() - start, 3), 'nodes': capacity(), 'jvb': stats()}
                 sample['production_pods_metrics'] = pod_metrics('jitsi')
@@ -375,6 +384,8 @@ def execute(mode):
                     if light.video_verified({'browsers': sample['browsers'], 'jvb-0': sample['jvb']}, 2):
                         summary['video_samples'] += 1
                     job = read('job ' + name + '-malleus', 'jitsi-load-test')
+                    observation = {'job': name + '-malleus', 'pods': pod_observation(read('pods', 'jitsi-load-test')['items']),
+                                   'job_status': {key: job.get('status', {}).get(key, 0) for key in ('active', 'succeeded', 'failed')}}
                     failed = any(c['type'] == 'Failed' and c['status'] == 'True' for c in job.get('status', {}).get('conditions', []))
                     require(not failed, 'TEST_JOB_FAILED')
                     complete = any(c['type'] == 'Complete' and c['status'] == 'True' for c in job.get('status', {}).get('conditions', []))
@@ -386,6 +397,7 @@ def execute(mode):
                     summary['injection_confirmed'] = injected_seen
                     # Web may be temporarily absent; other components must stay ready and unchanged.
                     current = read('pods', 'jitsi')['items']
+                    observation = {'podchaos': name, 'injected': injected_seen, 'pods': pod_observation(current)}
                     others = [p for p in current if p['metadata'].get('labels', {}).get('app.kubernetes.io/component') != 'web']
                     require(all(ready(p) for p in others), 'NON_WEB_NOT_READY')
                     snapshot = {p['metadata']['name']: {'uid': p['metadata']['uid'], 'component': p['metadata'].get('labels', {}).get('app.kubernetes.io/component'),
@@ -394,6 +406,11 @@ def execute(mode):
                     complete = injected_seen and any(p['metadata'].get('labels', {}).get('app.kubernetes.io/component') == 'web' and p['metadata']['uid'] != uid and ready(p) for p in current)
                     if complete:
                         sample['https_status'] = https()
+                if observation != last_observation:
+                    line = json.dumps({'timestamp': sample['timestamp'], **observation}, sort_keys=True)
+                    print(line, flush=True, file=evidence)
+                    print(line, flush=True)
+                    last_observation = observation
                 output.write(json.dumps(sample) + '\n'); output.flush()
                 if complete:
                     completed = True

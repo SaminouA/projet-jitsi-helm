@@ -723,7 +723,28 @@ simulent les réponses de `SelfSubjectAccessReview` avec l'identité courante.
 Ils couvrent une autorisation, un refus motivé, une erreur d'évaluation et les
 sous-ressources Kubernetes. Ils vérifient aussi le contrôle des droits de
 nettoyage pour les deux modes et le nettoyage Malleus sur un échec Helm simulé.
-Aucune nouvelle exécution sur GKE ne valide encore cette correction.
+Le [run Chaos suivant](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44279010491)
+sur `7f16312` a franchi le contrôle d'autorisation du runner. Il s'est arrêté
+sur `CONTROLLER_POD_RIGHTS_TOO_BROAD` lors de la vérification du RBAC du
+contrôleur, avant la création du PodChaos. La règle précise en cause reste à
+identifier. Ce run ne fournit donc aucune observation de reconstruction.
+Le [dernier run Malleus recensé](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44164624972)
+est en échec sur un commit antérieur. Le scénario Kubernetes réussi décrit
+en section 9 reste une preuve distincte du pipeline manuel.
+
+La lecture du RBAC a identifié la règle `create pods/exec` dans le rôle local
+du contrôleur, dans `chaos-testing`. Après retrait approuvé de cette seule
+règle, le contrôleur était prêt et son audit RBAC a réussi avec le nom du
+Web courant. Le droit de suppression restait limité à ce nom dans `jitsi`.
+
+Le chart de charge rendu localement regroupe Selenium et Malleus dans
+`jitsi-load-test`. Le service Selenium est de type `ClusterIP`, sans IP
+externe, et les pods n'utilisent ni réseau hôte ni port hôte. L'overlay
+demande aussi une anti-affinité avec JVB. Aucun objet `NetworkPolicy` n'a
+été observé dans `jitsi` ou `jitsi-load-test` lors de cette vérification.
+La séparation vérifiée porte donc sur le namespace, l'exposition du service
+et le placement demandé. Un filtrage des flux entre namespaces reste à
+démontrer si le barème l'exige.
 
 ## 11. Incidents, limites et bilan économique
 

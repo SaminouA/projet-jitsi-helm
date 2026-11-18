@@ -26,6 +26,14 @@ class ChaosWebSafetyTests(unittest.TestCase):
         self.assertEqual(delete, [{'apiGroups': [''], 'resources': ['pods'], 'verbs': ['delete'], 'resourceNames': [TARGET]}])
         self.assertFalse(any('secrets' in r['resources'] for r in rules))
 
+    def test_control_plane_exec_is_removed_without_changing_other_rules(self):
+        exec_rule = {'apiGroups': [''], 'resources': ['pods/exec'], 'verbs': ['create']}
+        leases = {'apiGroups': ['coordination.k8s.io'], 'resources': ['leases'], 'verbs': ['*']}
+        role = {'kind': 'Role', 'metadata': {'name': 'chaos-mesh-chaos-controller-manager-control-plane'},
+                'rules': [exec_rule, leases]}
+        post.transform(self.fixture() + [role], TARGET)
+        self.assertEqual(role['rules'], [leases])
+
     def test_other_component_and_wildcard_targets_rejected(self):
         for target in ['jitsi-jitsi-meet-jvb-0-test-test', 'jitsi-edge-test-test', 'jitsi-jitsi-meet-web-*', '']:
             with self.assertRaises(SystemExit): post.transform(self.fixture(), target)
