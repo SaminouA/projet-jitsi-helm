@@ -1,19 +1,14 @@
-# Jitsi Meet sur GKE — Master 2 DevOps
+# Jitsi Meet sur Google Kubernetes Engine
 
 Plateforme de visioconférence déployée avec Terraform, Kubernetes et Helm,
 accessible en HTTPS via Caddy. Cette documentation distingue les observations
 historiques des procédures et des validations récentes.
 
-## Livraison du 18 novembre 2026
+## Documentation
 
-- [Rapport académique](docs/rapport.md)
-- [Navigation de la documentation](docs/README.md)
-- [Conformité, preuves et limites](docs/conformite-finale.md)
-- [Index des preuves vérifiables](docs/preuves-livraison.md)
-- [Plan de présentation orale](docs/presentation-finale.md)
-- [Journal technique conservé](docs/archives/rapport-avant-livraison-finale-2026-11-17.md)
-
-Les validations du 18 novembre et leurs limites sont regroupées dans le [rapport](docs/rapport.md) et le [guide monitoring](monitoring/README.md).
+- [Vue d’ensemble](docs/README.md)
+- [Rapport technique et preuves](docs/rapport.md)
+- [Supervision JVB et Grafana](monitoring/README.md)
 
 ## Architecture
 
@@ -40,22 +35,18 @@ release `jitsi` révision 4, `jitsi-edge` révision 3 et cinq pods prêts.
 Le chart applicatif communautaire `jitsi-contrib/jitsi-helm` est conservé en
 version 3.10.0 ; le dossier historique `jitsi/` n'est pas le chart déployé.
 
-## Ce qui est réellement validé
+## Validations
 
-| Élément | Preuve et portée |
+| Composant | Résultat |
 |---|---|
-| CI Helm, Terraform et Python | CI main réussie ; 138 tests sur la base technique examinée |
-| CD Helm OIDC/SOPS | Exécution contrôlée réussie, puis désactivation du flag |
-| Terraform distant | Migration GCS, Plan et Apply protégés réussis. [Run Terraform nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) |
-| Réunion manuelle | Audio/vidéo, chat et trois participants ; limites détaillées dans le rapport |
-| Malleus/Selenium | Essais natifs puis vidéo GKE à deux participants, avec mesures RTP |
-| Chaos Mesh | Une expérience historique pod-kill Web ; récupération HTTPS mesurée |
-| Workflows d'expérimentation | [Malleus nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) et [Chaos Mesh](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029) réussis |
-| Monitoring | Collecte JVB active et 14 panneaux validés avec Grafana local. [Mode d’accès](monitoring/README.md) |
+| Déploiement Helm | OIDC, SOPS/KMS et mise à niveau contrôlée validés. [Run Helm](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) |
+| Terraform | Plan et Apply approuvés. Le plan indépendant confirme zéro changement et un état GCS inchangé. [Apply](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) · [Convergence](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) |
+| Malleus et Chaos Mesh | Pipelines manuels réussis. Le rapport conserve les résultats et leurs limites. [Preuves](docs/rapport.md#7-preuves-de-validation) |
+| Monitoring | Collecte JVB via Managed Prometheus et 14 panneaux testés dans Grafana local. [Supervision](monitoring/README.md) |
 
-Les flags de déploiement Helm et Terraform sont désactivés. Les expériences restent manuelles et protégées. Les limites de capacité et la haute disponibilité ne sont pas démontrées.
+Les déploiements automatiques Helm et Terraform sont désactivés. Les expériences restent manuelles et protégées.
 
-## Structure et procédures
+## Organisation du dépôt
 
 | Chemin | Usage |
 |---|---|
@@ -67,23 +58,13 @@ Les flags de déploiement Helm et Terraform sont désactivés. Les expériences 
 | `scripts/` | Validations, déploiement contrôlé, instrumentation et expériences |
 | `.github/workflows/` | CI, CD Helm, Terraform contrôlé, builds et expérimentations manuelles |
 | `tests/` | Tests statiques et synthèses expurgées ; collectes brutes ignorées |
-| `docs/` | Rapport, procédures, preuves et présentation |
+| `docs/` | Index et rapport technique |
 
 Le profil public associe `values-gke.yaml`, `deploy/jitsi-duckdns.yaml` et
 `values-secrets.sops.yaml`. Les secrets sont chiffrés avec SOPS/KMS ; ne jamais
 publier de déchiffrement, de state, de sauvegarde Helm ou de clé JSON.
 Le profil localhost nécessite une surcharge explicite : un port-forward seul
 ne transforme pas la configuration publique en profil localhost.
-
-Procédures : [HTTPS](docs/https-duckdns.md),
-[bootstrap](docs/bootstrap-https-court.md),
-[CD Helm contrôlée](docs/validation-cd-controlee.md),
-[Terraform plan/revue/apply](docs/terraform-plan-apply-validation.md),
-[expérimentations manuelles](docs/pipelines-experiences-controlees.md),
-[vidéo Kubernetes](docs/test-video-helm-2x90.md),
-[Chaos Web](docs/chaos-web-controle.md).
-Ces guides contiennent des commandes potentiellement mutantes : ils ne constituent
-pas une autorisation de les exécuter.
 
 ## Vérifications locales
 
@@ -100,13 +81,11 @@ La validation Terraform utilise une copie isolée et un backend désactivé.
 
 ## Limites, sécurité et coûts
 
-L'apply Terraform GitHub reste non exécuté ; l'environnement de revue et le
-secret de transport du plan restent à configurer avant toute activation.
-Les nouveaux workflows Malleus/Chaos demandent aussi leur identité et leur
-environnement dédiés. Ne pas réutiliser sans contrôle les droits de production.
+La capacité maximale et la haute disponibilité restent à évaluer.
+Les droits de déploiement et d'expérimentation sont vérifiés dans les
+workflows protégés. Toute opération mutante requiert une autorisation.
 
-Deux VM, leurs disques, deux LoadBalancers, le PVC Caddy, l'adresse réservée,
-le trafic et KMS peuvent générer des frais. Le sous-domaine gratuit ne rend pas
+Les nœuds GKE et leurs disques, la VM de travail, les load balancers, le PVC Caddy, les adresses publiques, le trafic, GCS, KMS et les métriques peuvent générer des frais. Le sous-domaine gratuit ne rend pas
 GKE gratuit. Une désinstallation Helm ne supprime pas automatiquement le PVC
 indépendant ni l'adresse réservée. Toute remise en service, expérience ou
 suppression exige une autorisation et une vérification des ressources à conserver.

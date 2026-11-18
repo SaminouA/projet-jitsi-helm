@@ -1,14 +1,5 @@
 # Déploiement, automatisation, sécurisation et supervision de Jitsi Meet sur Google Cloud Platform
 
-**Sup de Vinci – Bordeaux · Master 2 DevOps & Cloud Computing**
-**Année scolaire 2026-2027 · Remise du 18 novembre 2026**
-
-| Information | Valeur |
-|---|---|
-| Auteur | Amandine · nom de famille à compléter |
-| Encadrant | À compléter |
-| Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
-
 ## 1. Objectifs
 
 Déployer un service Jitsi Meet accessible en HTTPS sur GKE, puis rendre sa
@@ -121,21 +112,21 @@ Il consisterait à déployer une architecture multicloud actif/passif, à gérer
 le DNS Cloudflare avec Terraform et à sélectionner le fournisseur actif via
 une variable du pipeline. Il resterait à tester le basculement et la reprise.
 
-## 7. Annexes et sources de preuve
+## 7. Preuves de validation
 
-- [Index des preuves](preuves-livraison.md) et [rapport détaillé conservé au commit 4452c17](https://github.com/SaminouA/projet-jitsi-helm/blob/4452c171a987f61933fbc7e013ecbb940a3505b1/docs/rapport.md).
-- [Artefact Malleus](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205/artifacts/14418602142) et [artefact Chaos](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029/artifacts/14416963978), également sauvegardés hors Git.
-- [Monitoring](../monitoring/README.md), manifeste JVB et dashboard Grafana.
-- [Journal historique](archives/rapport-avant-livraison-finale-2026-11-17.md) et [procédure Terraform](terraform-plan-apply-validation.md).
+Les résultats expurgés ci-dessous sont versionnés dans ce rapport. Ils restent
+consultables lorsque les artefacts temporaires de GitHub Actions expirent.
+Les liens vers les runs attestent l'exécution. Les synthèses historiques
+versionnées documentent des essais antérieurs distincts.
 
-Les éléments utiles de la branche documentaire historique sont la navigation,
-les preuves et le contexte des premiers essais. La navigation a été reprise
-dans l'index. Le premier diagnostic IAM avait buté sur le droit
-`serviceusage.services.enable`. L'audit a distingué l'identité gcloud des
-identifiants ADC. Les compteurs cumulés JVB du premier palier sont restés
-stables entre deux relevés et ne mesurent donc pas le volume de l'intervalle.
-Le [complément historique](https://github.com/SaminouA/projet-jitsi-helm/blob/3521f81c0f6ca6d8eebe5c4a70570168c1415281/docs/rapport.md)
-est aussi conservé dans le bundle de remise.
+| Validation | Résultat conservé | Référence |
+|---|---|---|
+| Helm | Workflow réussi. Jitsi et Caddy déployés, avec déchiffrement SOPS/KMS et authentification OIDC. | [Run Helm](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) |
+| Terraform Apply | Une modification sur place du cluster, ajout de `devops-apply-proof=github-actions`. Pool inchangé. Zéro création, destruction ou remplacement. Le plan exact a été approuvé. | [Run nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) |
+| Terraform Convergence | Zéro création, modification, destruction ou remplacement. État distant GCS inchangé. | [Run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) |
+| Malleus | Job réussi et nettoyé. Deux participants et trois échantillons vidéo validés. | [Run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) · [Synthèse historique](../tests/load/k8s-video-low-cpu-results.json) |
+| Chaos Mesh | Une injection confirmée, remplacement du Web par un nouvel UID, retour à l'état Ready et nettoyage. | [Run Chaos](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029) · [YAML](../tests/chaos/podchaos-web-once.yaml) · [Synthèse historique](../tests/chaos/results-summary.json) |
+| Monitoring | Deux collecteurs prêts, collecte et santé JVB à 1. Les 19 requêtes des 14 panneaux ont renvoyé des séries. | [Configuration et accès](../monitoring/README.md) |
 
 Les ressources GCP maintenues pour la démonstration peuvent générer des coûts.
 Elles comprennent le cluster et ses deux nœuds, la VM de travail, les disques
