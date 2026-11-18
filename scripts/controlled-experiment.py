@@ -34,7 +34,13 @@ def run(args, *, data=None, allowed=(0,), timeout=45):
 
 
 def kubectl(*args, data=None):
-    return run(['kubectl', '--context', CONTEXT, '--request-timeout=20s', *args], data=data, timeout=90)
+    try:
+        return run(['kubectl', '--context', CONTEXT, '--request-timeout=20s', *args], data=data, timeout=90)
+    except RuntimeError as error:
+        if str(error) != 'COMMAND_FAILED_kubectl':
+            raise
+        operation = args[2:] if args[:1] == ('-n',) else args
+        raise RuntimeError(f'COMMAND_FAILED_kubectl {" ".join(operation[:2])}') from None
 
 
 def read(kind, namespace=None):
@@ -374,8 +380,6 @@ def execute(mode):
             while time.monotonic() - start < (240 if mode == 'malleus' else 180):
                 sample = {'timestamp': datetime.now(timezone.utc).isoformat(), 'elapsed_s': round(time.monotonic() - start, 3), 'nodes': capacity(), 'jvb': stats()}
                 sample['production_pods_metrics'] = pod_metrics('jitsi')
-                if mode == 'malleus':
-                    sample['test_pods_metrics'] = pod_metrics('jitsi-load-test')
                 require(sample['jvb'].get('ice_failed', 0) == 0 and sample['jvb'].get('healthy') is True, 'JVB_UNHEALTHY')
                 require(sample['jvb'].get('participants', 0) <= (2 if mode == 'malleus' else 0), 'UNEXPECTED_PARTICIPANTS')
                 if mode == 'malleus':
