@@ -86,7 +86,7 @@ disponibilité, TURN et la continuité d'une conférence pendant Chaos restent �
 instants. Les résultats vidéo sont échantillonnés et les débits ne constituent
 pas une garantie de service.
 
-## 5. Grille du professeur
+## 5. Grille d'évaluation
 
 | Nº | Critère | Résultat et preuve |
 |---:|---|---|
