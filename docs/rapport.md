@@ -1,15 +1,15 @@
-# Déploiement et automatisation d'une plateforme de visioconférence Jitsi Meet sur Google Cloud Platform (GCP)
+# Déploiement, automatisation, sécurisation et supervision de Jitsi Meet sur Google Cloud Platform
 
-**Rapport de projet — Master 2 — DevOps & Cloud Computing**
-**Remise prévue : 18 novembre 2026 — consolidation documentaire : 17 novembre 2026**
+**Rapport de projet — Master 2 DevOps & Cloud Computing**
+**Date de remise — 18 novembre 2026**
 
 | Information académique | Valeur |
 |---|---|
 | Auteur | Amandine — nom de famille : À compléter |
-| Établissement | Sup de Vinci Bordeaux |
-| Formation | Master 2 — DevOps & Cloud Computing |
+| Établissement | Sup de Vinci – Bordeaux |
+| Formation | Master 2 DevOps & Cloud Computing |
 | Enseignant ou encadrant | À compléter |
-| Année universitaire | 2026-2027 |
+| Année scolaire | 2026-2027 |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 | Référence technique relue | `main` au commit `23cb73d656015bbc71f16bb58abf308cb78d0fca` |
 
@@ -797,8 +797,7 @@ cluster avec Jitsi. Aucun filtrage inter-namespace n'a été démontré.
 L'inventaire du 18 novembre n'a trouvé aucune `NetworkPolicy` dans le
 cluster. Le namespace dédié et le service interne satisfont la séparation
 de déploiement et d'exposition. Une exigence de filtrage des flux entre
-namespaces demanderait une validation distincte. Le barème original reste
-indisponible dans le dépôt.
+namespaces demanderait une validation distincte. La grille transmise ne stipule pas de filtrage par `NetworkPolicy`.
 Le résumé atteste le nettoyage, le relevé après exécution montre le
 namespace de charge vide pour les pods, jobs et déploiements, et le contrôle
 final confirme l'absence du service et de la release Helm.
@@ -855,6 +854,78 @@ et zéro participant au repos. Son endpoint interne `/metrics` a renvoyé HTTP
 JSONL. Une collecte continue des métriques JVB dans Prometheus et un tableau
 de bord Grafana restent à démontrer.
 
+#### Préparation de la démonstration monitoring
+
+Le `PodMonitoring jitsi-jvb` a été appliqué après autorisation. Il réutilise
+Managed Prometheus et cible `/metrics` sur le port interne 8080, toutes les
+30 secondes. La liste de dix métriques inclut santé, conférences, endpoints,
+débits RTP/RTCP, taux de paquets et stress. La configuration du collecteur
+a été acceptée, et la cible a été observée saine, sans erreur de scrape.
+L'API Cloud Monitoring a ensuite renvoyé les séries JVB, avec trois points
+à 30 s d'intervalle pour `up=1` et la santé du bridge à 1. Les valeurs au
+repos de conférences et endpoints sont à zéro.
+
+Les configurations et le mode d'accès figurent dans [monitoring](../monitoring/README.md).
+Le tableau de bord Grafana comporte quatorze panneaux. L'API Prometheus
+a renvoyé des séries CPU et mémoire pour deux nœuds et cinq pods, ainsi que
+le trafic, la readiness et les redémarrages. Les métriques de débit JVB
+agrègent le RTP/RTCP. Les observations vidéo propres au scénario Malleus sont
+dans ses mesures navigateur. Un graphique historique dans le dossier de
+remise représente les points Chaos et Malleus sauvegardés.
+Grafana OSS 13.2.4 a été testé temporairement sur localhost. Le tableau
+de bord a été importé et les 19 expressions ont renvoyé des séries
+réelles via la source Prometheus de Grafana. Le test a utilisé un jeton
+OAuth temporaire et l'instance locale a été arrêtée. Le contrôle était
+effectué via l'API Grafana. Aucun rendu navigateur n'a été capturé.
+
+
+#### Diagnostic du Plan Terraform nº 6
+
+Le [run 44288628619](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619)
+sur `7475960` a validé OIDC, le backend GCS, l'état distant et Terraform
+Validate. Le script a ensuite refusé le plan avec `PLAN_CHANGE_REFUSED`
+car le mode `readonly` exige `actions == ['no-op']` et aucun chemin
+de remplacement pour chacune des deux ressources gérées.
+
+Une reproduction locale en lecture seule, sur le même commit et le même
+backend, a établi **0 création, 1 modification, 0 destruction, 0 remplacement**.
+Terraform prévoit d'ajouter `devops-apply-proof=github-actions` au cluster
+`google_container_cluster.jitsi`. Les trois attributs calculés ou déclarés
+touchés sont `resource_labels`, `terraform_labels` et `effective_labels`.
+Le pool `google_container_node_pool.jitsi_nodes` est `no-op`. Le label est
+déclaré dans le code et absent du cluster. Le rafraîchissement signale aussi
+des écarts d'état sur `node_config`, `node_pool` et `resource_labels` côté
+cluster, et sur `node_config` côté pool. Ils n'ajoutent aucune action au plan.
+L'état distant est resté identique avant et après le diagnostic.
+
+La garde du mode `apply-label` accepte cette reproduction. Pour valider
+la grille, utiliser l'étape protégée de préparation du plan exact, vérifier
+son empreinte et le périmètre, puis demander une autorisation distincte
+avant l'Apply. Le mode `readonly` demeure réservé au contrôle sans changement.
+Après un Apply autorisé, un nouveau Plan en lecture seule doit confirmer
+la convergence. Aucun Apply n'a été exécuté pendant ce diagnostic.
+
+Le [run Terraform nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368)
+sur `7475960` a réussi l'étape protégée `prepare-plan`. Le résumé expurgé
+de l'artefact confirme uniquement l'ajout du label `devops-apply-proof=github-actions`
+au cluster existant. Le bilan est de zéro création, une mise à jour sur
+place, zéro destruction et zéro remplacement. Le pool est `no-op`.
+L'empreinte du plan exact est
+`7263c6dbc66f9607e4cf999ccde8b375d8d029e250c3904fa58e40b830465b61`.
+Le job `apply` a réussi après revue. Les logs attestent l'application
+du binaire revu et un plan final sans changement. GKE confirme que le
+cluster est `RUNNING` et porte le label prévu. Les deux nœuds sont prêts.
+Les cinq pods Jitsi ont conservé leurs UID, leur état Ready et zéro
+redémarrage. HTTPS répond 200 et les révisions Helm sont inchangées.
+Les deux variables `TF_CD_ENABLED` ont été remises à `false`.
+Le [Plan de convergence nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177)
+a réussi en lecture seule. Son résumé confirme zéro changement et un état GCS inchangé.
+La reproduction indépendante sur le même commit confirme zéro création,
+modification, destruction ou remplacement et un état GCS inchangé.
+Après l'Apply, les 19 requêtes des 14 panneaux ont également renvoyé
+des séries réelles depuis Cloud Monitoring.
+
+
 ### 11.3. Coûts et cycle de vie
 
 Les postes sont les nœuds, leurs disques, la gestion GKE selon facturation,
@@ -871,25 +942,24 @@ décision sur PVC/IP/données ACME et la conservation de l'état GCS. Les ancien
 commandes de destruction du journal ne sont pas applicables aveuglément à la
 configuration finale. Aucune destruction n'est faite pour cette livraison.
 
-## 12. Conformité et travaux restant à valider
+## 12. Validation des neuf critères de la grille du professeur
 
-Le [tableau final de conformité](conformite-finale.md) rassemble les preuves
-et les limites des attendus techniques connus. Le sujet/barème original n'est
-pas présent dans les fichiers examinés ; l'exigence exacte d'un Terraform
-automatique après push et le format de remise restent à confirmer.
+| Nº | Critère de la grille | État et preuve |
+|---:|---|---|
+| 1 | Chart Helm Jitsi | Présent dans [charts-officiels/jitsi-meet](../charts-officiels/jitsi-meet/Chart.yaml) et validé par le déploiement Helm. |
+| 2 | Chart Helm jitsi-meet-torture | Couvert par [jitsi-load-test](../charts/jitsi-load-test/Chart.yaml) sous ce nom dans le dépôt. Il fournit le Deployment et le Service Selenium Grid ainsi que le Job Malleus. Le [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) les a exécutés. |
+| 3 | Code Terraform | [Définition versionnée](../terraform/main.tf) du cluster GKE et du pool de nœuds avec état distant GCS. |
+| 4 | Secrets gérés par SOPS ou OpenBao | Les deux mots de passe XMPP du [fichier de valeurs](../values-secrets.sops.yaml) sont chiffrés par SOPS avec Cloud KMS. Leur utilisation est attestée par le run Helm. La vérification des champs ne constitue pas un audit exhaustif de tout l'historique Git. |
+| 5 | Dépôt organisé et documenté | Le [README](../README.md) donne les points d'entrée. Le rapport, les charts, Terraform et les preuves sont versionnés. |
+| 6 | Pipelines passants de déploiement Helm ou ArgoCD | La voie Helm satisfait le choix proposé. Le [run 44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) a réussi avec OIDC, SOPS/KMS et upgrades Helm. |
+| 7 | Pipelines de provisionnement infra passants | **Validé.** Le [run nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) a préparé, fait approuver et appliqué le plan exact. Le contrôle post-Apply du même run ne détecte aucun changement. Le [Plan indépendant nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) a réussi sans changement. |
+| 8 | Pipeline manuel ou programmé passant de lancement Malleus | Le [workflow dédié](../.github/workflows/malleus-controlled.yml) a réussi au [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205). |
+| 9 | Pipeline manuel ou programmé passant de lancement Chaos Mesh | Le [workflow dédié](../.github/workflows/chaos-controlled.yml) a réussi au [run 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029). |
 
-La CI après push et une CD Helm contrôlée sont prouvées. Le provisioning
-initial Terraform est historique, le plan readonly GitHub est prouvé, mais
-**l'apply Terraform GitHub ne l'est pas**. Les campagnes Malleus et Chaos réelles
-ont aussi réussi via leurs workflows manuels le 18 novembre. Les preuves des
-deux runs et leurs limites figurent dans les sections 9 et 10.
-
-Avant rendu, vérifier la page de garde, l'export PDF et les diagrammes.
-Conserver une copie des artefacts de preuve au-delà de leur rétention
-GitHub de trois jours et préparer la démonstration à partir des workflows
-et des runs validés. Confirmer le niveau d'isolation réseau exigé par le barème. Les prérequis d'apply/expériences,
-leur éventuelle exécution et le nettoyage cloud restent soumis à décisions
-séparées ; ils ne sont pas exécutés pendant cette rédaction.
+La grille transmise ne stipule ni filtrage réseau de Malleus par NetworkPolicy
+ni déploiement de Grafana. La séparation de déploiement et d'exposition
+est documentée en section 10, et le monitoring en section 11. Les neuf critères sont couverts par les preuves ci-dessus. Avant remise, vérifier la page de garde,
+les diagrammes, l'export PDF et les liens des preuves.
 
 ## 13. Conclusion et perspectives
 
