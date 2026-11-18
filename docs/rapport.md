@@ -476,18 +476,20 @@ est skipped. « Reconnu/actif » dans le registre Actions ne signifie pas « ex�
 ### 7.4. Désactivation et validations encore nécessaires
 
 `GKE_CD_ENABLED=false`, `TF_CD_ENABLED=false` au dépôt et à l'environnement
-Terraform ; `EXPERIMENTS_ENABLED` absent, donc désactivé. Le flag edge de profil
+Terraform lors de l'audit. `EXPERIMENTS_ENABLED=true` a été vérifié le
+18 novembre pour les deux runs manuels. Le flag edge de profil
 ne suffit pas à activer le flag général de CD. Les conditions de main/SHA/CI,
 les approbations et le moindre privilège restent requis.
 
 Les workflows Malleus et Chaos demandent une identité et un provider dédiés,
 l'environnement protégé `experiments-controlled`, le namespace de charge et
-un contrôleur Chaos minimal. Ces prérequis n'étaient pas provisionnés au dernier
-audit. Ils vérifient les droits de nettoyage avant création, ciblent les seuls
+un contrôleur Chaos minimal. Les deux runs manuels du 18 novembre ont validé
+ces prérequis. Les workflows vérifient les droits de nettoyage avant création,
+ciblent les seuls
 objets du run, collectent des observations filtrées et utilisent `finally` et
 `always()`. Une perte complète du runner peut toutefois laisser le Deployment
 Selenium malgré le TTL du Job ; un contrôle manuel ciblé resterait nécessaire.
-Ces mécanismes ne sont pas une preuve de nettoyage par un run encore inexistant.
+Les artefacts des runs réussis attestent leur nettoyage, dans les sections 9 et 10.
 
 ## 8. Validation fonctionnelle
 
@@ -762,7 +764,16 @@ a installé le chart dans `jitsi-load-test`. Le service Selenium était
 `ClusterIP`, sans IP externe, et le pod Selenium était sur un autre nœud
 que JVB. Selenium est devenu prêt et le Job a été activé. Le pipeline
 s'est arrêté sur une commande Kubernetes avant le premier relevé. La
-release temporaire a été nettoyée. Le Job et les médias restent à valider.
+release temporaire a été nettoyée.
+
+La [reprise Malleus 44284381205](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205)
+sur `c31fed4` a réussi après approbation. Le Job a atteint `Complete` avec
+une réussite et zéro échec, et Maven a terminé par `BUILD SUCCESS`.
+L'[artefact](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205/artifacts/14418602142)
+contient les relevés horodatés, les compteurs et trois échantillons validant
+la vidéo à deux participants. La continuité vidéo sur les 90 secondes
+n'a pas été mesurée. Le résumé et la vérification Kubernetes finale ont
+confirmé le retrait du Job, de Selenium et du service de la release.
 
 ## 11. Incidents, limites et bilan économique
 
@@ -829,8 +840,8 @@ automatique après push et le format de remise restent à confirmer.
 La CI après push et une CD Helm contrôlée sont prouvées. Le provisioning
 initial Terraform est historique, le plan readonly GitHub est prouvé, mais
 **l'apply Terraform GitHub ne l'est pas**. Les campagnes Malleus et Chaos réelles
-sont prouvées séparément de leurs nouveaux workflows non exécutés. Ces écarts
-sont des limites de conformité, pas des résultats à compléter par supposition.
+ont aussi réussi via leurs workflows manuels le 18 novembre. Les preuves des
+deux runs et leurs limites figurent dans les sections 9 et 10.
 
 Avant rendu : renseigner la page de garde, ajouter seulement des captures
 réelles expurgées si disponibles, vérifier l'export PDF et les diagrammes,
