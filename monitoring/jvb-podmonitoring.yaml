@@ -1,0 +1,20 @@
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: jitsi-jvb
+  namespace: jitsi
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jitsi-meet
+      app.kubernetes.io/instance: jitsi
+      app.kubernetes.io/component: jvb
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      timeout: 10s
+      metricRelabeling:
+        - action: keep
+          sourceLabels: [__name__]
+          regex: jitsi_jvb_(current_endpoints|active_endpoints|endpoints_sending_video|incoming_bitrate|outgoing_bitrate|incoming_packet_rate|outgoing_packet_rate|stress|healthy|conferences)

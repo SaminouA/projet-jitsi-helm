@@ -855,6 +855,35 @@ et zéro participant au repos. Son endpoint interne `/metrics` a renvoyé HTTP
 JSONL. Une collecte continue des métriques JVB dans Prometheus et un tableau
 de bord Grafana restent à démontrer.
 
+#### Préparation de la démonstration monitoring
+
+Le `PodMonitoring jitsi-jvb` a été appliqué après autorisation. Il réutilise
+Managed Prometheus et cible `/metrics` sur le port interne 8080, toutes les
+30 secondes. La liste de dix métriques inclut santé, conférences, endpoints,
+débits RTP/RTCP, taux de paquets et stress. La configuration du collecteur
+a été acceptée, et la cible a été observée saine, sans erreur de scrape.
+L'API Cloud Monitoring a ensuite renvoyé les séries JVB, avec trois points
+à 30 s d'intervalle pour `up=1` et la santé du bridge à 1. Les valeurs au
+repos de conférences et endpoints sont à zéro.
+
+Les configurations et le mode d'accès figurent dans [monitoring](../monitoring/README.md).
+Le tableau de bord Grafana comporte quatorze panneaux. L'API Prometheus
+a renvoyé des séries CPU et mémoire pour deux nœuds et cinq pods, ainsi que
+le trafic, la readiness et les redémarrages. Les métriques de débit JVB
+agrègent le RTP/RTCP. Les observations vidéo propres au scénario Malleus sont
+dans ses mesures navigateur. Un graphique historique dans le dossier de
+remise représente les points Chaos et Malleus sauvegardés.
+
+Le Plan Terraform historique est validé par le run 44158823388. La
+[nouvelle exécution en lecture seule](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619)
+attend l'approbation GitHub. La revue protégée du plan exact et son secret de
+transport ont été mis en place. L'activation du mode Apply attend la fin du
+Plan en lecture seule. Seule la modification du label `devops-apply-proof`
+sur le cluster est admissible par la garde du workflow. L'Apply reste soumis
+à la revue du plan exact et à une autorisation distincte. Le barème officiel
+à neuf critères reste nécessaire pour une validation critère par critère.
+
+
 ### 11.3. Coûts et cycle de vie
 
 Les postes sont les nœuds, leurs disques, la gestion GKE selon facturation,
