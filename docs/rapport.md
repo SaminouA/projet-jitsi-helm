@@ -794,6 +794,11 @@ L'isolation vérifiée est celle décrite ci-dessus. Le service Selenium est
 interne à Kubernetes et la charge utilise le namespace dédié
 `jitsi-load-test`. Les deux pods de charge peuvent partager les nœuds du
 cluster avec Jitsi. Aucun filtrage inter-namespace n'a été démontré.
+L'inventaire du 18 novembre n'a trouvé aucune `NetworkPolicy` dans le
+cluster. Le namespace dédié et le service interne satisfont la séparation
+de déploiement et d'exposition. Une exigence de filtrage des flux entre
+namespaces demanderait une validation distincte. Le barème original reste
+indisponible dans le dépôt.
 Le résumé atteste le nettoyage, le relevé après exécution montre le
 namespace de charge vide pour les pods, jobs et déploiements, et le contrôle
 final confirme l'absence du service et de la release Helm.
@@ -832,10 +837,23 @@ pendant Chaos ne sont pas validés. L'authentification Jitsi reste désactivée 
 TURN absent : la plateforme est une démonstration encadrée, pas une qualification
 d'exploitation publique durable.
 
-Cloud Logging/Monitoring GKE étaient activés selon l'audit historique. Les
-courbes explicitement corrélées aux fenêtres Malleus/Chaos ne sont pas conservées
-comme preuve validée. Les métriques `kubectl top`, JSONL et JVB ne doivent pas
-être présentées comme des captures Cloud Monitoring.
+Le contrôle du 18 novembre confirme que Cloud Monitoring GKE et Cloud Logging
+sont activés. L'API Cloud Monitoring a renvoyé des points récents pour le CPU
+des nœuds et pour `prometheus.googleapis.com/up/gauge` sur `jitsi-cluster`.
+`kubectl top nodes` a également renvoyé les mesures des deux nœuds. Aucune
+courbe Cloud Monitoring corrélée aux fenêtres Chaos et Malleus n'a été conservée.
+
+Managed Service for Prometheus est activé. Les deux collecteurs et l'opérateur
+étaient prêts. Les cibles observées sont `kube-state-metrics` et l'exporteur
+DCGM géré par GKE. Aucun `PodMonitoring` ni cible dédiée à JVB n'a été trouvé.
+Aucun Grafana n'a été identifié dans les déploiements, services ou ingress
+du cluster. L'existence d'un Grafana externe n'a pas été vérifiée.
+
+JVB a répondu via un tunnel local sur `/colibri/stats` avec `healthy=true`
+et zéro participant au repos. Son endpoint interne `/metrics` a renvoyé HTTP
+200. Les relevés JVB des expérimentations sont disponibles dans les artefacts
+JSONL. Une collecte continue des métriques JVB dans Prometheus et un tableau
+de bord Grafana restent à démontrer.
 
 ### 11.3. Coûts et cycle de vie
 
