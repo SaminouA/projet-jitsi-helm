@@ -737,6 +737,17 @@ du contrôleur, dans `chaos-testing`. Après retrait approuvé de cette seule
 règle, le contrôleur était prêt et son audit RBAC a réussi avec le nom du
 Web courant. Le droit de suppression restait limité à ce nom dans `jitsi`.
 
+Le [run Chaos 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029)
+sur `075e2b7` a réussi après approbation. Son
+[artefact de preuves](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029/artifacts/14416963978)
+contient les relevés avant, pendant et après. Il confirme une injection, le
+remplacement du Web `xkswg` par `f5zmg` avec un nouvel UID, le passage du nouveau
+pod de non prêt à prêt et les quatre autres pods prêts avec les mêmes UID.
+Le résumé confirme le nettoyage du PodChaos. Pour rejouer le scénario, relever
+le nom et l'UID courants, faire recaler par un opérateur le seul `resourceNames`
+de la règle de suppression, puis saisir le nom et l'UID dans le workflow
+manuel et approuver l'exécution. Le YAML est réutilisé à chaque run.
+
 Le chart de charge rendu localement regroupe Selenium et Malleus dans
 `jitsi-load-test`. Le service Selenium est de type `ClusterIP`, sans IP
 externe, et les pods n'utilisent ni réseau hôte ni port hôte. L'overlay
@@ -745,6 +756,13 @@ demande aussi une anti-affinité avec JVB. Aucun objet `NetworkPolicy` n'a
 La séparation vérifiée porte donc sur le namespace, l'exposition du service
 et le placement demandé. Un filtrage des flux entre namespaces reste à
 démontrer si le barème l'exige.
+
+Le [run Malleus 44282804691](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282804691)
+a installé le chart dans `jitsi-load-test`. Le service Selenium était
+`ClusterIP`, sans IP externe, et le pod Selenium était sur un autre nœud
+que JVB. Selenium est devenu prêt et le Job a été activé. Le pipeline
+s'est arrêté sur une commande Kubernetes avant le premier relevé. La
+release temporaire a été nettoyée. Le Job et les médias restent à valider.
 
 ## 11. Incidents, limites et bilan économique
 
