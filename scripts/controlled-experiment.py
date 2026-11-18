@@ -34,7 +34,7 @@ def run(args, *, data=None, allowed=(0,), timeout=45):
 
 
 def kubectl(*args, data=None):
-    return run(['kubectl', '--context', CONTEXT, '--request-timeout=20s', *args], data=data, timeout=90, allowed=(0, 1) if args[:2] == ('auth', 'can-i') else (0,))
+    return run(['kubectl', '--context', CONTEXT, '--request-timeout=20s', *args], data=data, timeout=90)
 
 
 def read(kind, namespace=None):
@@ -260,6 +260,26 @@ def cleanup():
     path.unlink()
 
 
+def access_allowed(verb, resource, namespace):
+    resource, _, subresource = resource.partition('/')
+    resource, _, group = resource.partition('.')
+    question = f'{verb}:{resource}:{subresource or "-"}:{namespace}'
+    review = {
+        'apiVersion': 'authorization.k8s.io/v1',
+        'kind': 'SelfSubjectAccessReview',
+        'spec': {'resourceAttributes': {
+            'namespace': namespace, 'verb': verb, 'group': group,
+            'resource': resource, 'subresource': subresource,
+        }},
+    }
+    path = '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews'
+    response = json.loads(kubectl('create', '--raw', path, '-f', '-', data=json.dumps(review)))
+    status = response.get('status')
+    require(isinstance(status, dict) and not status.get('evaluationError') and type(status.get('allowed')) is bool,
+            'ACCESS_REVIEW_INCONCLUSIVE ' + question)
+    return status['allowed']
+
+
 def cleanup_permissions(mode):
     # Refuse to create anything if the identity cannot clean it up later.
     if mode == 'malleus':
@@ -271,7 +291,8 @@ def cleanup_permissions(mode):
         namespace = 'jitsi'
         checks = [(v, 'podchaos.chaos-mesh.org') for v in ['get', 'create', 'delete']]
     for verb, resource in checks:
-        require(kubectl('auth', 'can-i', verb, resource, '-n', namespace).strip() == 'yes', 'REQUIRED_EXECUTION_OR_CLEANUP_PERMISSION_MISSING')
+        require(access_allowed(verb, resource, namespace),
+                f'REQUIRED_EXECUTION_OR_CLEANUP_PERMISSION_MISSING {verb}:{resource}')
 
 
 def execute(mode):
@@ -283,9 +304,11 @@ def execute(mode):
     require(identity == ACCOUNT, 'KUBERNETES_IDENTITY_MISMATCH')
     # Experiment identity must not directly mutate any production Pod.
     for verb in ['delete', 'deletecollection', 'patch', 'update', 'create']:
-        require(kubectl('auth', 'can-i', verb, 'pods', '-n', 'jitsi').strip() == 'no', 'PRODUCTION_POD_MUTATION_RIGHT_REFUSED')
+        require(not access_allowed(verb, 'pods', 'jitsi'),
+                f'PRODUCTION_POD_MUTATION_RIGHT_REFUSED {verb}:pods')
     for verb, resource in [('create', 'pods/exec'), ('get', 'pods/exec'), ('create', 'pods/eviction'), ('get', 'secrets')]:
-        require(kubectl('auth', 'can-i', verb, resource, '-n', 'jitsi').strip() == 'no', 'SENSITIVE_PRODUCTION_RIGHT_REFUSED')
+        require(not access_allowed(verb, resource, 'jitsi'),
+                f'SENSITIVE_PRODUCTION_RIGHT_REFUSED {verb}:{resource}')
     cleanup_permissions(mode)
     before = production(); capacity(projected=True); https()
     jvb = [n for n, p in before.items() if p['component'] == 'jvb']

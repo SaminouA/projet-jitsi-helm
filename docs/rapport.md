@@ -716,6 +716,15 @@ instances. Les finalizers n'ont pas été forcés. Les secrets TLS temporaires
 Chaos ont été supprimés, les secrets applicatifs préservés. Le namespace était
 absent au contrôle final. Le nouveau pipeline manuel n'a pas réalisé cet essai.
 
+Le 18 novembre, le pipeline manuel sur `b3e4bce` s'est arrêté au contrôle
+d'autorisation avant la création du PodChaos. La correction a été validée
+localement sur 141 tests, dont 18 pour les expériences contrôlées. Les tests
+simulent les réponses de `SelfSubjectAccessReview` avec l'identité courante.
+Ils couvrent une autorisation, un refus motivé, une erreur d'évaluation et les
+sous-ressources Kubernetes. Ils vérifient aussi le contrôle des droits de
+nettoyage pour les deux modes et le nettoyage Malleus sur un échec Helm simulé.
+Aucune nouvelle exécution sur GKE ne valide encore cette correction.
+
 ## 11. Incidents, limites et bilan économique
 
 ### 11.1. Difficultés et solutions vérifiées

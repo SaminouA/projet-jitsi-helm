@@ -133,7 +133,9 @@ class ExperimentGuards(unittest.TestCase):
                 raise AssertionError(args)
             def kube(*args,**kwargs):
                 if args[:2]==('auth','whoami'):return json.dumps({'status':{'userInfo':{'username':m.ACCOUNT}}})
-                if args[:2]==('auth','can-i'):return 'yes' if args[-1]=='jitsi-load-test' else 'no'
+                if args[:2] == ('create', '--raw'):
+                    attrs = json.loads(kwargs['data'])['spec']['resourceAttributes']
+                    return json.dumps({'status': {'allowed': attrs['namespace'] == 'jitsi-load-test'}})
                 raise AssertionError(args)
             def reader(kind,namespace=None):
                 if kind=='namespace jitsi-load-test':return {'metadata':{'name':'jitsi-load-test'}}
@@ -141,7 +143,8 @@ class ExperimentGuards(unittest.TestCase):
                 raise AssertionError(kind)
             pods={'jvb':{'component':'jvb','uid':'a','restarts':0}}
             with patch.dict(os.environ,env),patch.object(m,'verify_load_render'),patch.object(m,'guard'),patch.object(m,'run',side_effect=command),patch.object(m,'kubectl',side_effect=kube),patch.object(m,'read',side_effect=reader),patch.object(m,'production',return_value=pods),patch.object(m,'capacity'),patch.object(m,'https'),patch.object(m,'forward'),patch.object(m,'stats',return_value={'conferences':0,'participants':0,'local_active_endpoints':0}),patch.object(m,'cleanup') as clean:
-                with self.assertRaises(RuntimeError):m.execute('malleus')
+                with self.assertRaisesRegex(RuntimeError, 'SIMULATED_INSTALL_FAILURE'):
+                    m.execute('malleus')
                 clean.assert_called_once()
                 summary=json.loads((m.folder()/'summary.json').read_text())
                 self.assertFalse(summary['success']);self.assertTrue(summary['cleanup'])
@@ -172,12 +175,62 @@ class ExperimentGuards(unittest.TestCase):
         with self.assertRaises(RuntimeError):m.injection_verified(s)
 
 
+    def test_access_review_accepts_authorization_and_reasoned_refusal(self):
+        for status, expected in [
+            ({'allowed': True}, True),
+            ({'allowed': False, 'denied': True, 'reason': 'Policy denied'}, False),
+            ({'allowed': False, 'reason': 'No matching grant'}, False),
+        ]:
+            with self.subTest(status=status), patch.object(
+                m, 'kubectl', return_value=json.dumps({'status': status})
+            ):
+                self.assertIs(m.access_allowed('delete', 'pods', 'jitsi'), expected)
+
+    def test_access_review_fails_closed_on_evaluation_error_or_missing_decision(self):
+        for status in [
+            {'allowed': False, 'evaluationError': 'backend unavailable'},
+            {'allowed': True, 'evaluationError': 'backend unavailable'},
+            {'allowed': 'false'},
+            {},
+            None,
+        ]:
+            with self.subTest(status=status), patch.object(
+                m, 'kubectl', return_value=json.dumps({'status': status})
+            ):
+                with self.assertRaisesRegex(RuntimeError, 'ACCESS_REVIEW_INCONCLUSIVE delete:pods'):
+                    m.access_allowed('delete', 'pods', 'jitsi')
+
+    def test_review_preserves_api_group_and_subresource_without_impersonation(self):
+        for resource, name, group, subresource in [
+            ('pods/exec', 'pods', '', 'exec'),
+            ('pods/eviction', 'pods', '', 'eviction'),
+            ('pods/log', 'pods', '', 'log'),
+            ('pods/portforward', 'pods', '', 'portforward'),
+            ('podchaos.chaos-mesh.org', 'podchaos', 'chaos-mesh.org', ''),
+            ('jobs.batch', 'jobs', 'batch', ''),
+        ]:
+            with self.subTest(resource=resource), patch.object(
+                m, 'kubectl', return_value='{"status":{"allowed":false}}'
+            ) as call:
+                m.access_allowed('create', resource, 'jitsi')
+                args, kwargs = call.call_args
+                self.assertEqual(args, ('create', '--raw',
+                    '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', '-f', '-'))
+                self.assertEqual(json.loads(kwargs['data']), {
+                    'apiVersion': 'authorization.k8s.io/v1',
+                    'kind': 'SelfSubjectAccessReview',
+                    'spec': {'resourceAttributes': {
+                        'namespace': 'jitsi', 'verb': 'create', 'group': group,
+                        'resource': name, 'subresource': subresource,
+                    }},
+                })
+
     def test_cleanup_rights_must_exist_before_any_creation(self):
-        for mode in ['malleus','chaos']:
-            with patch.object(m,'kubectl',return_value='yes'):
-                m.cleanup_permissions(mode)
-            def deny_delete(*args,**kwargs):
-                return 'no' if args[2]=='delete' else 'yes'
-            with patch.object(m,'kubectl',side_effect=deny_delete),patch.object(m,'run') as mutation:
-                with self.assertRaises(RuntimeError):m.cleanup_permissions(mode)
-                mutation.assert_not_called()
+        for mode, namespace in [('malleus', 'jitsi-load-test'), ('chaos', 'jitsi')]:
+            with self.subTest(mode=mode):
+                with patch.object(m, 'access_allowed', return_value=True) as review:
+                    m.cleanup_permissions(mode)
+                    self.assertTrue(all(args[-1] == namespace for args, _ in review.call_args_list))
+                with patch.object(m, 'access_allowed', side_effect=lambda v, r, n: v != 'delete'):
+                    with self.assertRaisesRegex(RuntimeError, 'REQUIRED_EXECUTION_OR_CLEANUP_PERMISSION_MISSING delete:'):
+                        m.cleanup_permissions(mode)
