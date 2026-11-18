@@ -920,6 +920,11 @@ redémarrage. HTTPS répond 200 et les révisions Helm sont inchangées.
 Les deux variables `TF_CD_ENABLED` ont été remises à `false`.
 Le [Plan de convergence nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177)
 est déclenché en lecture seule et attend son approbation GitHub.
+La reproduction indépendante sur le même commit confirme zéro création,
+modification, destruction ou remplacement et un état GCS inchangé.
+Après l'Apply, les 19 requêtes des 14 panneaux ont également renvoyé
+des séries réelles depuis Cloud Monitoring.
+
 
 ### 11.3. Coûts et cycle de vie
 
