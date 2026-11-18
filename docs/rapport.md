@@ -61,7 +61,7 @@ Le namespace `jitsi-load-test` accueille les ressources temporaires de charge.
    `TF_CD_ENABLED` est désactivé au dépôt et dans l'environnement protégé.
    Le Plan nº 8 confirme zéro changement et un état GCS inchangé.
 5. **Supervision.** Un PodMonitoring cible les métriques internes JVB sur 8080.
-   Les résultats et les procédures d'accès figurent dans le [guide monitoring](../monitoring/README.md).
+   Grafana interroge Managed Prometheus en PromQL. Le [guide de supervision](../monitoring/README.md) décrit la collecte et la source de données.
 
 ## 4. Résultats, difficultés et limites
 
@@ -69,7 +69,7 @@ Le namespace `jitsi-load-test` accueille les ressources temporaires de charge.
 |---|---|
 | Malleus | Le run nº 8 configure deux participants et 90 s. Le Job termine en 2 min 58 s, démarrage et fin compris. Trois relevés sur 49,1 s montrent deux endpoints actifs et des échanges vidéo dans les deux sens. La continuité vidéo sur 90 s n'a pas été mesurée. Les cinq pods Jitsi restent stables. Le chart de charge est nettoyé. |
 | Chaos Mesh | Une suppression ciblée du Web. Le nouveau pod possède un UID différent et revient Ready, tandis que les quatre autres gardent leurs UID. Le PodChaos est nettoyé. Aucune réunion active n'a été soumise à cette faute. |
-| Monitoring | Deux collecteurs Managed Prometheus prêts, scrape et santé JVB à 1. Les 19 requêtes des 14 panneaux ont renvoyé des séries. Grafana OSS a été validé localement puis arrêté. Le débit JVB représente le RTP/RTCP agrégé. La preuve vidéo seule vient des navigateurs Malleus. |
+| Monitoring | Deux collecteurs Managed Prometheus prêts, scrape et santé JVB à 1. Les 19 requêtes des 14 panneaux ont renvoyé des séries. Grafana OSS est actif sur la VM pour les captures. Le débit JVB représente le RTP/RTCP agrégé. La preuve vidéo seule vient des navigateurs Malleus. |
 | Réseau de charge | Namespace dédié et Selenium en ClusterIP sans IP externe. Aucun filtrage inter-namespace par NetworkPolicy n'a été démontré. La grille ne stipule pas ce filtrage. |
 
 | Difficulté | Solution vérifiée |
@@ -126,7 +126,13 @@ versionnées documentent des essais antérieurs distincts.
 | Terraform Convergence | Zéro création, modification, destruction ou remplacement. État distant GCS inchangé. | [Run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) |
 | Malleus | Job réussi et nettoyé. Deux participants et trois échantillons vidéo validés. | [Run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) · [Synthèse historique](../tests/load/k8s-video-low-cpu-results.json) |
 | Chaos Mesh | Une injection confirmée, remplacement du Web par un nouvel UID, retour à l'état Ready et nettoyage. | [Run Chaos](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029) · [YAML](../tests/chaos/podchaos-web-once.yaml) · [Synthèse historique](../tests/chaos/results-summary.json) |
-| Monitoring | Deux collecteurs prêts, collecte et santé JVB à 1. Les 19 requêtes des 14 panneaux ont renvoyé des séries. | [Configuration et accès](../monitoring/README.md) |
+| Monitoring | Deux collecteurs prêts, collecte et santé JVB à 1. Les 19 requêtes des 14 panneaux ont renvoyé des séries. | [Configuration de la supervision](../monitoring/README.md) |
+
+### Capture Grafana
+
+![Quatre panneaux Grafana montrant le CPU et la mémoire des nœuds GKE et des pods Jitsi](images/grafana-cpu-memoire.png)
+
+**Figure 1 — CPU et mémoire des deux nœuds GKE et des pods Jitsi, le 18 novembre 2026 sur une fenêtre de 30 minutes.** Le CPU du Jitsi Videobridge monte à environ 0,20 cœur et celui de l’un des nœuds atteint environ 0,43 cœur sur la même période. La mémoire des deux nœuds varie peu, autour de 2,3 et 3 Gio. Ces observations décrivent la fenêtre affichée.
 
 Les ressources GCP maintenues pour la démonstration peuvent générer des coûts.
 Elles comprennent le cluster et ses deux nœuds, la VM de travail, les disques
