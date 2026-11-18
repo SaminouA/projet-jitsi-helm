@@ -1,4 +1,3 @@
-# PREPARED ONLY. Dedicated identity/environment/bootstrap require explicit authorization.
 name: Chaos Mesh exact Web pod experiment
 'on':
   workflow_dispatch:
@@ -66,9 +65,6 @@ jobs:
       with:
         python-version: '3.12'
     - run: python3 -m pip install -r scripts/requirements.txt
-    - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
-      with:
-        version: v3.22.1
     - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
       with:
         project_id: project-fcf2ef91-c005-4910-a10
@@ -80,12 +76,32 @@ jobs:
       with:
         install_components: kubectl,gke-gcloud-auth-plugin
     - name: Private exec ADC kubeconfig
+      id: kubeconfig
       run: python3 scripts/controlled-experiment.py chaos --configure
-    - name: Run bounded experiment
+    - name: Avant · état des pods
+      shell: bash
+      run: |
+        evidence="$RUNNER_TEMP/jitsi-experiment-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+        mkdir -p "$evidence"
+        {
+          date -u +%FT%TZ
+          kubectl --request-timeout=15s -n jitsi get pods -o 'custom-columns=NAME:.metadata.name,UID:.metadata.uid,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount'
+        } | tee "$evidence/pods-before.txt"
+    - name: Pendant · injection PodChaos et reconstruction du Web
       run: python3 scripts/controlled-experiment.py chaos
     - name: Cleanup only owned temporary resources
       if: ${{ always() }}
       run: python3 scripts/controlled-experiment.py chaos --cleanup
+    - name: Après · état des pods et vérification du nettoyage
+      if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
+      shell: bash
+      run: |
+        evidence="$RUNNER_TEMP/jitsi-experiment-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+        mkdir -p "$evidence"
+        {
+          date -u +%FT%TZ
+          kubectl --request-timeout=15s -n jitsi get pods -o 'custom-columns=NAME:.metadata.name,UID:.metadata.uid,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount'
+        } | tee "$evidence/pods-after.txt"
     - name: Upload only sanitized observations
       if: ${{ always() }}
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -97,7 +113,13 @@ jobs:
 
           ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/metrics.jsonl
 
-          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/logs-sanitized.txt'
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/logs-sanitized.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-before.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-after.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-during.txt'
     - name: Delete private kubeconfig
       if: ${{ always() }}
       shell: bash

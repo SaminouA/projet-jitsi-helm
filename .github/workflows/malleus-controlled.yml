@@ -1,4 +1,3 @@
-# PREPARED ONLY. Dedicated identity/environment/bootstrap require explicit authorization.
 name: Malleus bounded video experiment
 'on':
   workflow_dispatch:
@@ -74,12 +73,34 @@ jobs:
       with:
         install_components: kubectl,gke-gcloud-auth-plugin
     - name: Private exec ADC kubeconfig
+      id: kubeconfig
       run: python3 scripts/controlled-experiment.py malleus --configure
-    - name: Run bounded experiment
+    - name: Avant · état des pods
+      shell: bash
+      run: |
+        evidence="$RUNNER_TEMP/jitsi-experiment-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+        mkdir -p "$evidence"
+        {
+          date -u +%FT%TZ
+          kubectl --request-timeout=15s -n jitsi get pods -o 'custom-columns=NAME:.metadata.name,UID:.metadata.uid,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount'
+          kubectl --request-timeout=15s -n jitsi-load-test get pods,job,deployment
+        } | tee "$evidence/pods-before.txt"
+    - name: Pendant · Helm, Selenium et exécution du Job Malleus
       run: python3 scripts/controlled-experiment.py malleus
     - name: Cleanup only owned temporary resources
       if: ${{ always() }}
       run: python3 scripts/controlled-experiment.py malleus --cleanup
+    - name: Après · état des pods et vérification du nettoyage
+      if: ${{ always() && steps.kubeconfig.outcome == 'success' }}
+      shell: bash
+      run: |
+        evidence="$RUNNER_TEMP/jitsi-experiment-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+        mkdir -p "$evidence"
+        {
+          date -u +%FT%TZ
+          kubectl --request-timeout=15s -n jitsi get pods -o 'custom-columns=NAME:.metadata.name,UID:.metadata.uid,READY:.status.containerStatuses[*].ready,RESTARTS:.status.containerStatuses[*].restartCount'
+          kubectl --request-timeout=15s -n jitsi-load-test get pods,job,deployment
+        } | tee "$evidence/pods-after.txt"
     - name: Upload only sanitized observations
       if: ${{ always() }}
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -91,7 +112,13 @@ jobs:
 
           ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/metrics.jsonl
 
-          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/logs-sanitized.txt'
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/logs-sanitized.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-before.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-after.txt
+
+          ${{ runner.temp }}/jitsi-experiment-${{ github.run_id }}-${{ github.run_attempt }}/pods-during.txt'
     - name: Delete private kubeconfig
       if: ${{ always() }}
       shell: bash

@@ -18,6 +18,10 @@ def transform(documents, target):
         if obj['kind'] == 'DaemonSet' or component in ('chaos-daemon', 'chaos-dashboard'): continue
         if obj['kind'] in ('PersistentVolumeClaim', 'PersistentVolume', 'PodSecurityPolicy'):
             raise SystemExit('Ressource inattendue dans installation minimale : refusee.')
+        if obj['kind'] == 'Role' and meta['name'] == 'chaos-mesh-chaos-controller-manager-control-plane':
+            for rule in obj['rules']:
+                rule['resources'] = [resource for resource in rule['resources'] if resource != 'pods/exec']
+            obj['rules'] = [rule for rule in obj['rules'] if rule['resources']]
         if obj['kind'] == 'ClusterRole' and meta['name'] == 'chaos-mesh-chaos-controller-manager-target-namespace':
             obj['rules'] = [
                 {'apiGroups': [''], 'resources': ['pods'], 'verbs': ['get', 'list', 'watch']},
