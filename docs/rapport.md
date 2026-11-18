@@ -879,15 +879,31 @@ OAuth temporaire et l'instance locale a été arrêtée. Le contrôle était
 effectué via l'API Grafana. Aucun rendu navigateur n'a été capturé.
 
 
-Le Plan Terraform historique est validé par le run 44158823388. La
-[nouvelle exécution en lecture seule](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619)
-attend l'approbation GitHub. La revue protégée du plan exact et son secret de
-transport ont été mis en place. L'activation du mode Apply attend la fin du
-Plan en lecture seule. Seule la modification du label `devops-apply-proof`
-sur le cluster est admissible par la garde du workflow. L'Apply reste soumis
-à la revue du plan exact et à une autorisation distincte. La section 12 rapproche
-les neuf critères de leurs preuves.
+#### Diagnostic du Plan Terraform nº 6
 
+Le [run 44288628619](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619)
+sur `7475960` a validé OIDC, le backend GCS, l'état distant et Terraform
+Validate. Le script a ensuite refusé le plan avec `PLAN_CHANGE_REFUSED`
+car le mode `readonly` exige `actions == ['no-op']` et aucun chemin
+de remplacement pour chacune des deux ressources gérées.
+
+Une reproduction locale en lecture seule, sur le même commit et le même
+backend, a établi **0 création, 1 modification, 0 destruction, 0 remplacement**.
+Terraform prévoit d'ajouter `devops-apply-proof=github-actions` au cluster
+`google_container_cluster.jitsi`. Les trois attributs calculés ou déclarés
+touchés sont `resource_labels`, `terraform_labels` et `effective_labels`.
+Le pool `google_container_node_pool.jitsi_nodes` est `no-op`. Le label est
+déclaré dans le code et absent du cluster. Le rafraîchissement signale aussi
+des écarts d'état sur `node_config`, `node_pool` et `resource_labels` côté
+cluster, et sur `node_config` côté pool. Ils n'ajoutent aucune action au plan.
+L'état distant est resté identique avant et après le diagnostic.
+
+La garde du mode `apply-label` accepte cette reproduction. Pour valider
+la grille, utiliser l'étape protégée de préparation du plan exact, vérifier
+son empreinte et le périmètre, puis demander une autorisation distincte
+avant l'Apply. Le mode `readonly` demeure réservé au contrôle sans changement.
+Après un Apply autorisé, un nouveau Plan en lecture seule doit confirmer
+la convergence. Aucun Apply n'a été exécuté pendant ce diagnostic.
 
 ### 11.3. Coûts et cycle de vie
 
@@ -915,7 +931,7 @@ configuration finale. Aucune destruction n'est faite pour cette livraison.
 | 4 | Secrets gérés par SOPS ou OpenBao | Les deux mots de passe XMPP du [fichier de valeurs](../values-secrets.sops.yaml) sont chiffrés par SOPS avec Cloud KMS. Leur utilisation est attestée par le run Helm. La vérification des champs ne constitue pas un audit exhaustif de tout l'historique Git. |
 | 5 | Dépôt organisé et documenté | Le [README](../README.md) donne les points d'entrée. Le rapport, les charts, Terraform et les preuves sont versionnés. |
 | 6 | Pipelines passants de déploiement Helm ou ArgoCD | La voie Helm satisfait le choix proposé. Le [run 44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) a réussi avec OIDC, SOPS/KMS et upgrades Helm. |
-| 7 | Pipelines de provisionnement infra passants | **Partiel.** Le [Plan historique](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44158823388) a réussi. Le [nouveau Plan](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619) attend sa revue GitHub. Aucun Apply GitHub réussi n'est attesté. |
+| 7 | Pipelines de provisionnement infra passants | **Partiel.** Le [Plan historique](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44158823388) a réussi. Le [Plan nº 6](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619) a refusé une mise à jour de label en mode sans changement. Aucun Apply GitHub réussi n'est attesté. |
 | 8 | Pipeline manuel ou programmé passant de lancement Malleus | Le [workflow dédié](../.github/workflows/malleus-controlled.yml) a réussi au [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205). |
 | 9 | Pipeline manuel ou programmé passant de lancement Chaos Mesh | Le [workflow dédié](../.github/workflows/chaos-controlled.yml) a réussi au [run 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029). |
 
