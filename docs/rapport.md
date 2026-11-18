@@ -766,14 +766,37 @@ que JVB. Selenium est devenu prêt et le Job a été activé. Le pipeline
 s'est arrêté sur une commande Kubernetes avant le premier relevé. La
 release temporaire a été nettoyée.
 
-La [reprise Malleus 44284381205](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205)
-sur `c31fed4` a réussi après approbation. Le Job a atteint `Complete` avec
-une réussite et zéro échec, et Maven a terminé par `BUILD SUCCESS`.
-L'[artefact](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205/artifacts/14418602142)
-contient les relevés horodatés, les compteurs et trois échantillons validant
-la vidéo à deux participants. La continuité vidéo sur les 90 secondes
-n'a pas été mesurée. Le résumé et la vérification Kubernetes finale ont
-confirmé le retrait du Job, de Selenium et du service de la release.
+Le [run Malleus nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205)
+sur `c31fed4` a réussi après approbation. Le profil Helm configure deux
+participants et une durée de 90 s pour le scénario. Le Job a atteint
+`Complete` en 2 min 58 s, avec une réussite et zéro échec. Les logs expurgés
+contiennent `BUILD SUCCESS`. La durée du Job inclut le démarrage et la fin
+du scénario. La continuité vidéo sur les 90 s n'a pas été mesurée.
+
+L'[artefact du run](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205/artifacts/14418602142)
+contient huit relevés sur 171,2 s. Sur trois relevés consécutifs couvrant
+49,1 s entre le premier et le dernier, JVB rapporte une conférence,
+deux participants et deux endpoints locaux actifs. Les deux navigateurs
+étaient connectés et affichaient des trames vidéo avec des débits vidéo
+montants et descendants non nuls. Les compteurs de trames augmentent entre
+les relevés. Les débits audio étaient nuls aux trois points.
+
+Les relevés comprennent le CPU et la mémoire des nœuds et des pods Jitsi,
+ainsi que l'état, les débits et les taux de paquets de JVB. Les maxima
+échantillonnés des nœuds sont de 54 % CPU et 52 % mémoire. JVB est resté
+`healthy` dans les huit relevés. Ses compteurs cumulés d'octets et de paquets
+sont inchangés dans l'artefact et ne permettent pas de chiffrer le volume
+transféré. Les cinq pods Jitsi sont restés prêts aux contrôles, avec les
+mêmes UID et zéro redémarrage avant et après. Selenium est apparu non
+prêt sur des relevés en cours de test, puis le Job a terminé avec succès.
+
+L'isolation vérifiée est celle décrite ci-dessus. Le service Selenium est
+interne à Kubernetes et la charge utilise le namespace dédié
+`jitsi-load-test`. Les deux pods de charge peuvent partager les nœuds du
+cluster avec Jitsi. Aucun filtrage inter-namespace n'a été démontré.
+Le résumé atteste le nettoyage, le relevé après exécution montre le
+namespace de charge vide pour les pods, jobs et déploiements, et le contrôle
+final confirme l'absence du service et de la release Helm.
 
 ## 11. Incidents, limites et bilan économique
 
@@ -843,9 +866,10 @@ initial Terraform est historique, le plan readonly GitHub est prouvé, mais
 ont aussi réussi via leurs workflows manuels le 18 novembre. Les preuves des
 deux runs et leurs limites figurent dans les sections 9 et 10.
 
-Avant rendu : renseigner la page de garde, ajouter seulement des captures
-réelles expurgées si disponibles, vérifier l'export PDF et les diagrammes,
-répéter la présentation au format demandé. Les prérequis d'apply/expériences,
+Avant rendu, vérifier la page de garde, l'export PDF et les diagrammes.
+Conserver une copie des artefacts de preuve au-delà de leur rétention
+GitHub de trois jours et préparer la démonstration à partir des workflows
+et des runs validés. Confirmer le niveau d'isolation réseau exigé par le barème. Les prérequis d'apply/expériences,
 leur éventuelle exécution et le nettoyage cloud restent soumis à décisions
 séparées ; ils ne sont pas exécutés pendant cette rédaction.
 
@@ -864,8 +888,7 @@ et les mesures aurait produit un résultat trompeur. Une reprise HTTP ne
 suffit pas à annoncer la résilience d'une réunion, pas plus qu'un Job Complete
 ne suffit à démontrer ses flux vidéo.
 
-Les perspectives sont l'exécution autorisée des pipelines préparés, la
-corrélation Cloud Monitoring, des campagnes répétées et stabilisées, le
+Les perspectives sont la corrélation Cloud Monitoring, des campagnes répétées et stabilisées, le
 provisionnement plus complet en IaC, le durcissement des identités et des accès,
 TURN et une étude de disponibilité du bridge. Ces perspectives ne sont pas
 présentées comme des travaux déjà accomplis.
