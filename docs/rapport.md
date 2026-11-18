@@ -873,6 +873,12 @@ le trafic, la readiness et les redémarrages. Les métriques de débit JVB
 agrègent le RTP/RTCP. Les observations vidéo propres au scénario Malleus sont
 dans ses mesures navigateur. Un graphique historique dans le dossier de
 remise représente les points Chaos et Malleus sauvegardés.
+Grafana OSS 13.2.4 a été testé temporairement sur localhost. Le tableau
+de bord a été importé et les 19 expressions ont renvoyé des séries
+réelles via la source Prometheus de Grafana. Le test a utilisé un jeton
+OAuth temporaire et l'instance locale a été arrêtée. Le contrôle était
+effectué via l'API Grafana. Aucun rendu navigateur n'a été capturé.
+
 
 Le Plan Terraform historique est validé par le run 44158823388. La
 [nouvelle exécution en lecture seule](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619)

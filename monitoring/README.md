@@ -16,8 +16,10 @@ La source doit envoyer un jeton OAuth temporaire dans l'en-tête sécurisé
 `Authorization`, avec une identité déjà autorisée à lire Cloud Monitoring.
 Renouveler le jeton à expiration. Ne jamais versionner le jeton.
 Pour une connexion durable, étudier le data source syncer de Google.
-L'import local n'a pas encore été validé. La console Cloud Monitoring
-peut afficher les requêtes PromQL pour la démonstration sans Grafana.
+L'import a été validé via l'API de Grafana OSS 13.2.4 sur localhost.
+Les 19 expressions des 14 panneaux ont renvoyé des données via la source.
+Le test a été arrêté. La console Cloud Monitoring peut également afficher
+les requêtes PromQL pour la démonstration.
 
 Les panneaux CPU, mémoire, réseau, Ready et redémarrages ont renvoyé des
 séries réelles via l'API. La disponibilité affichée est la readiness
