@@ -48,23 +48,82 @@ Les déploiements automatiques Helm et Terraform sont désactivés. Les expérie
 
 ## Organisation du dépôt
 
-| Chemin | Usage |
-|---|---|
-| `terraform/` | Cluster, node pool et backend GCS ; states exclus de Git |
-| `charts-officiels/jitsi-meet/` | Chart applicatif conservé |
-| `charts/jitsi-edge/` | Proxy TLS Caddy |
-| `charts/jitsi-load-test/` | Ressources temporaires Malleus/Selenium |
-| `deploy/` | Profils HTTPS et stockage |
-| `scripts/` | Validations, déploiement contrôlé, instrumentation et expériences |
-| `.github/workflows/` | CI, CD Helm, Terraform contrôlé, builds et expérimentations manuelles |
-| `tests/` | Tests statiques et synthèses expurgées ; collectes brutes ignorées |
-| `docs/` | Index et rapport technique |
+L'arborescence ci-dessous reprend les répertoires versionnés à la racine.
+
+```text
+.githooks/         Contrôles locaux avant commit et push
+.github/           Workflows GitHub Actions
+charts-officiels/  Chart Jitsi maintenu dans le dépôt
+charts/            Charts Caddy et Selenium/Malleus
+deploy/            Profils de déploiement HTTPS et stockage
+docs/              Index et rapport technique
+jitsi/             Fichiers historiques du projet
+monitoring/        PodMonitoring, dashboard Grafana et documentation
+scripts/           Validation et orchestration des opérations contrôlées
+terraform/         Cluster GKE, pool de nœuds et backend GCS
+tests/             Tests, manifestes et résultats expurgés
+```
 
 Le profil public associe `values-gke.yaml`, `deploy/jitsi-duckdns.yaml` et
 `values-secrets.sops.yaml`. Les secrets sont chiffrés avec SOPS/KMS ; ne jamais
 publier de déchiffrement, de state, de sauvegarde Helm ou de clé JSON.
 Le profil localhost nécessite une surcharge explicite : un port-forward seul
 ne transforme pas la configuration publique en profil localhost.
+
+## Monitoring
+
+Cloud Monitoring fournit les séries d'infrastructure GKE. Les collecteurs
+Managed Prometheus récupèrent les métriques JVB via le
+[PodMonitoring](monitoring/jvb-podmonitoring.yaml), sur `/metrics` et le port
+interne 8080 toutes les 30 secondes. Grafana interroge le backend managé
+en PromQL. Il ne collecte ni ne stocke ces séries lui-même.
+
+Grafana OSS 13.2.4 a été installé à partir du binaire Linux sur la VM existante,
+avec une base SQLite locale. Le service `jitsi-grafana-soutenance` écoute
+uniquement sur `127.0.0.1:18300`. La source **Managed Prometheus** utilise
+l'API Prometheus de Cloud Monitoring en HTTP GET, avec un jeton OAuth dans
+un en-tête sécurisé côté serveur. Le timer local
+`jitsi-grafana-gmp-refresh.timer` renouvelle ce jeton toutes les dix minutes
+via les identifiants ADC de l'opérateur et vérifie que la source répond.
+La configuration actuelle utilise des unités systemd temporaires et doit
+être relancée après un redémarrage de la VM. Le renouvellement dépend de
+la validité des identifiants ADC et de leur droit de lecture.
+
+Le [dashboard JSON](monitoring/grafana-jitsi.json) définit 14 panneaux et
+19 requêtes. Il a été importé dans Grafana en associant sa source
+`Managed Prometheus`. Son UID stable est `jitsi-gke-monitoring`.
+
+| Mesures | Utilité |
+|---|---|
+| CPU et mémoire des nœuds et pods Jitsi | Repérer la pression sur l'infrastructure et les composants les plus consommateurs. |
+| Trafic réseau et débit RTP/RTCP de JVB | Observer les échanges et l'activité du bridge. Le débit RTP/RTCP agrège les médias. |
+| Conférences, endpoints et endpoints émettant de la vidéo | Suivre l'activité du bridge et interpréter les mesures de charge. |
+| Readiness, redémarrages, santé JVB et `up` | Distinguer l'état des pods, la santé applicative et la réussite de la collecte. |
+| Paquets et stress JVB | Repérer les variations de trafic et les signes de pression sur le bridge. |
+
+### Accès lecteur par tunnel SSH
+
+Le compte Grafana `professeur` a le rôle **Viewer**. Ses identifiants sont
+conservés dans un fichier local privé, hors Git, et transmis par un canal
+séparé. Une connexion SSH par clé est nécessaire. L'opérateur doit
+enregistrer la clé publique du lecteur sur un compte dédié sans droits
+administrateur, sans session shell et autorisé uniquement à transférer
+le port local de la VM `127.0.0.1:18300`. Le compte SSH `prof-grafana`
+ci-dessous désigne ce compte dédié après son activation.
+
+Dans PowerShell, remplacer `ADRESSE_VM` par l'adresse communiquée par
+l'opérateur et utiliser le chemin de sa propre clé privée. Laisser la
+commande ouverte pendant la consultation.
+
+```powershell
+ssh -i "$env:USERPROFILE\.ssh\id_ed25519" -o ExitOnForwardFailure=yes -N -L 127.0.0.1:18300:127.0.0.1:18300 prof-grafana@ADRESSE_VM
+```
+
+Ouvrir [Jitsi sur GKE](http://127.0.0.1:18300/d/jitsi-gke-monitoring/jitsi-sur-gke?from=now-15m&to=now&refresh=30s)
+et se connecter au compte Grafana `professeur`. Dans VS Code Remote SSH,
+une session déjà autorisée peut aussi transférer le port distant
+`18300` en visibilité privée. Le compte SSH limité au tunnel utilise
+la commande OpenSSH ci-dessus.
 
 ## Vérifications locales
 
