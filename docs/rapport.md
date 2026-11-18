@@ -797,8 +797,7 @@ cluster avec Jitsi. Aucun filtrage inter-namespace n'a été démontré.
 L'inventaire du 18 novembre n'a trouvé aucune `NetworkPolicy` dans le
 cluster. Le namespace dédié et le service interne satisfont la séparation
 de déploiement et d'exposition. Une exigence de filtrage des flux entre
-namespaces demanderait une validation distincte. Le barème original reste
-indisponible dans le dépôt.
+namespaces demanderait une validation distincte. La grille transmise ne stipule pas de filtrage par `NetworkPolicy`.
 Le résumé atteste le nettoyage, le relevé après exécution montre le
 namespace de charge vide pour les pods, jobs et déploiements, et le contrôle
 final confirme l'absence du service et de la release Helm.
@@ -886,8 +885,8 @@ attend l'approbation GitHub. La revue protégée du plan exact et son secret de
 transport ont été mis en place. L'activation du mode Apply attend la fin du
 Plan en lecture seule. Seule la modification du label `devops-apply-proof`
 sur le cluster est admissible par la garde du workflow. L'Apply reste soumis
-à la revue du plan exact et à une autorisation distincte. Le barème officiel
-à neuf critères reste nécessaire pour une validation critère par critère.
+à la revue du plan exact et à une autorisation distincte. La section 12 rapproche
+les neuf critères de leurs preuves.
 
 
 ### 11.3. Coûts et cycle de vie
@@ -906,25 +905,25 @@ décision sur PVC/IP/données ACME et la conservation de l'état GCS. Les ancien
 commandes de destruction du journal ne sont pas applicables aveuglément à la
 configuration finale. Aucune destruction n'est faite pour cette livraison.
 
-## 12. Conformité et travaux restant à valider
+## 12. Validation des neuf critères de la grille du professeur
 
-Le [tableau final de conformité](conformite-finale.md) rassemble les preuves
-et les limites des attendus techniques connus. Le sujet/barème original n'est
-pas présent dans les fichiers examinés ; l'exigence exacte d'un Terraform
-automatique après push et le format de remise restent à confirmer.
+| Nº | Critère de la grille | État et preuve |
+|---:|---|---|
+| 1 | Chart Helm Jitsi | Présent dans [charts-officiels/jitsi-meet](../charts-officiels/jitsi-meet/Chart.yaml) et validé par le déploiement Helm. |
+| 2 | Chart Helm jitsi-meet-torture | Couvert par [jitsi-load-test](../charts/jitsi-load-test/Chart.yaml) sous ce nom dans le dépôt. Il fournit le Deployment et le Service Selenium Grid ainsi que le Job Malleus. Le [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) les a exécutés. |
+| 3 | Code Terraform | [Définition versionnée](../terraform/main.tf) du cluster GKE et du pool de nœuds avec état distant GCS. |
+| 4 | Secrets gérés par SOPS ou OpenBao | Les deux mots de passe XMPP du [fichier de valeurs](../values-secrets.sops.yaml) sont chiffrés par SOPS avec Cloud KMS. Leur utilisation est attestée par le run Helm. La vérification des champs ne constitue pas un audit exhaustif de tout l'historique Git. |
+| 5 | Dépôt organisé et documenté | Le [README](../README.md) donne les points d'entrée. Le rapport, les charts, Terraform et les preuves sont versionnés. |
+| 6 | Pipelines passants de déploiement Helm ou ArgoCD | La voie Helm satisfait le choix proposé. Le [run 44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) a réussi avec OIDC, SOPS/KMS et upgrades Helm. |
+| 7 | Pipelines de provisionnement infra passants | **Partiel.** Le [Plan historique](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44158823388) a réussi. Le [nouveau Plan](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619) attend sa revue GitHub. Aucun Apply GitHub réussi n'est attesté. |
+| 8 | Pipeline manuel ou programmé passant de lancement Malleus | Le [workflow dédié](../.github/workflows/malleus-controlled.yml) a réussi au [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205). |
+| 9 | Pipeline manuel ou programmé passant de lancement Chaos Mesh | Le [workflow dédié](../.github/workflows/chaos-controlled.yml) a réussi au [run 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029). |
 
-La CI après push et une CD Helm contrôlée sont prouvées. Le provisioning
-initial Terraform est historique, le plan readonly GitHub est prouvé, mais
-**l'apply Terraform GitHub ne l'est pas**. Les campagnes Malleus et Chaos réelles
-ont aussi réussi via leurs workflows manuels le 18 novembre. Les preuves des
-deux runs et leurs limites figurent dans les sections 9 et 10.
-
-Avant rendu, vérifier la page de garde, l'export PDF et les diagrammes.
-Conserver une copie des artefacts de preuve au-delà de leur rétention
-GitHub de trois jours et préparer la démonstration à partir des workflows
-et des runs validés. Confirmer le niveau d'isolation réseau exigé par le barème. Les prérequis d'apply/expériences,
-leur éventuelle exécution et le nettoyage cloud restent soumis à décisions
-séparées ; ils ne sont pas exécutés pendant cette rédaction.
+La grille transmise ne stipule ni filtrage réseau de Malleus par NetworkPolicy
+ni déploiement de Grafana. La séparation de déploiement et d'exposition
+est documentée en section 10, et le monitoring en section 11. Le critère 7
+reste le point technique à compléter. Avant remise, vérifier la page de garde,
+les diagrammes, l'export PDF et les liens des preuves.
 
 ## 13. Conclusion et perspectives
 
