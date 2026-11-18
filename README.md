@@ -2,7 +2,7 @@
 
 Plateforme de visioconférence déployée avec Terraform, Kubernetes et Helm,
 accessible en HTTPS via Caddy. Cette documentation distingue les observations
-historiques des procédures et des pipelines non exécutés.
+historiques des procédures et des validations récentes.
 
 ## Livraison du 18 novembre 2026
 
@@ -12,9 +12,7 @@ historiques des procédures et des pipelines non exécutés.
 - [Plan de présentation orale](docs/presentation-finale.md)
 - [Journal technique conservé](docs/archives/rapport-avant-livraison-finale-2026-11-17.md)
 
-Dernière base technique examinée : `23cb73d656015bbc71f16bb58abf308cb78d0fca`.
-Les observations GKE datent du 17 novembre 2026 ; cette finalisation documentaire
-ne constitue pas une nouvelle vérification de disponibilité du cluster.
+Les validations du 18 novembre et leurs limites sont regroupées dans le [rapport](docs/rapport.md) et le [guide monitoring](monitoring/README.md).
 
 ## Architecture
 
@@ -47,14 +45,14 @@ version 3.10.0 ; le dossier historique `jitsi/` n'est pas le chart déployé.
 |---|---|
 | CI Helm, Terraform et Python | CI main réussie ; 138 tests sur la base technique examinée |
 | CD Helm OIDC/SOPS | Exécution contrôlée réussie, puis désactivation du flag |
-| Terraform distant | Migration GCS et readonly plan GitHub réussis ; aucun apply GitHub |
+| Terraform distant | Migration GCS, Plan et Apply protégés réussis. [Run Terraform nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) |
 | Réunion manuelle | Audio/vidéo, chat et trois participants ; limites détaillées dans le rapport |
 | Malleus/Selenium | Essais natifs puis vidéo GKE à deux participants, avec mesures RTP |
 | Chaos Mesh | Une expérience historique pod-kill Web ; récupération HTTPS mesurée |
-| Nouveaux workflows d'expérimentation | Reconnus par GitHub et validés statiquement, jamais exécutés |
+| Workflows d'expérimentation | [Malleus nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205) et [Chaos Mesh](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029) réussis |
+| Monitoring | Collecte JVB active et 14 panneaux validés avec Grafana local. [Mode d’accès](monitoring/README.md) |
 
-Les flags de déploiement restent désactivés ; le flag d'expérimentation n'est
-pas défini. Les limites de capacité et la haute disponibilité ne sont pas démontrées.
+Les flags de déploiement Helm et Terraform sont désactivés. Les expériences restent manuelles et protégées. Les limites de capacité et la haute disponibilité ne sont pas démontrées.
 
 ## Structure et procédures
 

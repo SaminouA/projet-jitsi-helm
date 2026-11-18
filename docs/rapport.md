@@ -912,9 +912,14 @@ au cluster existant. Le bilan est de zéro création, une mise à jour sur
 place, zéro destruction et zéro remplacement. Le pool est `no-op`.
 L'empreinte du plan exact est
 `7263c6dbc66f9607e4cf999ccde8b375d8d029e250c3904fa58e40b830465b61`.
-Le run attend la revue `terraform-apply-review` et l'autorisation
-distincte d'Apply. Avant l'Apply, les cinq pods Jitsi étaient prêts
-sans redémarrage et le service public répondait HTTP 200.
+Le job `apply` a réussi après revue. Les logs attestent l'application
+du binaire revu et un plan final sans changement. GKE confirme que le
+cluster est `RUNNING` et porte le label prévu. Les deux nœuds sont prêts.
+Les cinq pods Jitsi ont conservé leurs UID, leur état Ready et zéro
+redémarrage. HTTPS répond 200 et les révisions Helm sont inchangées.
+Les deux variables `TF_CD_ENABLED` ont été remises à `false`.
+Le [Plan de convergence nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177)
+est déclenché en lecture seule et attend son approbation GitHub.
 
 ### 11.3. Coûts et cycle de vie
 
@@ -942,14 +947,13 @@ configuration finale. Aucune destruction n'est faite pour cette livraison.
 | 4 | Secrets gérés par SOPS ou OpenBao | Les deux mots de passe XMPP du [fichier de valeurs](../values-secrets.sops.yaml) sont chiffrés par SOPS avec Cloud KMS. Leur utilisation est attestée par le run Helm. La vérification des champs ne constitue pas un audit exhaustif de tout l'historique Git. |
 | 5 | Dépôt organisé et documenté | Le [README](../README.md) donne les points d'entrée. Le rapport, les charts, Terraform et les preuves sont versionnés. |
 | 6 | Pipelines passants de déploiement Helm ou ArgoCD | La voie Helm satisfait le choix proposé. Le [run 44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) a réussi avec OIDC, SOPS/KMS et upgrades Helm. |
-| 7 | Pipelines de provisionnement infra passants | **Partiel.** Le [Plan historique](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44158823388) a réussi. Le [Plan nº 6](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44288628619) a refusé une mise à jour de label en mode sans changement. Aucun Apply GitHub réussi n'est attesté. |
+| 7 | Pipelines de provisionnement infra passants | **Validé.** Le [run nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) a préparé, fait approuver et appliqué le plan exact. Le contrôle post-Apply du même run ne détecte aucun changement. Le [Plan indépendant nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) reste en attente. |
 | 8 | Pipeline manuel ou programmé passant de lancement Malleus | Le [workflow dédié](../.github/workflows/malleus-controlled.yml) a réussi au [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205). |
 | 9 | Pipeline manuel ou programmé passant de lancement Chaos Mesh | Le [workflow dédié](../.github/workflows/chaos-controlled.yml) a réussi au [run 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029). |
 
 La grille transmise ne stipule ni filtrage réseau de Malleus par NetworkPolicy
 ni déploiement de Grafana. La séparation de déploiement et d'exposition
-est documentée en section 10, et le monitoring en section 11. Le critère 7
-reste le point technique à compléter. Avant remise, vérifier la page de garde,
+est documentée en section 10, et le monitoring en section 11. Les neuf critères sont couverts par les preuves ci-dessus. Avant remise, vérifier la page de garde,
 les diagrammes, l'export PDF et les liens des preuves.
 
 ## 13. Conclusion et perspectives
