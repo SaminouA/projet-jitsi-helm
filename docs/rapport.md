@@ -905,6 +905,17 @@ avant l'Apply. Le mode `readonly` demeure réservé au contrôle sans changement
 Après un Apply autorisé, un nouveau Plan en lecture seule doit confirmer
 la convergence. Aucun Apply n'a été exécuté pendant ce diagnostic.
 
+Le [run Terraform nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368)
+sur `7475960` a réussi l'étape protégée `prepare-plan`. Le résumé expurgé
+de l'artefact confirme uniquement l'ajout du label `devops-apply-proof=github-actions`
+au cluster existant. Le bilan est de zéro création, une mise à jour sur
+place, zéro destruction et zéro remplacement. Le pool est `no-op`.
+L'empreinte du plan exact est
+`7263c6dbc66f9607e4cf999ccde8b375d8d029e250c3904fa58e40b830465b61`.
+Le run attend la revue `terraform-apply-review` et l'autorisation
+distincte d'Apply. Avant l'Apply, les cinq pods Jitsi étaient prêts
+sans redémarrage et le service public répondait HTTP 200.
+
 ### 11.3. Coûts et cycle de vie
 
 Les postes sont les nœuds, leurs disques, la gestion GKE selon facturation,
