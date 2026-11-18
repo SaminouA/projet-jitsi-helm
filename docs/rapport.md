@@ -1,15 +1,15 @@
-# Déploiement et automatisation d'une plateforme de visioconférence Jitsi Meet sur Google Cloud Platform (GCP)
+# Déploiement, automatisation, sécurisation et supervision de Jitsi Meet sur Google Cloud Platform
 
-**Rapport de projet — Master 2 — DevOps & Cloud Computing**
-**Remise prévue : 18 novembre 2026 — consolidation documentaire : 17 novembre 2026**
+**Rapport de projet — Master 2 DevOps & Cloud Computing**
+**Date de remise — 18 novembre 2026**
 
 | Information académique | Valeur |
 |---|---|
 | Auteur | Amandine — nom de famille : À compléter |
-| Établissement | Sup de Vinci Bordeaux |
-| Formation | Master 2 — DevOps & Cloud Computing |
+| Établissement | Sup de Vinci – Bordeaux |
+| Formation | Master 2 DevOps & Cloud Computing |
 | Enseignant ou encadrant | À compléter |
-| Année universitaire | 2026-2027 |
+| Année scolaire | 2026-2027 |
 | Dépôt | [SaminouA/projet-jitsi-helm](https://github.com/SaminouA/projet-jitsi-helm) |
 | Référence technique relue | `main` au commit `23cb73d656015bbc71f16bb58abf308cb78d0fca` |
 
@@ -919,7 +919,7 @@ Les cinq pods Jitsi ont conservé leurs UID, leur état Ready et zéro
 redémarrage. HTTPS répond 200 et les révisions Helm sont inchangées.
 Les deux variables `TF_CD_ENABLED` ont été remises à `false`.
 Le [Plan de convergence nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177)
-est déclenché en lecture seule et attend son approbation GitHub.
+a réussi en lecture seule. Son résumé confirme zéro changement et un état GCS inchangé.
 La reproduction indépendante sur le même commit confirme zéro création,
 modification, destruction ou remplacement et un état GCS inchangé.
 Après l'Apply, les 19 requêtes des 14 panneaux ont également renvoyé
@@ -952,7 +952,7 @@ configuration finale. Aucune destruction n'est faite pour cette livraison.
 | 4 | Secrets gérés par SOPS ou OpenBao | Les deux mots de passe XMPP du [fichier de valeurs](../values-secrets.sops.yaml) sont chiffrés par SOPS avec Cloud KMS. Leur utilisation est attestée par le run Helm. La vérification des champs ne constitue pas un audit exhaustif de tout l'historique Git. |
 | 5 | Dépôt organisé et documenté | Le [README](../README.md) donne les points d'entrée. Le rapport, les charts, Terraform et les preuves sont versionnés. |
 | 6 | Pipelines passants de déploiement Helm ou ArgoCD | La voie Helm satisfait le choix proposé. Le [run 44057014445](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44057014445) a réussi avec OIDC, SOPS/KMS et upgrades Helm. |
-| 7 | Pipelines de provisionnement infra passants | **Validé.** Le [run nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) a préparé, fait approuver et appliqué le plan exact. Le contrôle post-Apply du même run ne détecte aucun changement. Le [Plan indépendant nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) reste en attente. |
+| 7 | Pipelines de provisionnement infra passants | **Validé.** Le [run nº 7](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44292386368) a préparé, fait approuver et appliqué le plan exact. Le contrôle post-Apply du même run ne détecte aucun changement. Le [Plan indépendant nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44293963177) a réussi sans changement. |
 | 8 | Pipeline manuel ou programmé passant de lancement Malleus | Le [workflow dédié](../.github/workflows/malleus-controlled.yml) a réussi au [run nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205). |
 | 9 | Pipeline manuel ou programmé passant de lancement Chaos Mesh | Le [workflow dédié](../.github/workflows/chaos-controlled.yml) a réussi au [run 44282191029](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44282191029). |
 

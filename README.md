@@ -7,6 +7,7 @@ historiques des procédures et des validations récentes.
 ## Livraison du 18 novembre 2026
 
 - [Rapport académique](docs/rapport.md)
+- [Navigation de la documentation](docs/README.md)
 - [Conformité, preuves et limites](docs/conformite-finale.md)
 - [Index des preuves vérifiables](docs/preuves-livraison.md)
 - [Plan de présentation orale](docs/presentation-finale.md)
