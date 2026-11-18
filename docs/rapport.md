@@ -476,18 +476,20 @@ est skipped. « Reconnu/actif » dans le registre Actions ne signifie pas « ex�
 ### 7.4. Désactivation et validations encore nécessaires
 
 `GKE_CD_ENABLED=false`, `TF_CD_ENABLED=false` au dépôt et à l'environnement
-Terraform ; `EXPERIMENTS_ENABLED` absent, donc désactivé. Le flag edge de profil
+Terraform lors de l'audit. `EXPERIMENTS_ENABLED=true` a été vérifié le
+18 novembre pour les deux runs manuels. Le flag edge de profil
 ne suffit pas à activer le flag général de CD. Les conditions de main/SHA/CI,
 les approbations et le moindre privilège restent requis.
 
 Les workflows Malleus et Chaos demandent une identité et un provider dédiés,
 l'environnement protégé `experiments-controlled`, le namespace de charge et
-un contrôleur Chaos minimal. Ces prérequis n'étaient pas provisionnés au dernier
-audit. Ils vérifient les droits de nettoyage avant création, ciblent les seuls
+un contrôleur Chaos minimal. Les deux runs manuels du 18 novembre ont validé
+ces prérequis. Les workflows vérifient les droits de nettoyage avant création,
+ciblent les seuls
 objets du run, collectent des observations filtrées et utilisent `finally` et
 `always()`. Une perte complète du runner peut toutefois laisser le Deployment
 Selenium malgré le TTL du Job ; un contrôle manuel ciblé resterait nécessaire.
-Ces mécanismes ne sont pas une preuve de nettoyage par un run encore inexistant.
+Les artefacts des runs réussis attestent leur nettoyage, dans les sections 9 et 10.
 
 ## 8. Validation fonctionnelle
 
@@ -762,7 +764,44 @@ a installé le chart dans `jitsi-load-test`. Le service Selenium était
 `ClusterIP`, sans IP externe, et le pod Selenium était sur un autre nœud
 que JVB. Selenium est devenu prêt et le Job a été activé. Le pipeline
 s'est arrêté sur une commande Kubernetes avant le premier relevé. La
-release temporaire a été nettoyée. Le Job et les médias restent à valider.
+release temporaire a été nettoyée.
+
+Le [run Malleus nº 8](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205)
+sur `c31fed4` a réussi après approbation. Le profil Helm configure deux
+participants et une durée de 90 s pour le scénario. Le Job a atteint
+`Complete` en 2 min 58 s, avec une réussite et zéro échec. Les logs expurgés
+contiennent `BUILD SUCCESS`. La durée du Job inclut le démarrage et la fin
+du scénario. La continuité vidéo sur les 90 s n'a pas été mesurée.
+
+L'[artefact du run](https://github.com/SaminouA/projet-jitsi-helm/actions/runs/44284381205/artifacts/14418602142)
+contient huit relevés sur 171,2 s. Sur trois relevés consécutifs couvrant
+49,1 s entre le premier et le dernier, JVB rapporte une conférence,
+deux participants et deux endpoints locaux actifs. Les deux navigateurs
+étaient connectés et affichaient des trames vidéo avec des débits vidéo
+montants et descendants non nuls. Les compteurs de trames augmentent entre
+les relevés. Les débits audio étaient nuls aux trois points.
+
+Les relevés comprennent le CPU et la mémoire des nœuds et des pods Jitsi,
+ainsi que l'état, les débits et les taux de paquets de JVB. Les maxima
+échantillonnés des nœuds sont de 54 % CPU et 52 % mémoire. JVB est resté
+`healthy` dans les huit relevés. Ses compteurs cumulés d'octets et de paquets
+sont inchangés dans l'artefact et ne permettent pas de chiffrer le volume
+transféré. Les cinq pods Jitsi sont restés prêts aux contrôles, avec les
+mêmes UID et zéro redémarrage avant et après. Selenium est apparu non
+prêt sur des relevés en cours de test, puis le Job a terminé avec succès.
+
+L'isolation vérifiée est celle décrite ci-dessus. Le service Selenium est
+interne à Kubernetes et la charge utilise le namespace dédié
+`jitsi-load-test`. Les deux pods de charge peuvent partager les nœuds du
+cluster avec Jitsi. Aucun filtrage inter-namespace n'a été démontré.
+L'inventaire du 18 novembre n'a trouvé aucune `NetworkPolicy` dans le
+cluster. Le namespace dédié et le service interne satisfont la séparation
+de déploiement et d'exposition. Une exigence de filtrage des flux entre
+namespaces demanderait une validation distincte. Le barème original reste
+indisponible dans le dépôt.
+Le résumé atteste le nettoyage, le relevé après exécution montre le
+namespace de charge vide pour les pods, jobs et déploiements, et le contrôle
+final confirme l'absence du service et de la release Helm.
 
 ## 11. Incidents, limites et bilan économique
 
@@ -798,10 +837,23 @@ pendant Chaos ne sont pas validés. L'authentification Jitsi reste désactivée 
 TURN absent : la plateforme est une démonstration encadrée, pas une qualification
 d'exploitation publique durable.
 
-Cloud Logging/Monitoring GKE étaient activés selon l'audit historique. Les
-courbes explicitement corrélées aux fenêtres Malleus/Chaos ne sont pas conservées
-comme preuve validée. Les métriques `kubectl top`, JSONL et JVB ne doivent pas
-être présentées comme des captures Cloud Monitoring.
+Le contrôle du 18 novembre confirme que Cloud Monitoring GKE et Cloud Logging
+sont activés. L'API Cloud Monitoring a renvoyé des points récents pour le CPU
+des nœuds et pour `prometheus.googleapis.com/up/gauge` sur `jitsi-cluster`.
+`kubectl top nodes` a également renvoyé les mesures des deux nœuds. Aucune
+courbe Cloud Monitoring corrélée aux fenêtres Chaos et Malleus n'a été conservée.
+
+Managed Service for Prometheus est activé. Les deux collecteurs et l'opérateur
+étaient prêts. Les cibles observées sont `kube-state-metrics` et l'exporteur
+DCGM géré par GKE. Aucun `PodMonitoring` ni cible dédiée à JVB n'a été trouvé.
+Aucun Grafana n'a été identifié dans les déploiements, services ou ingress
+du cluster. L'existence d'un Grafana externe n'a pas été vérifiée.
+
+JVB a répondu via un tunnel local sur `/colibri/stats` avec `healthy=true`
+et zéro participant au repos. Son endpoint interne `/metrics` a renvoyé HTTP
+200. Les relevés JVB des expérimentations sont disponibles dans les artefacts
+JSONL. Une collecte continue des métriques JVB dans Prometheus et un tableau
+de bord Grafana restent à démontrer.
 
 ### 11.3. Coûts et cycle de vie
 
@@ -829,12 +881,13 @@ automatique après push et le format de remise restent à confirmer.
 La CI après push et une CD Helm contrôlée sont prouvées. Le provisioning
 initial Terraform est historique, le plan readonly GitHub est prouvé, mais
 **l'apply Terraform GitHub ne l'est pas**. Les campagnes Malleus et Chaos réelles
-sont prouvées séparément de leurs nouveaux workflows non exécutés. Ces écarts
-sont des limites de conformité, pas des résultats à compléter par supposition.
+ont aussi réussi via leurs workflows manuels le 18 novembre. Les preuves des
+deux runs et leurs limites figurent dans les sections 9 et 10.
 
-Avant rendu : renseigner la page de garde, ajouter seulement des captures
-réelles expurgées si disponibles, vérifier l'export PDF et les diagrammes,
-répéter la présentation au format demandé. Les prérequis d'apply/expériences,
+Avant rendu, vérifier la page de garde, l'export PDF et les diagrammes.
+Conserver une copie des artefacts de preuve au-delà de leur rétention
+GitHub de trois jours et préparer la démonstration à partir des workflows
+et des runs validés. Confirmer le niveau d'isolation réseau exigé par le barème. Les prérequis d'apply/expériences,
 leur éventuelle exécution et le nettoyage cloud restent soumis à décisions
 séparées ; ils ne sont pas exécutés pendant cette rédaction.
 
@@ -853,8 +906,7 @@ et les mesures aurait produit un résultat trompeur. Une reprise HTTP ne
 suffit pas à annoncer la résilience d'une réunion, pas plus qu'un Job Complete
 ne suffit à démontrer ses flux vidéo.
 
-Les perspectives sont l'exécution autorisée des pipelines préparés, la
-corrélation Cloud Monitoring, des campagnes répétées et stabilisées, le
+Les perspectives sont la corrélation Cloud Monitoring, des campagnes répétées et stabilisées, le
 provisionnement plus complet en IaC, le durcissement des identités et des accès,
 TURN et une étude de disponibilité du bridge. Ces perspectives ne sont pas
 présentées comme des travaux déjà accomplis.
